@@ -1,0 +1,98 @@
+body {
+  padding: 0;
+  margin: 0;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: /*#343a40;*/ #0b1120;
+  padding: 0px 50px;
+}
+.logo img {
+  width: 140px;
+  margin: 0;
+  padding: 0;
+}
+
+.nav ul {
+  list-style: none;
+  display: flex;
+  gap: 0 20px;
+}
+
+.nav ul li {
+  display: inline;
+}
+
+.nav ul li a {
+  text-decoration: none;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.nav ul li a:hover {
+  color: #ff4d4d;
+}
+
+/* Styling the Body element */
+body {
+  background-color: #05c46b;
+  font-family: Verdana;
+  text-align: center;
+}
+
+/* Styling the Form */
+form {
+  background-color: #fff;
+  max-width: 500px;
+  margin: 50px auto;
+  padding: 30px 20px;
+  box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Styling .form-control */
+.form-control {
+  text-align: left;
+  margin-bottom: 25px;
+}
+
+/* Styling .form-control label */
+.form-control label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* Styling .form-control input, select, textarea */
+.form-control input,
+.form-control select,
+.form-control textarea {
+  border: 1px solid #777;
+  border-radius: 2px;
+  font-family: inherit;
+  padding: 10px;
+  display: block;
+  width: 95%;
+}
+
+/* Styling Radio button and Checkbox */
+.form-control input[type="radio"],
+.form-control input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+}
+
+/* Styling Button */
+button {
+  background-color: #05c46b;
+  border: 1px solid #777;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 21px;
+  display: block;
+  width: 100%;
+  margin-top: 50px;
+  margin-bottom: 20px;
+}
