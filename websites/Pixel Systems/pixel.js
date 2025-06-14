@@ -1,3 +1,5 @@
+let sliderInterval, sliderInterval1;
+
 document.addEventListener("DOMContentLoaded", () => {
   const counters = document.querySelectorAll(".counter");
 
@@ -30,29 +32,50 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCounter();
   });
 
+  //sliders
+
   const images = [
     "Pixel Images/uWjEogFLUTBc8mSvagdiuP.jpg",
     "Pixel Images/1593380500279.jpeg",
   ];
-
-  let current = 0;
-  const imgElement = document.getElementById("slider-img");
-
-  setInterval(() => {
-    current = (current + 1) % images.length;
-    imgElement.src = images[current];
-  }, 3000); // change every 3 seconds
 
   const image = [
     "Pixel Images/Firethreat.jpg",
     "Pixel Images/Minimising-Data-Loss.jpg",
   ];
 
-  let current1 = 0;
-  const imgElement1 = document.getElementById("slider-img1");
+  // let current = 0;
+  // const imgElement = document.getElementById("slider-img");
 
-  setInterval(() => {
+  // setInterval(() => {
+  //   current = (current + 1) % images.length;
+  //   imgElement.src = images[current];
+  // }, 3000); // change every 3 seconds
+
+  // let current1 = 0;
+  // const imgElement1 = document.getElementById("slider-img1");
+
+  // setInterval(() => {
+  //   current1 = (current1 + 1) % image.length;
+  //   imgElement1.src = image[current1];
+  // }, 3000);
+
+  const imgElement = document.getElementById("slider-img");
+  let current = 0;
+  sliderInterval = setInterval(() => {
+    current = (current + 1) % images.length;
+    imgElement.src = images[current];
+  }, 3000);
+
+  const imgElement1 = document.getElementById("slider-img1");
+  let current1 = 0;
+  sliderInterval1 = setInterval(() => {
     current1 = (current1 + 1) % image.length;
     imgElement1.src = image[current1];
   }, 3000);
+});
+
+window.addEventListener("pagehide", () => {
+  clearInterval(sliderInterval);
+  clearInterval(sliderInterval1);
 });
