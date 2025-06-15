@@ -44,22 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "Pixel Images/Minimising-Data-Loss.jpg",
   ];
 
-  // let current = 0;
-  // const imgElement = document.getElementById("slider-img");
-
-  // setInterval(() => {
-  //   current = (current + 1) % images.length;
-  //   imgElement.src = images[current];
-  // }, 3000); // change every 3 seconds
-
-  // let current1 = 0;
-  // const imgElement1 = document.getElementById("slider-img1");
-
-  // setInterval(() => {
-  //   current1 = (current1 + 1) % image.length;
-  //   imgElement1.src = image[current1];
-  // }, 3000);
-
   const imgElement = document.getElementById("slider-img");
   let current = 0;
   sliderInterval = setInterval(() => {

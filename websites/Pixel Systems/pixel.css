@@ -61,18 +61,6 @@ header {
   z-index: 1;
 }
 
-/* .hero {
-  width: 100%;
-  max-width: 100vw;
-  overflow: hidden;
-  background-size: cover;
-  height: 75vh;
-  text-align: center;
-  position: relative;
-  color: white;
-  opacity: 0.9;
-} */
-
 .hero {
   position: relative;
   text-align: center;
@@ -338,8 +326,8 @@ img {
   border-radius: 8px;
   width: 100%;
   max-width: 500px;
-  max-height: 200px;
-
+  /* max-height: 200px; */
+  min-height: fit-content;
   color: #e2e8f0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   text-align: left;
@@ -467,7 +455,7 @@ footer h2 {
 
 .footer-column a {
   display: block;
-  color: #cbd5e1;
+  color: /*#cbd5e1*/ gray;
   text-decoration: none;
   margin: 5px 0;
   transition: color 0.3s;
