@@ -4,51 +4,89 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pixel IT Solution</title>
-    <link rel="stylesheet" href="css/survey.css" />
+    <link rel="stylesheet" href="survey.css" />
   </head>
   <body>
     <header>
       <div class="logo">
         <img
-          src="css/ChatGPT Image Jun 7, 2025, 05_26_03 PM.png"
+          src="Pixel Images/ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
           alt="Pixel IT Logo"
         />
       </div>
       <nav class="nav">
         <ul>
           <li><a href="pixel2.html">Home</a></li>
-          <li><a href="pixel2.html/#testimonials">Testimonials</a></li>
-          <li><a href="pixel2.html/#about">About us</a></li>
-          <li><a href="#contact">Contact</a></li>
+          <li><a href="pixel2.html">Testimonials</a></li>
+          <li><a href="pixel2.html">About us</a></li>
+          <li><a href="#">Contact</a></li>
         </ul>
       </nav>
     </header>
     <!-- Create Form -->
-    <form id="form">
+    <form
+      id="form"
+      action="https://script.google.com/macros/s/AKfycbwqfpOachckFzf0JFyVsViC30I4zXTAe3HEUeWLR33Aba1fi4PW45bzqvFUnWdlEd0mjw/exec"
+      method="POST"
+    >
       <!-- Details -->
       <div class="form-control">
         <label for="name" id="label-name">Name</label>
-        <input type="text" id="name" placeholder="Enter your name" />
+        <input
+          name="Name"
+          type="text"
+          id="name"
+          required
+          placeholder="Enter your name"
+        />
       </div>
 
       <div class="form-control">
         <label for="email" id="label-email">Email</label>
-        <input type="email" id="email" placeholder="Enter your email" />
+        <input
+          name="Email"
+          type="email"
+          id="email"
+          required
+          placeholder="Enter your email"
+        />
       </div>
 
       <div class="form-control">
-        <label for="age" id="label-age">Age</label>
-        <input type="text" id="age" placeholder="Enter your age" />
+        <label for="mobile" id="label-mobile">Mobile No.</label>
+        <input
+          name="Mobile"
+          type="text"
+          id="mobile"
+          required
+          placeholder="Enter your mobile"
+        />
       </div>
 
       <div class="form-control">
         <label for="comment">What type of work are you looking for</label>
         <textarea
-          name="comment"
+          name="Comment"
           id="comment"
           placeholder="Enter your query here"
         ></textarea>
       </div>
+
+      <!-- Hidden Details -->
+      <input type="hidden" name="_captcha" value="false" />
+      <input
+        type="hidden"
+        name="_subject"
+        value="New Form Submission from Pixel Site!"
+      />
+      <input type="hidden" name="_template" value="table" />
+      <!-- <input
+        type="hidden"
+        name="_next"
+        value="https://yourwebsite.com/thankyou.html"
+      /> -->
+      <!-- <input type="text" name="_honey" style="display: none" /> -->
+
       <!-- Submit Button -->
       <button type="submit" value="submit">Submit</button>
 
