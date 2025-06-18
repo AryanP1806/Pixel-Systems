@@ -8,10 +8,22 @@
       content="Pixel Systems - One stop solution for all your tech needs, offering AMC, rentals, refurbished laptops, and data safety."
     />
 
-    <title>Pixel IT Solution</title>
+    <title>Pixel Systems</title>
+
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="Pixel Images/ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
+    />
 
     <script src="pixel.js" defer></script>
     <link rel="stylesheet" href="pixel.css" />
+    <link
+      rel="stylesheet"
+      href="footer.css"
+      media="print"
+      onload="this.media='all'"
+    />
   </head>
   <body>
     <header>
@@ -47,8 +59,11 @@
       </section>
 
       <section id="amc" class="amc">
-        <h2 class="amc-title">Annual Maintenance Contract (AMC)</h2>
-        <hr />
+        <h2 class="amc-title">
+          Annual Maintenance Contract (AMC)
+          <hr />
+        </h2>
+
         <div class="amc-body">
           <p class="amc-content">
             Lorem ipsum, dolor sit amet consectetur adipisicing elit. Nemo,
@@ -63,7 +78,7 @@
             reiciendis consequatur neque vitae? Molestiae hic veritatis fugiat
             iure quam, facilis, minima cupiditate recusandae rem facere vero
             illo ut maiores suscipit, numquam explicabo.
-            <button class="amc-button">Book Now</button>
+            <button><a href="pixel.html">Book Now</a></button>
           </p>
 
           <img
@@ -76,10 +91,14 @@
       </section>
 
       <section class="rc">
-        <h2 class="rc-title">Rental Services</h2>
-        <hr />
+        <h2 class="rc-title">
+          Rental Services
+          <hr />
+        </h2>
+
         <div class="rc-body">
           <img
+            id="slider-img"
             class="rc-image"
             src="Pixel Images/425073.e0863a509bc786e573ee300d811bbb63.webp"
             alt="Rental Services"
@@ -98,14 +117,17 @@
             dolor aliquid nihil, repudiandae omnis quo, vel numquam accusamus
             temporibus hic error facere illum necessitatibus ut eveniet vitae
             cumque harum.
-            <button>Book Now</button>
+            <button><a href="pixel.html">Order Now</a></button>
           </p>
         </div>
       </section>
 
       <section class="prl">
-        <h2 class="prl-title">Premium Refurbished Laptops</h2>
-        <hr />
+        <h2 class="prl-title">
+          Premium Refurbished Laptops
+          <hr />
+        </h2>
+
         <div class="prl-body">
           <div class="prl-content">
             <p>
@@ -115,30 +137,64 @@
               suscipit omnis ullam ratione soluta? Reiciendis, reprehenderit
               saepe minus incidunt ipsa dignissimos ullam, quisquam obcaecati
               amet pariatur quasi rerum quidem ut doloremque minima, quos sequi
-              itaque rem sed nostrum eius repudiandae. Delectus, nesciunt
-              aliquid. Aperiam reiciendis error nemo?
+              itaque rem sed nostrum eius repudiandae.
             </p>
+
             <ul>
               <li>MacBook Pro / Air</li>
               <li>Lenovo Carbon X1 / T Series</li>
               <li>Dell Latitude Series</li>
             </ul>
-            <button>Book Now</button>
           </div>
+          <div class="slider">
+            <div class="arrow left" onclick="changeSlide(-1)">&#10094;</div>
+            <div class="arrow right" onclick="changeSlide(1)">&#10095;</div>
 
+            <div class="slide active">
+              <img
+                src="Pixel Images/5eea335daee6a8642c5f3894.webp"
+                alt="MacBook 1"
+              />
+              <img src="Pixel Images/1593380500279.webp" alt="MacBook 2" />
+              <img
+                src="Pixel Images/uWjEogFLUTBc8mSvagdiuP.webp"
+                alt="MacBook 3"
+              />
+            </div>
+
+            <div class="slide">
+              <img
+                src="Pixel Images/HP-x360-Spectre-15-angle.webp"
+                alt="ThinkPad X1"
+              />
+              <img
+                src="Pixel Images/16x9_2133x1200_highres-lenovo-thinkPad-x1-carbon-7th-gen-20192.webp"
+                alt="Acer"
+              />
+              <img
+                src="Pixel Images/61ebiYjiw0L._AC_SL1200_.webp"
+                alt="Dell Latitude"
+              />
+            </div>
+          </div>
+          <!--           
           <img
             id="slider-img"
             class="prl-image"
             src="Pixel Images/uWjEogFLUTBc8mSvagdiuP.webp"
             alt="Refurbished Laptops"
             loading="lazy"
-          />
+          /> -->
+          <button><a href="pixel.html">Order Now</a></button>
         </div>
       </section>
 
       <section class="dsc">
-        <h2 class="dsc-title">Data Safety Consulting</h2>
-        <hr />
+        <h2 class="dsc-title">
+          Data Safety Consulting
+          <hr />
+        </h2>
+
         <div class="dsc-body">
           <img
             id="slider-img1"
@@ -154,7 +210,7 @@
             odio aliquid dolore temporibus. Repudiandae rerum eaque deleniti
             earum qui accusantium molestias id iusto laudantium nostrum non
             maiores similique neque, voluptas quia unde totam ipsam incidunt!
-            <button>Book Now</button>
+            <button><a href="pixel.html">Book Now</a></button>
           </p>
         </div>
       </section>
@@ -168,45 +224,56 @@
           <div class="testimonial-card">
             <i class="fas fa-quote-left quote-icon"></i>
             <p class="testimonial-text">
-              Lorem ipsum, dolor sit amet consectetur adipisicing elit. Facere,
-              nesciunt.
+              Extremely professional and very helpful. Well organized... Mr.
+              Deepak and his team understand your requirements & answer your
+              queries, making sure that all your doubt's and requirements are
+              fulfilled.
             </p>
             <p class="testimonial-author">
-              <strong>Aryan</strong><br /><span>Student</span>
+              <strong> Mufaddal Poonawala</strong><br /><span
+                >Pixel Systems</span
+              >
             </p>
           </div>
 
           <div class="testimonial-card">
             <i class="fas fa-quote-left quote-icon"> </i>
             <p class="testimonial-text">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Quas
-              itaque nam incidunt, sapiente animi quod.
+              We have been taking services from Pixel Systems for the last 6
+              years, I would say these people do more than they are expected.
+              Prompt service , continuous support with optimum pricing,
             </p>
             <p class="testimonial-author">
-              <strong>Aryan Pore</strong><br /><span>Pixel Systems</span>
+              <strong> Sanmit Shah</strong><br /><span>Pixel Systems</span>
             </p>
           </div>
 
           <div class="testimonial-card">
             <i class="fas fa-quote-left quote-icon"> </i>
             <p class="testimonial-text">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Vel quia
-              corrupti velit voluptatum similique culpa, praesentium expedita
-              eius animi hic.
+              Excellent service by team ,a couple of minutes away from a phone
+              call. Great diagnostic approach to problem solving,Cost effective
+              service. Cudos to team Pixel. Great going. Cheers
             </p>
             <p class="testimonial-author">
-              <strong>Aryan Pore</strong><br /><span>Pixel Systems</span>
+              <strong>Alex Behanan</strong><br /><span
+                >founder & creative director at Lifeforms Lifestyles</span
+              >
             </p>
           </div>
 
           <div class="testimonial-card">
             <i class="fas fa-quote-left quote-icon"> </i>
             <p class="testimonial-text">
-              Lorem, ipsum dolor sit amet consectetur adipisicing elit. Qui
-              velit enim soluta vel itaque quisquam!
+              We are extremely satisfied with the exceptional services provided
+              by Pixel Systems. Their expertise in computer services,
+              particularly WiFi printer installation and software installation,
+              has greatly benefited our operations at Clickedge Solutions.
             </p>
             <p class="testimonial-author">
-              <strong>Aryan Pore</strong><br /><span>Pixel Systems</span>
+              <strong> sambaran chatterjee</strong><br /><span
+                >Pixel Systems</span
+              >
             </p>
           </div>
         </div>
@@ -268,7 +335,7 @@
         </div>
         <div class="footer-column">
           <h3>Legal</h3>
-          <a href="pixel-terms.html" target="_blank">Terms</a>
+          <a href="pixel-privacy.html#terms" target="_blank">Terms</a>
           <a href="pixel-privacy.html" target="_blank">Privacy</a>
           <a href="#">Refund</a>
         </div>
@@ -278,7 +345,9 @@
             ><i class="fab fa-github"></i> instagram</a
           >
           <a href=""><i class="fab fa-x-twitter"></i> Twitter (X)</a>
-          <a href="#"><i class="fab fa-whatsapp"></i> Whatsapp</a>
+          <a href="https://wa.me/8767399273"
+            ><i class="fab fa-whatsapp"></i> Whatsapp</a
+          >
           <a href="https://www.facebook.com/search/top?q=pixel%20systems"
             ><i class="fab fa-facebook"></i> Facebook</a
           >
