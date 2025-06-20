@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Ongoing Rentals{% endblock %}</h1>
+{% block content %}
+<h2>Ongoing Rentals</h2>
+
+<a href="{% url 'add_rental' %}">➕ Add Rental</a>
+
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Customer</th>
+    <th>Laptop (Asset ID)</th>
+    <th>Start Date</th>
+    <th>Status</th>
+  </tr>
+  {% for rental in rentals %}
+  <tr>
+    <td>{{ rental.customer.name }}</td>
+    <td>{{ rental.unit.asset_id }}</td>
+    <td>{{ rental.rental_start_date }}</td>
+    <td>{{ rental.status }}</td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="4">No ongoing rentals found.</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

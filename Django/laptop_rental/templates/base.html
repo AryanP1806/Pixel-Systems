@@ -1,0 +1,49 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Laptop Rental{% endblock %}</title>
+
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+      }
+      nav {
+        background: #222;
+        padding: 10px;
+      }
+      nav a {
+        color: white;
+        margin-right: 20px;
+        text-decoration: none;
+      }
+      .container {
+        padding: 20px;
+      }
+      .box-grid {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .box {
+        border: 1px solid #ccc;
+        padding: 20px;
+        width: 200px;
+        text-align: center;
+        background: #f9f9f9;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/rentals/">Ongoing Rentals</a>
+      <a href="/customers/">Customers</a>
+      <a href="/products/">Product List</a>
+      <a href="/history/">Rental History</a>
+    </nav>
+    <div class="container">{% block content %}{% endblock %}</div>
+  </body>
+</html>

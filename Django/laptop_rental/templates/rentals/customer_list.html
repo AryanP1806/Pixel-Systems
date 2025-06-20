@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Customer List{% endblock %}</h1>
+{% block content %}
+<h2>Customer List</h2>
+<a href="{% url 'add_customer' %}">➕ Add Customer</a>
+<form method="get" style="margin-bottom: 20px">
+  <input
+    type="text"
+    name="q"
+    placeholder="Search name, email or phone..."
+    value="{{ request.GET.q }}"
+  />
+  <label
+    ><input
+      type="checkbox"
+      name="permanent"
+      {%
+      if
+      request.GET.permanent
+      %}checked{%
+      endif
+      %}
+    />
+    Permanent</label
+  >
+  <label
+    ><input
+      type="checkbox"
+      name="bni"
+      {%
+      if
+      request.GET.bni
+      %}checked{%
+      endif
+      %}
+    />
+    BNI Member</label
+  >
+  <button type="submit">🔍 Search</button>
+</form>
+
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Primary Address</th>
+    <th>Secondary Address</th>
+    <th>Primary Phone</th>
+    <th>Secondary Phone</th>
+    <th>Permanent?</th>
+    <th>BNI?</th>
+    <th>Actions</th>
+  </tr>
+  {% for customer in customers %}
+  <tr>
+    <td>{{ customer.name }}</td>
+    <td>{{ customer.email }}</td>
+    <td>{{ customer.address_primary }}</td>
+    <td>{{ customer.address_secondary|default:'NA' }}</td>
+    <td>{{ customer.phone_number_primary }}</td>
+    <td>{{ customer.phone_number_secondary }}</td>
+    <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
+    <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
+    <td>
+      <a href="{% url 'edit_customer' customer.pk %}">✏️ Edit</a>
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="4">No customers found.</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

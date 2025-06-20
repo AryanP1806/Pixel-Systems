@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+<h1>{% block title %}Product List{% endblock %}</h1>
+{% block content %}
+<h2>Product List</h2>
+<a href="{% url 'add_product' %}">➕ Add Customer</a>
+
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Asset ID</th>
+    <th>Serial Number</th>
+    <th>Model</th>
+    <th>Status</th>
+  </tr>
+  {% for product in products %}
+  <tr>
+    <td>{{ product.asset_id }}</td>
+    <td>{{ product.serial_number }}</td>
+    <td>{{ product.model.brand }} {{ product.model.model_name }}</td>
+    <td>{{ product.status }}</td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="4">No products found.</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
