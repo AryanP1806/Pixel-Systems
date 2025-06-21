@@ -1,27 +1,62 @@
 {% extends 'base.html' %}
-
-<h1>{% block title %}Product List{% endblock %}</h1>
+<h2>{% block title %}Product List{% endblock %}</h2>
 {% block content %}
 <h2>Product List</h2>
-<a href="{% url 'add_product' %}">➕ Add Customer</a>
+<a href="{% url 'add_product' %}">➕ Add Product</a>
+
+<pre>
+<form method="get" style="margin-bottom: 20px;">
+  <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
+  
+  <select name="type">
+    <option value="">All Types</option>
+    {% for t in asset_types %}
+      <option value="{{ t }}" {% if asset_type == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="sort">
+    <option value="-purchase_date" {% if sort_by == "-purchase_date" %}selected{% endif %}>Newest First</option>
+    <option value="purchase_date" {% if sort_by == "purchase_date" %}selected{% endif %}>Oldest First</option>
+  </select>
+
+  <button type="submit">Search</button>
+</form>
+
+</pre>
 
 <table border="1" cellpadding="8">
   <tr>
-    <th>Asset ID</th>
-    <th>Serial Number</th>
-    <th>Model</th>
-    <th>Status</th>
+    <th>Type</th>
+    <th>Brand</th>
+    <th>Model No</th>
+    <th>Serial No</th>
+    <th>Asset Id</th>
+    <th>Purchase Date</th>
+    <th>Warranty</th>
+    <th>Actions</th>
   </tr>
-  {% for product in products %}
+  {% for p in products %}
   <tr>
-    <td>{{ product.asset_id }}</td>
-    <td>{{ product.serial_number }}</td>
-    <td>{{ product.model.brand }} {{ product.model.model_name }}</td>
-    <td>{{ product.status }}</td>
-  </tr>
-  {% empty %}
-  <tr>
-    <td colspan="4">No products found.</td>
+    <td>{{ p.type_of_asset }}</td>
+    <td>{{ p.brand }}</td>
+    <td>{{ p.model_no }}</td>
+    <td>{{ p.serial_no }}</td>
+    <td>{{ p.asset_id }}</td>
+    <td>{{ p.purchase_date }}</td>
+    <td>
+      {% if p.under_warranty %} {{ p.warranty_duration_months }} months
+      <p></p>
+      {% else %} No
+      <p></p>
+      {% endif %}
+    </td>
+    <td>
+      <a href="{% url 'product_detail' p.pk %}">👁️ View</a> |
+      <a href="{% url 'edit_product' p.pk %}">✏️ Edit</a> |
+      <a href="{% url 'add_config' p.pk %}">➕ Add Config</a>
+      <a href="{% url 'clone_product' p.pk %}">📄 Clone</a>
+    </td>
   </tr>
   {% endfor %}
 </table>

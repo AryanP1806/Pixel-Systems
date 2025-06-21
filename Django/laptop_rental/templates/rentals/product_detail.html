@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Product Details{% endblock %}</h1>
+{% block content %}
+<h2>Product Details: {{ product.asset_id }}</h2>
+
+<ul>
+  <li>Type: {{ product.type_of_asset }}</li>
+  <li>Brand: {{ product.brand }}</li>
+  <li>Model No: {{ product.model_no }}</li>
+  <li>Serial No: {{ product.serial_no }}</li>
+  <li>Purchase Date: {{ product.purchase_date }}</li>
+  <li>Under Warranty: {{ product.under_warranty|yesno:"Yes,No" }}</li>
+  <li>Purchased From: {{ product.purchased_from }}</li>
+</ul>
+
+<h3>Configuration History:</h3>
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Date</th>
+    <th>RAM</th>
+    <th>HDD</th>
+    <th>SSD</th>
+    <th>Graphics</th>
+    <th>Display</th>
+    <th>Power</th>
+    <th>Details</th>
+    <th>Actions</th>
+  </tr>
+  {% for config in configs %}
+  <tr>
+    <td>{{ config.date_of_config }}</td>
+    <td>{{ config.ram }}</td>
+    <td>{{ config.hdd }}</td>
+    <td>{{ config.ssd }}</td>
+    <td>{{ config.graphics }}</td>
+    <td>{{ config.display_size }}</td>
+    <td>{{ config.power_supply }}</td>
+    <td>{{ config.detailed_config }}</td>
+    <td>
+      <a href="{% url 'edit_config' config.pk %}">✏️</a>
+      <a
+        href="{% url 'delete_config' config.pk %}"
+        onclick="return confirm('Are you sure?')"
+        >🗑️</a
+      >
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="8">No configurations found.</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<a href="{% url 'add_config' product.pk %}">➕ Add Configuration</a>
+{% endblock %}

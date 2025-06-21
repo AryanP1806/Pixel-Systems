@@ -1,5 +1,5 @@
 from django import forms
-from .models import Customer, ProductUnit, Rental
+from .models import Customer, Rental, ProductAsset, ProductConfiguration
 
 class CustomerForm(forms.ModelForm):
     class Meta:
@@ -15,10 +15,15 @@ class CustomerForm(forms.ModelForm):
             'is_bni_member': forms.CheckboxInput(),
         }
 
-class ProductForm(forms.ModelForm):
+class ProductAssetForm(forms.ModelForm):
     class Meta:
-        model = ProductUnit
+        model = ProductAsset
         fields = '__all__'
+
+class ProductConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = ProductConfiguration
+        exclude = ['asset'] 
 
 class RentalForm(forms.ModelForm):
     class Meta:

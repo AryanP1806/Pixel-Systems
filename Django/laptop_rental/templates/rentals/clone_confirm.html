@@ -1,0 +1,12 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Clone Product</h2>
+<p>
+  Are you sure you want to clone the product:
+  <strong>{{ product.asset_id }}</strong>?
+</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Yes, Clone</button>
+  <a href="{% url 'product_list' %}">Cancel</a>
+</form>
+{% endblock %}

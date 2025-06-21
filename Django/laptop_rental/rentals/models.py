@@ -1,45 +1,66 @@
 from django.db import models
+from django.utils.timezone import now
 
 # -----------------------------
 # Product Collection
 # -----------------------------
-class ProductCollection(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
 
-    def __str__(self):
-        return self.name
 
 # -----------------------------
 # Product Model (Type)
 # -----------------------------
-class ProductModel(models.Model):
+class ProductAsset(models.Model):
+    ASSET_TYPES = [
+        ('Laptop', 'Laptop'),
+        ('Monitor', 'Monitor'),
+        ('Printer', 'Printer'),
+        ('Adaptor', 'Adaptor'),
+        # Add more as needed
+    ]
+    # asset_id = models.CharField(max_length=50, unique=True, blank=True)
+    asset_id = models.CharField(max_length=50, blank=True, null=True)
+
+    type_of_asset = models.CharField(max_length=50, choices=ASSET_TYPES)
     brand = models.CharField(max_length=100)
-    model_name = models.CharField(max_length=100)
-    description = models.TextField()
-    collection = models.ForeignKey(ProductCollection, on_delete=models.SET_NULL, null=True, blank=True)
+    model_no = models.CharField(max_length=100)
+    serial_no = models.CharField(max_length=100, unique=True)
+
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
+    current_value = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_date = models.DateField()
+
+    under_warranty = models.BooleanField(default=False)
+    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
+    purchased_from = models.CharField(max_length=255)
+
+    def save(self, *args, **kwargs):
+        if not self.asset_id:
+            year = self.purchase_date.year if self.purchase_date else now().year
+            last_id = ProductAsset.objects.filter(purchase_date__year=year).count() + 1
+            self.asset_id = f"Pixel/{year}/{last_id}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.brand} {self.model_name}"
-
+        return f"{self.asset_id} - {self.brand} ({self.serial_no})"
 # -----------------------------
 # Product Unit (Individual Laptop)
 # -----------------------------
-class ProductUnit(models.Model):
-    model = models.ForeignKey(ProductModel, on_delete=models.CASCADE)
-    asset_id = models.CharField(max_length=50, unique=True)
-    serial_number = models.CharField(max_length=100, unique=True)
-    
-    STATUS_CHOICES = [
-        ('available', 'Available'),
-        ('rented', 'Rented'),
-        ('maintenance', 'Under Maintenance'),
-        ('retired', 'Retired'),
-    ]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+class ProductConfiguration(models.Model):
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='configurations')
+    date_of_config = models.DateField()
+
+    ram = models.CharField(max_length=50, blank=True, null=True)
+    hdd = models.CharField(max_length=50, blank=True, null=True)
+    ssd = models.CharField(max_length=50, blank=True, null=True)
+    graphics = models.CharField(max_length=100, blank=True, null=True)
+    display_size = models.CharField(max_length=50, blank=True, null=True)
+    power_supply = models.CharField(max_length=100, blank=True, null=True)
+
+    detailed_config = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.model} - {self.asset_id}"
+        return f"Config on {self.date_of_config} for {self.asset}"
+
 
 # -----------------------------
 # Customer
@@ -68,7 +89,7 @@ class Customer(models.Model):
 # -----------------------------
 class Rental(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    unit = models.ForeignKey(ProductUnit, on_delete=models.CASCADE)
+    unit = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
     rental_start_date = models.DateField()
     rental_end_date = models.DateField(null=True, blank=True)
     

@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+<h2>{% block content %}</h2>
+<h2>Add Configuration for {{ asset.asset_id }}</h2>
+<form method="post">
+  {% csrf_token %} {{ form.as_p }}
+  <button type="submit">Save Configuration</button>
+</form>
+{% endblock %}
