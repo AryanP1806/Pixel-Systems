@@ -7,17 +7,24 @@ from django.contrib import messages
 from django.utils.timezone import now
 import uuid
 from datetime import timedelta
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+from django.shortcuts import redirect
 
+def logout_view(request):
+    logout(request)
+    return redirect('login')
 
+@login_required
 def homepage(request):
     return render(request, 'homepage.html')
 
-
+@login_required
 def rental_list(request):
     rentals = Rental.objects.filter(status='ongoing')
     return render(request, 'rentals/rental_list.html', {'rentals': rentals})
 
-
+@login_required
 def customer_list(request):
     query = request.GET.get('q')
     is_permanent = request.GET.get('permanent') == 'on'
@@ -41,11 +48,7 @@ def customer_list(request):
     return render(request, 'rentals/customer_list.html', {'customers': customers})
 
 
-# def product_list(request):
-#     products = ProductUnit.objects.all()
-#     return render(request, 'rentals/product_list.html', {'products': products})
-
-
+@login_required
 def product_list(request):
     query = request.GET.get('q')
     sort_by = request.GET.get('sort', '-purchase_date')
@@ -76,6 +79,8 @@ def product_list(request):
         'asset_types': asset_types
     })
 
+
+@login_required
 def rental_history(request):
     query = request.GET.get('q', '')
 
@@ -107,6 +112,7 @@ def rental_history(request):
         'query': query
     })
 
+@login_required
 def add_customer(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
@@ -117,7 +123,7 @@ def add_customer(request):
         form = CustomerForm()
     return render(request, 'rentals/add_customer.html', {'form': form})
 
-
+@login_required
 def add_product(request):
     if request.method == 'POST':
         form = ProductAssetForm(request.POST)
@@ -128,6 +134,8 @@ def add_product(request):
         form = ProductAssetForm()
     return render(request, 'rentals/add_product.html', {'form': form})
 
+
+@login_required
 def add_rental(request):
     if request.method == 'POST':
         form = RentalForm(request.POST)
@@ -148,7 +156,7 @@ def add_rental(request):
         form = RentalForm()
     return render(request, 'rentals/add_rental.html', {'form': form})
 
-
+@login_required
 def edit_customer(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == 'POST':
@@ -160,7 +168,7 @@ def edit_customer(request, pk):
         form = CustomerForm(instance=customer)
     return render(request, 'rentals/edit_customer.html', {'form': form, 'customer': customer})
 
-
+@login_required
 def edit_product(request, pk):
     asset = get_object_or_404(ProductAsset, pk=pk)
     if request.method == 'POST':
@@ -173,7 +181,7 @@ def edit_product(request, pk):
     return render(request, 'rentals/edit_product.html', {'form': form, 'asset': asset})
 
 
-
+@login_required
 def add_config(request, asset_id):
     asset = get_object_or_404(ProductAsset, pk=asset_id)
 
@@ -192,14 +200,14 @@ def add_config(request, asset_id):
 
     return render(request, 'rentals/add_config.html', {'form': form, 'asset': asset})
 
-    
+@login_required    
 def product_detail(request, pk):
     product = get_object_or_404(ProductAsset, pk=pk)
     configs = product.configurations.all().order_by('-date_of_config')
     return render(request, 'rentals/product_detail.html', {'product': product, 'configs': configs})
 
 
-
+@login_required
 def edit_config(request, config_id):
     config = get_object_or_404(ProductConfiguration, pk=config_id)
     if request.method == 'POST':
@@ -211,6 +219,9 @@ def edit_config(request, config_id):
         form = ProductConfigurationForm(instance=config)
     return render(request, 'rentals/edit_config.html', {'form': form, 'config': config})
 
+
+
+@login_required
 def delete_config(request, config_id):
     config = get_object_or_404(ProductConfiguration, pk=config_id)
     asset_id = config.asset.pk
@@ -218,7 +229,7 @@ def delete_config(request, config_id):
     return redirect('product_detail', pk=asset_id)
 
 
-
+@login_required
 def clone_product(request, pk):
     original = get_object_or_404(ProductAsset, pk=pk)
 
@@ -251,34 +262,8 @@ def clone_product(request, pk):
 
 
 
-# def rental_list(request):
-#     rentals = Rental.objects.all()
 
-#     query = request.GET.get('q')
-#     if query:
-#         rentals = rentals.filter(
-#             Q(customer__name__icontains=query) |
-#             Q(asset__asset_id__icontains=query) |
-#             Q(asset__serial_no__icontains=query)
-#         )
-
-#     filter_type = request.GET.get('filter')
-
-#     if filter_type == 'ongoing':
-#         rentals = Rental.objects.filter(status='ongoing')
-#     elif filter_type == 'overdue':
-#         rentals = Rental.objects.filter(status='overdue')
-#     else:
-#         rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
-
-#     # rentals = rentals.order_by('-rental_start_date')
-#     rentals = rentals.order_by('-rental_start_date')  # or any other field
-#     for rental in rentals:
-#         rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
-
-
-#     return render(request, 'rentals/rental_list.html', {'rentals': rentals, 'filter_type': filter_type})
-
+@login_required
 def rental_list(request):
     query = request.GET.get('q')
     filter_type = request.GET.get('filter')
@@ -310,7 +295,7 @@ def rental_list(request):
     })
 
 
-
+@login_required
 def mark_rental_completed(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
     rental.status = 'completed'
@@ -318,7 +303,7 @@ def mark_rental_completed(request, rental_id):
     return redirect('rental_list')
 
 
-
+@login_required
 def edit_rental(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
     from datetime import timedelta

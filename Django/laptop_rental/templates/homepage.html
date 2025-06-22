@@ -1,12 +1,13 @@
-<!-- templates/homepage.html -->
 {% extends 'base.html' %}
-<p>{% block title %}Home - Laptop Rental{% endblock %}</p>
+<h1>{% block title %}Home - Laptop Rental{% endblock %}</h1>
 {% block content %}
-<h1>Welcome to Laptop Rental System</h1>
-<div class="box-grid">
-  <div class="box"><a href="/rentals/">📦 Ongoing Rentals</a></div>
-  <div class="box"><a href="/products/">💻 Product List</a></div>
-  <div class="box"><a href="/customers/">👤 Customers</a></div>
-  <div class="box"><a href="/history/">📜 Rental History</a></div>
+<div class="homepage-center">
+  <h1>Welcome to Laptop Rental System</h1>
+  <div class="dashboard-grid">
+    <a class="dashboard-box" href="/rentals/">📦 Ongoing Rentals</a>
+    <a class="dashboard-box" href="/products/">💻 Product List</a>
+    <a class="dashboard-box" href="/customers/">👤 Customers</a>
+    <a class="dashboard-box" href="/history/">📜 Rental History</a>
+  </div>
 </div>
 {% endblock %}

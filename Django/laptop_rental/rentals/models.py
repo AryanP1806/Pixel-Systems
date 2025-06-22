@@ -67,21 +67,6 @@ class ProductConfiguration(models.Model):
 
 
 
-# class ProductUnit(models.Model):
-#     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='units')
-#     serial_no = models.CharField(max_length=100, unique=True)
-#     asset_tag = models.CharField(max_length=100, unique=True, blank=True)  # Renamed from asset_id
-
-#     def save(self, *args, **kwargs):
-#         if not self.asset_tag:
-#             year = self.asset.purchase_date.year if self.asset.purchase_date else timezone.now().year
-#             count = ProductUnit.objects.filter(asset__purchase_date__year=year).count() + 1
-#             self.asset_tag = f"Pixel/{year}/{count}"
-#         super().save(*args, **kwargs)
-
-#     def __str__(self):
-#         return f"{self.asset_tag} ({self.asset.brand} - {self.asset.model_no})"
-
 
 # -----------------------------
 # Customer

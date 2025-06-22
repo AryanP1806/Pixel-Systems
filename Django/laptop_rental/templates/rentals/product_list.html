@@ -2,7 +2,7 @@
 <h2>{% block title %}Product List{% endblock %}</h2>
 {% block content %}
 <h2>Product List</h2>
-<a href="{% url 'add_product' %}">➕ Add Product</a>
+<a href="{% url 'add_product' %}"><button>➕ Add Product</button></a>
 
 <pre>
 <form method="get" style="margin-bottom: 20px;">
@@ -52,10 +52,10 @@
       {% endif %}
     </td>
     <td>
-      <a href="{% url 'product_detail' p.pk %}">👁️ View</a> |
-      <a href="{% url 'edit_product' p.pk %}">✏️ Edit</a> |
-      <a href="{% url 'add_config' p.pk %}">➕ Add Config</a>
-      <a href="{% url 'clone_product' p.pk %}">📄 Clone</a>
+      <a href="{% url 'product_detail' p.pk %}"><button>👁️ View</button></a> |
+      <a href="{% url 'edit_product' p.pk %}"><button>✏️ Edit</button></a> |
+      <a href="{% url 'add_config' p.pk %}"><button>➕ Add Config</button></a> |
+      <a href="{% url 'clone_product' p.pk %}"><button>📄 Clone</button></a>
     </td>
   </tr>
   {% endfor %}

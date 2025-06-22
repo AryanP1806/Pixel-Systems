@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+import logging
+logging.basicConfig(level=logging.DEBUG)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -121,12 +123,18 @@ USE_I18N = True
 
 USE_TZ = True
 
+# 🔐 SESSION BEHAVIOR SETTINGS
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# SESSION_COOKIE_AGE = 10
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
+import os
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
@@ -141,3 +149,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'aryanpore3056@gmail.com'
 EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq'  # Use app password if using Gmail
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+# Login 
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'  # or any home page
+LOGOUT_REDIRECT_URL = '/login/'  
+

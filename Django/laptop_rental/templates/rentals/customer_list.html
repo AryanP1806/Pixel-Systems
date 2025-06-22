@@ -2,7 +2,7 @@
 <h1>{% block title %}Customer List{% endblock %}</h1>
 {% block content %}
 <h2>Customer List</h2>
-<a href="{% url 'add_customer' %}">➕ Add Customer</a>
+<a href="{% url 'add_customer' %}"><button>➕ Add Customer</button></a>
 <form method="get" style="margin-bottom: 20px">
   <input
     type="text"
@@ -10,32 +10,34 @@
     placeholder="Search name, email or phone..."
     value="{{ request.GET.q }}"
   />
-  <label
-    ><input
-      type="checkbox"
-      name="permanent"
-      {%
-      if
-      request.GET.permanent
-      %}checked{%
-      endif
-      %}
-    />
-    Permanent</label
-  >
-  <label
-    ><input
-      type="checkbox"
-      name="bni"
-      {%
-      if
-      request.GET.bni
-      %}checked{%
-      endif
-      %}
-    />
-    BNI Member</label
-  >
+  <p>
+    <label>
+      <input
+        type="checkbox"
+        name="permanent"
+        {%
+        if
+        request.GET.permanent
+        %}checked{%
+        endif
+        %}
+      />
+      Permanent</label
+    >
+    <label
+      ><input
+        type="checkbox"
+        name="bni"
+        {%
+        if
+        request.GET.bni
+        %}checked{%
+        endif
+        %}
+      />
+      BNI Member</label
+    >
+  </p>
   <button type="submit">🔍 Search</button>
 </form>
 
@@ -62,7 +64,7 @@
     <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
     <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
     <td>
-      <a href="{% url 'edit_customer' customer.pk %}">✏️ Edit</a>
+      <a href="{% url 'edit_customer' customer.id %}"><button>Edit</button></a>
     </td>
   </tr>
   {% empty %}
