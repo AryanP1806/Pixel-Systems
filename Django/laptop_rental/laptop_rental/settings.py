@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rentals'
+    'rentals',
+    'django_select2'
 ]
 
 MIDDLEWARE = [
@@ -130,3 +131,13 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# My email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'aryanpore3056@gmail.com'
+EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq'  # Use app password if using Gmail
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

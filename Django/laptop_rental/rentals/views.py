@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration
+from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment
 from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm
 from django.db.models import Q
 from django.db import IntegrityError
 from django.contrib import messages
 from django.utils.timezone import now
 import uuid
+from datetime import timedelta
 
 
 def homepage(request):
@@ -77,7 +78,7 @@ def product_list(request):
 
 
 def rental_history(request):
-    history = Rental.objects.select_related('customer', 'unit').filter(status='completed')
+    history = Rental.objects.select_related('customer', 'asset').filter(status='completed')
     return render(request, 'rentals/rental_history.html', {'history': history})
 
 
@@ -107,12 +108,21 @@ def add_rental(request):
     if request.method == 'POST':
         form = RentalForm(request.POST)
         if form.is_valid():
-            form.save()
+            rental = form.save(commit=False)
+            rental.status = 'ongoing'
+            rental.save()
+
+            # Create linked payment
+            Payment.objects.create(
+                rental=rental,
+                amount=form.cleaned_data['payment_amount'],
+                status=form.cleaned_data['payment_status']
+            )
+
             return redirect('rental_list')
     else:
         form = RentalForm()
     return render(request, 'rentals/add_rental.html', {'form': form})
-
 
 
 def edit_customer(request, pk):
@@ -185,9 +195,6 @@ def delete_config(request, config_id):
 
 
 
-import uuid
-from django.utils.timezone import now
-
 def clone_product(request, pk):
     original = get_object_or_404(ProductAsset, pk=pk)
 
@@ -217,3 +224,97 @@ def clone_product(request, pk):
             return redirect('product_list')
 
     return render(request, 'rentals/clone_confirm.html', {'product': original})
+
+
+
+# def rental_list(request):
+#     rentals = Rental.objects.all()
+
+#     query = request.GET.get('q')
+#     if query:
+#         rentals = rentals.filter(
+#             Q(customer__name__icontains=query) |
+#             Q(asset__asset_id__icontains=query) |
+#             Q(asset__serial_no__icontains=query)
+#         )
+
+#     filter_type = request.GET.get('filter')
+
+#     if filter_type == 'ongoing':
+#         rentals = Rental.objects.filter(status='ongoing')
+#     elif filter_type == 'overdue':
+#         rentals = Rental.objects.filter(status='overdue')
+#     else:
+#         rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
+
+#     # rentals = rentals.order_by('-rental_start_date')
+#     rentals = rentals.order_by('-rental_start_date')  # or any other field
+#     for rental in rentals:
+#         rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+
+
+#     return render(request, 'rentals/rental_list.html', {'rentals': rentals, 'filter_type': filter_type})
+
+def rental_list(request):
+    query = request.GET.get('q')
+    filter_type = request.GET.get('filter')
+
+    # Filter by status first
+    if filter_type == 'ongoing':
+        rentals = Rental.objects.filter(status='ongoing')
+    elif filter_type == 'overdue':
+        rentals = Rental.objects.filter(status='overdue')
+    else:
+        rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
+
+    # Then apply search filter on the already filtered queryset
+    if query:
+        rentals = rentals.filter(
+            Q(customer__name__icontains=query) |
+            Q(asset__asset_id__icontains=query) |
+            Q(asset__serial_no__icontains=query)
+        )
+
+    # Sort and calculate due date
+    rentals = rentals.order_by('-rental_start_date')
+    for rental in rentals:
+        rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+
+    return render(request, 'rentals/rental_list.html', {
+        'rentals': rentals,
+        'filter_type': filter_type
+    })
+
+
+
+def mark_rental_completed(request, rental_id):
+    rental = get_object_or_404(Rental, pk=rental_id)
+    rental.status = 'completed'
+    rental.save()
+    return redirect('rental_list')
+
+
+
+def edit_rental(request, rental_id):
+    rental = get_object_or_404(Rental, pk=rental_id)
+    from datetime import timedelta
+    rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+
+    if request.method == 'POST':
+        form = RentalForm(request.POST, instance=rental)
+        if form.is_valid():
+            rental = form.save()
+            # update or create the payment too
+            payment_data = {
+                'amount': form.cleaned_data['payment_amount'],
+                'status': form.cleaned_data['payment_status'],
+            }
+            Payment.objects.update_or_create(rental=rental, defaults=payment_data)
+            return redirect('rental_list')
+    else:
+        initial_data = {
+            'payment_amount': rental.payment.amount if hasattr(rental, 'payment') else 0,
+            'payment_status': rental.payment.status if hasattr(rental, 'payment') else 'pending',
+        }
+        form = RentalForm(instance=rental, initial=initial_data)
+    return render(request, 'rentals/edit_rental.html', {'form': form,'rental': rental})

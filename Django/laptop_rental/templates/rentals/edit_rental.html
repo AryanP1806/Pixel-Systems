@@ -1,0 +1,8 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Edit Rental</h2>
+<form method="post">
+  {% csrf_token %} {{ form.as_p }}
+  <p><strong>Rental End Date:</strong> {{ rental.end_date|date:"F j, Y" }}</p>
+  <button type="submit">Update Rental</button>
+</form>
+{% endblock %}

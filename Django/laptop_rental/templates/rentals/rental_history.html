@@ -13,7 +13,7 @@
   {% for rental in history %}
   <tr>
     <td>{{ rental.customer.name }}</td>
-    <td>{{ rental.unit.asset_id }}</td>
+    <td>{{ rental.asset.asset_id }}</td>
     <td>{{ rental.rental_start_date }}</td>
     <td>{{ rental.rental_end_date }}</td>
     <td>{{ rental.status }}</td>

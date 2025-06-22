@@ -1,9 +1,12 @@
 from django.db import models
 from django.utils.timezone import now
+from datetime import timedelta, date, timezone
 
 # -----------------------------
-# Product Collection
+# Product 
 # -----------------------------
+
+
 
 
 # -----------------------------
@@ -31,7 +34,7 @@ class ProductAsset(models.Model):
 
     under_warranty = models.BooleanField(default=False)
     warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
-    purchased_from = models.CharField(max_length=255)
+    purchased_from = models.CharField(max_length=255) 
 
     def save(self, *args, **kwargs):
         if not self.asset_id:
@@ -41,7 +44,8 @@ class ProductAsset(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.asset_id} - {self.brand} ({self.serial_no})"
+        return f"{self.type_of_asset} | {self.brand} {self.model_no} [{self.asset_id}]"
+    
 # -----------------------------
 # Product Unit (Individual Laptop)
 # -----------------------------
@@ -60,6 +64,23 @@ class ProductConfiguration(models.Model):
 
     def __str__(self):
         return f"Config on {self.date_of_config} for {self.asset}"
+
+
+
+# class ProductUnit(models.Model):
+#     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='units')
+#     serial_no = models.CharField(max_length=100, unique=True)
+#     asset_tag = models.CharField(max_length=100, unique=True, blank=True)  # Renamed from asset_id
+
+#     def save(self, *args, **kwargs):
+#         if not self.asset_tag:
+#             year = self.asset.purchase_date.year if self.asset.purchase_date else timezone.now().year
+#             count = ProductUnit.objects.filter(asset__purchase_date__year=year).count() + 1
+#             self.asset_tag = f"Pixel/{year}/{count}"
+#         super().save(*args, **kwargs)
+
+#     def __str__(self):
+#         return f"{self.asset_tag} ({self.asset.brand} - {self.asset.model_no})"
 
 
 # -----------------------------
@@ -88,41 +109,53 @@ class Customer(models.Model):
 # Rental
 # -----------------------------
 class Rental(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    unit = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
-    rental_start_date = models.DateField()
-    rental_end_date = models.DateField(null=True, blank=True)
-    
-    STATUS_CHOICES = [
+    STATUS_CHOICES = (
         ('ongoing', 'Ongoing'),
-        ('completed', 'Completed'),
         ('overdue', 'Overdue'),
-    ]
+        ('completed', 'Completed'),
+    )
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE,blank=True, null=True)
+    rental_start_date = models.DateField()
+    duration_days = models.PositiveIntegerField(blank=True)
+    rental_end_date = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
 
-    def __str__(self):
-        return f"Rental #{self.id} - {self.customer.name} - {self.unit.asset_id}"
+
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    contract_number = models.CharField(max_length=50, blank=True)
+    made_by = models.CharField(max_length=100, blank=True)
+    def save(self, *args, **kwargs):
+        if self.rental_start_date and self.duration_days:
+            self.rental_end_date = self.rental_start_date + timedelta(days=self.duration_days)
+        super().save(*args, **kwargs)
+
+    def is_overdue(self):
+        return self.status == 'ongoing' and date.today() > self.rental_end_date
 
 # -----------------------------
 # Payment
 # -----------------------------
 class Payment(models.Model):
-    rental = models.ForeignKey(Rental, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_date = models.DateField()
+   
     
     METHOD_CHOICES = [
         ('cash', 'Cash'),
         ('card', 'Card'),
         ('upi', 'UPI'),
     ]
-    payment_method = models.CharField(max_length=20, choices=METHOD_CHOICES)
     
     STATUS_CHOICES = [
         ('paid', 'Paid'),
         ('partial', 'Partial'),
         ('unpaid', 'Unpaid'),
     ]
+
+    rental = models.OneToOneField(Rental, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateField(auto_now_add=True)
+    payment_method = models.CharField(max_length=20, choices=METHOD_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unpaid')
 
     def __str__(self):
