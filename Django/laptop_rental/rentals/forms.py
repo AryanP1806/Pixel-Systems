@@ -44,39 +44,61 @@ class RentalForm(forms.ModelForm):
 #         model = Rental
 #         fields = ['customer', 'asset', 'rental_start_date', 'duration_days']
         
-
 class RentalForm(forms.ModelForm):
+    # Custom fields not part of the Rental model
     payment_amount = forms.DecimalField(max_digits=10, decimal_places=2, required=True)
-    payment_status = forms.ChoiceField(choices=[('pending', 'Pending'), ('paid', 'Paid')], initial='pending')
+    payment_status = forms.ChoiceField(choices=[('pending', 'Pending'), ('paid', 'Paid')])
+    payment_method = forms.ChoiceField(
+        choices=[('cash', 'Cash'), ('upi', 'UPI'), ('bank', 'Bank Transfer'), ('card', 'Card')],
+        required=True
+    )
+
     class Meta:
         model = Rental
-        fields = ['customer', 'asset', 'rental_start_date', 'duration_days', 'contract_number', 'made_by', 'status']
+        fields = [
+            'customer',
+            'asset',
+            'rental_start_date',
+            'duration_days',
+            'contract_number',
+            'made_by',
+            'status'
+        ]
         widgets = {
             'customer': forms.Select(attrs={'class': 'autocomplete'}),
             'asset': forms.Select(attrs={'class': 'autocomplete'}),
             'rental_start_date': forms.DateInput(attrs={'type': 'date'})
         }
 
+    # def __init__(self, *args, **kwargs):
+    #     current_instance = kwargs.get('instance', None)
+    #     super().__init__(*args, **kwargs)
+
+    #     from rentals.models import Rental, ProductAsset
+
+    #     # Get all assets currently in ongoing rentals
+    #     ongoing_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
+    #     if current_instance:
+    #         self.fields['asset'].queryset = ProductAsset.objects.filter(
+    #         Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
+    #     )
+    #     else:
+    #         self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)
+
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # ✅ call this first
+
         current_instance = kwargs.get('instance', None)
-        super().__init__(*args, **kwargs)
 
         from rentals.models import Rental, ProductAsset
+        from django.db.models import Q
 
         # Get all assets currently in ongoing rentals
         ongoing_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
 
-        # In Add mode
-        # if not current_instance:
-        #     self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)
-        # else:
-        #     # In Edit mode: allow the current asset even if it’s in an ongoing rental
-        #     self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids).union(
-        #         ProductAsset.objects.filter(id=current_instance.asset_id)
-        #     )
         if current_instance:
             self.fields['asset'].queryset = ProductAsset.objects.filter(
-            Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
-        )
+                Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
+            )
         else:
             self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)

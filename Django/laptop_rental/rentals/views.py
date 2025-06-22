@@ -76,12 +76,36 @@ def product_list(request):
         'asset_types': asset_types
     })
 
-
 def rental_history(request):
-    history = Rental.objects.select_related('customer', 'asset').filter(status='completed')
-    return render(request, 'rentals/rental_history.html', {'history': history})
+    query = request.GET.get('q', '')
 
+    # Filter only completed rentals
+    rentals = Rental.objects.filter(status='completed')
 
+    # Search functionality
+    if query:
+        rentals = rentals.filter(
+            Q(customer__name__icontains=query) |
+            Q(asset__asset_id__icontains=query) |
+            Q(asset__serial_no__icontains=query) |
+            Q(asset__model_no__icontains=query) |
+            Q(contract_number__icontains=query) |
+            Q(made_by__icontains=query)|
+            Q(payment__amount__icontains=query) |
+            Q(payment__status__icontains=query)
+        )
+
+    rentals = rentals.order_by('-rental_start_date')
+    # Add end_date for display
+    for rental in rentals:
+        rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+
+      # newest first
+
+    return render(request, 'rentals/rental_history.html', {
+        'rentals': rentals,
+        'query': query
+    })
 
 def add_customer(request):
     if request.method == 'POST':
@@ -308,13 +332,16 @@ def edit_rental(request, rental_id):
             payment_data = {
                 'amount': form.cleaned_data['payment_amount'],
                 'status': form.cleaned_data['payment_status'],
+                'payment_method': form.cleaned_data['payment_method']
             }
             Payment.objects.update_or_create(rental=rental, defaults=payment_data)
             return redirect('rental_list')
     else:
         initial_data = {
-            'payment_amount': rental.payment.amount if hasattr(rental, 'payment') else 0,
-            'payment_status': rental.payment.status if hasattr(rental, 'payment') else 'pending',
+        'payment_amount': rental.payment.amount if hasattr(rental, 'payment') else 0,
+        'payment_status': rental.payment.status if hasattr(rental, 'payment') else 'pending',
+        'payment_method': rental.payment.payment_method if hasattr(rental, 'payment') else 'cash',
         }
         form = RentalForm(instance=rental, initial=initial_data)
+
     return render(request, 'rentals/edit_rental.html', {'form': form,'rental': rental})

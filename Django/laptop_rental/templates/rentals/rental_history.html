@@ -1,26 +1,49 @@
 {% extends 'base.html' %}
 <h1>{% block title %}Rental History{% endblock %}</h1>
 {% block content %}
-<h2>Rental History</h2>
+<h2>Rental History (Completed)</h2>
+
+<form method="get">
+  <input
+    type="text"
+    name="q"
+    placeholder="Search rentals..."
+    value="{{ query }}"
+  />
+  <button type="submit">Search</button>
+</form>
+
 <table border="1" cellpadding="8">
   <tr>
     <th>Customer</th>
-    <th>Laptop (Asset ID)</th>
-    <th>Start Date</th>
-    <th>End Date</th>
-    <th>Status</th>
+    <th>Asset ID</th>
+    <th>Serial No</th>
+    <th>Model</th>
+    <th>Rental Start</th>
+    <th>Rental End</th>
+    <th>Payment Amount</th>
+    <th>Payment Status</th>
+    <th>Payment Method</th>
+    <th>Contract No.</th>
+    <th>Edited By</th>
   </tr>
-  {% for rental in history %}
+  {% for rental in rentals %}
   <tr>
     <td>{{ rental.customer.name }}</td>
     <td>{{ rental.asset.asset_id }}</td>
+    <td>{{ rental.asset.serial_no }}</td>
+    <td>{{ rental.asset.model_no }}</td>
     <td>{{ rental.rental_start_date }}</td>
-    <td>{{ rental.rental_end_date }}</td>
-    <td>{{ rental.status }}</td>
+    <td>{{ rental.end_date|date:"F j, Y" }}</td>
+    <td>{{ rental.payment.amount }}</td>
+    <td>{{ rental.payment.status }}</td>
+    <td>{{ rental.payment.payment_method }}</td>
+    <td>{{ rental.contract_number }}</td>
+    <td>{{ rental.made_by }}</td>
   </tr>
   {% empty %}
   <tr>
-    <td colspan="5">No completed rentals found.</td>
+    <td colspan="10">No completed rentals found.</td>
   </tr>
   {% endfor %}
 </table>
