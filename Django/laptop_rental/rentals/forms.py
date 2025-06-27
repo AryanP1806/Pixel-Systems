@@ -33,6 +33,7 @@ class ProductAssetForm(forms.ModelForm):
         widgets = {
             'purchase_date': forms.DateInput(attrs={'type': 'date'}),
             'under_warranty': forms.CheckboxInput(),
+            'sale_date': forms.DateInput(attrs={'type': 'date'})
         }
 
 class ProductConfigurationForm(forms.ModelForm):
@@ -88,10 +89,10 @@ class RentalForm(forms.ModelForm):
         self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=rented_asset_ids).filter(condition_status='working', is_sold=False)
 
 
-class SellProductForm(forms.ModelForm):
-    class Meta:
-        model = ProductAsset
-        fields = ['sold_to', 'sale_price', 'sale_date']
-        widgets = {
-            'sale_date': forms.DateInput(attrs={'type': 'date'})
-        }
+# class SellProductForm(forms.ModelForm):
+#     class Meta:
+#         model = ProductAsset
+#         fields = ['sold_to', 'sale_price', 'sale_date']
+#         widgets = {
+#             'sale_date': forms.DateInput(attrs={'type': 'date'})
+#         }
