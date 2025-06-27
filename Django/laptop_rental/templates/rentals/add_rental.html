@@ -4,7 +4,17 @@
 <h2>Add New Rental</h2>
 
 <form method="post">
-  {% csrf_token %}
+  {% csrf_token %} {% if form.errors %}
+  <div style="color: red">
+    <strong>There were errors with your submission:</strong>
+    <ul>
+      {% for field in form %} {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+      {% endfor %} {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <p>
     <label for="id_customer">Customer:</label>
     {{ form.customer }}
@@ -30,14 +40,18 @@
     {{ form.payment_amount }}
   </p>
   <p>
+    <label for="id_payment_method">Payment Method:</label>
+    {{ form.payment_method }}
+  </p>
+
+  <p>
     <label for="id_payment_status">Payment Status:</label>
     {{ form.payment_status }}
   </p>
+  <p><label for="id_notes">status</label> {{ form.status }}</p>
   <p>
-    <label for="id_made_by">Rental Created By:</label>
-    {{ form.made_by }}
+    <button type="submit">Add Rental</button>
   </p>
-  <button type="submit">Add Rental</button>
 </form>
 
 <!-- Add Select2 for autocomplete -->

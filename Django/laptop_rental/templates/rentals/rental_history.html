@@ -25,7 +25,7 @@
     <th>Payment Status</th>
     <th>Payment Method</th>
     <th>Contract No.</th>
-    <th>Edited By</th>
+    <th>Checked By</th>
   </tr>
   {% for rental in rentals %}
   <tr>
@@ -39,7 +39,7 @@
     <td>{{ rental.payment.status }}</td>
     <td>{{ rental.payment.payment_method }}</td>
     <td>{{ rental.contract_number }}</td>
-    <td>{{ rental.made_by }}</td>
+    <td>{{ rental.edited_by.username }}</td>
   </tr>
   {% empty %}
   <tr>

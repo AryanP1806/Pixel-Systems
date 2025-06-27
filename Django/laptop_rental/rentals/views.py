@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment
+from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair
 from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm
 from django.db.models import Q
 from django.db import IntegrityError
@@ -9,7 +9,9 @@ import uuid
 from datetime import timedelta
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from django.shortcuts import redirect
+from django.core.mail import send_mail
+from django.utils import timezone
+
 
 def logout_view(request):
     logout(request)
@@ -21,7 +23,7 @@ def homepage(request):
 
 @login_required
 def rental_list(request):
-    rentals = Rental.objects.filter(status='ongoing')
+    rentals = Rental.objects.filter(status__in=['ongoing', 'overdue'])
     return render(request, 'rentals/rental_list.html', {'rentals': rentals})
 
 @login_required
@@ -95,7 +97,7 @@ def rental_history(request):
             Q(asset__serial_no__icontains=query) |
             Q(asset__model_no__icontains=query) |
             Q(contract_number__icontains=query) |
-            Q(made_by__icontains=query)|
+            Q(edited_by__username__icontains=query)|
             Q(payment__amount__icontains=query) |
             Q(payment__status__icontains=query)
         )
@@ -117,6 +119,7 @@ def add_customer(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
+            form.instance.edited_by = request.user
             form.save()
             return redirect('customer_list')
     else:
@@ -128,11 +131,14 @@ def add_product(request):
     if request.method == 'POST':
         form = ProductAssetForm(request.POST)
         if form.is_valid():
-            form.save()
+            product = form.save(commit=False)
+            product.edited_by = request.user
+            product.save()
             return redirect('product_list')
     else:
         form = ProductAssetForm()
     return render(request, 'rentals/add_product.html', {'form': form})
+
 
 
 @login_required
@@ -141,19 +147,25 @@ def add_rental(request):
         form = RentalForm(request.POST)
         if form.is_valid():
             rental = form.save(commit=False)
+            rental.edited_by = request.user
             rental.status = 'ongoing'
             rental.save()
 
-            # Create linked payment
+            # Create linked payment properly
             Payment.objects.create(
                 rental=rental,
                 amount=form.cleaned_data['payment_amount'],
-                status=form.cleaned_data['payment_status']
+                status=form.cleaned_data['payment_status'],
+                payment_method=form.cleaned_data['payment_method'],
+                edited_by=request.user
             )
 
             return redirect('rental_list')
+        else:
+            print("FORM ERRORS:", form.errors)  # Optional: log form errors
     else:
         form = RentalForm()
+
     return render(request, 'rentals/add_rental.html', {'form': form})
 
 @login_required
@@ -189,8 +201,18 @@ def add_config(request, asset_id):
         form = ProductConfigurationForm(request.POST)
         if form.is_valid():
             config = form.save(commit=False)
-            config.asset = asset  # Set the asset here!
+            config.asset = asset
+            config.edited_by = request.user
             config.save()
+            if form.cleaned_data['repair_cost'] > 0:
+                Repair.objects.create(
+                    product=config.asset,
+                    date=config.date_of_config,
+                    cost=config.repair_cost,
+                    description="Cost during configuration",
+                    edited_by=request.user
+                )
+
             return redirect('product_detail', pk=asset.pk)
         else:
             print(form.errors)  # Optional: debug form issues
@@ -330,3 +352,44 @@ def edit_rental(request, rental_id):
         form = RentalForm(instance=rental, initial=initial_data)
 
     return render(request, 'rentals/edit_rental.html', {'form': form,'rental': rental})
+
+
+
+@login_required
+def check_overdue_view(request):
+    today = timezone.now().date()
+    rentals = Rental.objects.filter(status='ongoing')
+
+    for rental in rentals:
+        due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+        days_left = (due_date - today).days
+
+        # Overdue: send overdue email
+        if due_date < today:
+            rental.status = 'overdue'
+            rental.save()
+
+            send_mail(
+                subject='🔴 Rental Overdue Notification',
+                message=f'Rental for {rental.customer.name} is overdue.\nAsset ID: {rental.asset.asset_id}',
+                from_email='aryanpore3056@gmail.com',
+                recipient_list=['aryanpore3056@gmail.com'],
+                fail_silently=False,
+            )
+
+        # Reminder: 7 days before due date
+        elif days_left == 7:
+            send_mail(
+                subject='🟡 Rental Due in 7 Days',
+                message=(
+                    f'Rental for {rental.customer.name} is due on {due_date}.\n'
+                    f'Asset ID: {rental.asset.asset_id}\n'
+                    f'{days_left} days left.'
+                ),
+                from_email='aryanpore3056@gmail.com',
+                recipient_list=['aryanpore3056@gmail.com'],
+                fail_silently=False,
+            )
+
+    messages.success(request, "✔️ Rentals checked and emails sent if needed.")
+    return redirect('rental_list')

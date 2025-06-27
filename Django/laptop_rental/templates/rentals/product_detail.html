@@ -24,6 +24,7 @@
     <th>Display</th>
     <th>Power</th>
     <th>Details</th>
+    <th>Edited By</th>
     <th>Actions</th>
   </tr>
   {% for config in configs %}
@@ -36,6 +37,7 @@
     <td>{{ config.display_size }}</td>
     <td>{{ config.power_supply }}</td>
     <td>{{ config.detailed_config }}</td>
+    <td>{{ config.edited_by.username }}</td>
     <td>
       <a href="{% url 'edit_config' config.pk %}">✏️</a>
       <a

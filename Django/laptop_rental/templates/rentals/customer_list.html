@@ -51,6 +51,7 @@
     <th>Secondary Phone</th>
     <th>Permanent?</th>
     <th>BNI?</th>
+    <th>Edited By</th>
     <th>Actions</th>
   </tr>
   {% for customer in customers %}
@@ -63,6 +64,7 @@
     <td>{{ customer.phone_number_secondary }}</td>
     <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
     <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
+    <td>{{ customer.edited_by.username }}</td>
     <td>
       <a href="{% url 'edit_customer' customer.id %}"><button>Edit</button></a>
     </td>

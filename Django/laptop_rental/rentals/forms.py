@@ -23,17 +23,31 @@ class CustomerForm(forms.ModelForm):
 class ProductAssetForm(forms.ModelForm):
     class Meta:
         model = ProductAsset
+        # fields = {
+        #     'asset_id','type_of_asset', 'brand', 'model_no', 'serial_no',
+        #     'purchase_price', 'current_value', 'purchase_date','under_warranty','warranty_duration_months',
+        #     'purchased_from'
+        # }
         fields = '__all__'
+        exclude = ['edited_by']
+        widgets = {
+            'purchase_date': forms.DateInput(attrs={'type': 'date'}),
+            'under_warranty': forms.CheckboxInput(),
+        }
 
 class ProductConfigurationForm(forms.ModelForm):
     class Meta:
         model = ProductConfiguration
-        exclude = ['asset'] 
+        fields = ['date_of_config', 'ram', 'hdd', 'ssd', 'graphics', 'display_size', 'power_supply', 'detailed_config', 'repair_cost']
 
-class RentalForm(forms.ModelForm):
-    class Meta:
-        model = Rental
-        fields = '__all__'
+        widgets = {
+            'date_of_config': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+# class RentalForm(forms.ModelForm):
+#     class Meta:
+#         model = Rental
+#         fields = '__all__'
 
      
 class RentalForm(forms.ModelForm):
@@ -53,7 +67,6 @@ class RentalForm(forms.ModelForm):
             'rental_start_date',
             'duration_days',
             'contract_number',
-            'made_by',
             'status'
         ]
         widgets = {
@@ -71,11 +84,12 @@ class RentalForm(forms.ModelForm):
         from django.db.models import Q
 
         # Get all assets currently in ongoing rentals
-        ongoing_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
-
-        if current_instance:
-            self.fields['asset'].queryset = ProductAsset.objects.filter(
-                Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
-            )
-        else:
-            self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)
+        # ongoing_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
+        rented_asset_ids = Rental.objects.filter(status__in=['ongoing', 'overdue']).values_list('asset_id', flat=True)
+        self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=rented_asset_ids).filter(condition_status='working')
+        # if current_instance:
+            # self.fields['asset'].queryset = ProductAsset.objects.filter(
+            #     Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
+            # )
+        # else:
+        #     self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)

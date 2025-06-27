@@ -4,6 +4,18 @@
 <h2>Ongoing Rentals</h2>
 
 <a href="{% url 'add_rental' %}"><button>➕ Add Rental</button></a>
+<a href="{% url 'check_overdue' %}">
+  <button>📧 Check Overdue & Send Emails</button>
+</a>
+
+{% if messages %}
+  <ul>
+    {% for message in messages %}
+      <li style="color: green;">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
 
 <form method="get">
   <input
@@ -42,7 +54,7 @@
     <th>Contract No.</th>
     <th>Phone No.</th>
     <th>Address</th>
-    <th>Checked by</th>
+    <th>Edited By</th>
     <th>Actions</th>
   </tr>
   {% for rental in rentals %}
@@ -58,7 +70,7 @@
     <td>{{ rental.contract_number }}</td>
     <td>{{ rental.customer.phone_number_primary }}</td>
     <td>{{ rental.customer.address_primary }}</td>
-    <td>{{ rental.made_by }}</td>
+    <td>{{ rental.edited_by.username }}</td>
     <td>
       <a href="{% url 'edit_rental' rental.id %}"><button>✏️ Edit</button></a>
       {% if rental.status != 'completed' %} {% endif %}
