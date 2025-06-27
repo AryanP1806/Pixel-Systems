@@ -51,6 +51,12 @@ class ProductAsset(models.Model):
         default='working'
     )
 
+    is_sold = models.BooleanField(default=False)
+    sold_to = models.ForeignKey('Customer', on_delete=models.SET_NULL, null=True, blank=True)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sale_date = models.DateField(null=True, blank=True)
+
+
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -65,13 +71,13 @@ class ProductAsset(models.Model):
     
     @property
     def is_available(self):
-        # return not self.rentals.filter(status__in=['ongoing', 'overdue']).exists()
-        return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing', 'overdue']).exists())
+        # return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing', 'overdue']).exists())
+        return (not self.is_sold and self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing', 'overdue']).exists())
 
-    @property
-    @property
-    def total_rent_earned(self):
-        return sum(r.payment.amount for r in self.rentals.all() if r.payment)
+    
+    # @property
+    # def total_rent_earned(self):
+    #     return sum(r.payment.amount for r in self.rentals.all() if r.payment)
 
 
     @property
@@ -84,7 +90,11 @@ class ProductAsset(models.Model):
     
     @property
     def net_profit(self):
-        return (self.total_rent_earned - self.total_repairs)
+        base_profit = self.total_rent_earned - self.total_repairs
+        if self.is_sold and self.sale_price:
+            base_profit += self.sale_price
+        return base_profit
+
 
 
 

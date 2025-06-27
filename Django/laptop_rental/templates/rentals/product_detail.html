@@ -9,6 +9,12 @@
   <li>Model No: {{ product.model_no }}</li>
   <li>Serial No: {{ product.serial_no }}</li>
   <li>Purchase Date: {{ product.purchase_date }}</li>
+  <li>Purchase Price: {{ product.purchase_price }}</li>
+  <li>
+    {% if product.is_sold %}Selling Price: ₹ {{ product.sale_price }} (Sold)
+    <p></p>
+    {% else %}Current Value: ₹ {{ product.current_value }} {% endif %}
+  </li>
   <li>Under Warranty: {{ product.under_warranty|yesno:"Yes,No" }}</li>
   <li>Purchased From: {{ product.purchased_from }}</li>
 </ul>

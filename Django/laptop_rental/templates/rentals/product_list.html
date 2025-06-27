@@ -54,7 +54,7 @@
       <p></p>
       {% endif %}
     </td>
-  <td>
+  <!-- <td>
   {% if p.condition_status == 'missing' %}
     <span style="color: red;">Missing</span>
   {% elif p.condition_status == 'damaged' %}
@@ -64,7 +64,20 @@
   {% else %}
     <span style="color: gray;">Rented</span>
   {% endif %}
-</td>
+</td> -->
+  <td>
+  {% if p.is_sold %}
+    <span style="color: purple;">Sold</span>
+  {% elif p.condition_status == 'missing' %}
+    <span style="color: red;">Missing</span>
+  {% elif p.condition_status == 'damaged' %}
+    <span style="color: orange;">Damaged</span>
+  {% elif p.is_available %}
+    <span style="color: green;">Available</span>
+  {% else %}
+    <span style="color: gray;">Rented</span>
+  {% endif %}
+  </td>
 
   <td>₹ {{ p.net_profit }}</td>
     <td>{{ p.edited_by.username }}</td>

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair
-from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm
+from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, SellProductForm
 from django.db.models import Q
 from django.db import IntegrityError
 from django.contrib import messages
@@ -25,6 +25,29 @@ def homepage(request):
 def rental_list(request):
     rentals = Rental.objects.filter(status__in=['ongoing', 'overdue'])
     return render(request, 'rentals/rental_list.html', {'rentals': rentals})
+
+@login_required
+def sold_assets(request):
+    products = ProductAsset.objects.filter(is_sold=True).order_by('-sale_date')
+    return render(request, 'rentals/sold_assets.html', {'products': products})
+
+
+@login_required
+def sell_product(request, pk):
+    product = get_object_or_404(ProductAsset, pk=pk)
+
+    if request.method == 'POST':
+        form = SellProductForm(request.POST, instance=product)
+        if form.is_valid():
+            sold_product = form.save(commit=False)
+            sold_product.is_sold = True
+            sold_product.save()
+            return redirect('sold_assets')
+    else:
+        form = SellProductForm(instance=product)
+
+    return render(request, 'rentals/sell_product.html', {'form': form, 'product': product})
+
 
 @login_required
 def customer_list(request):

@@ -83,13 +83,15 @@ class RentalForm(forms.ModelForm):
         from rentals.models import Rental, ProductAsset
         from django.db.models import Q
 
-        # Get all assets currently in ongoing rentals
-        # ongoing_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
         rented_asset_ids = Rental.objects.filter(status__in=['ongoing', 'overdue']).values_list('asset_id', flat=True)
-        self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=rented_asset_ids).filter(condition_status='working')
-        # if current_instance:
-            # self.fields['asset'].queryset = ProductAsset.objects.filter(
-            #     Q(id=current_instance.asset_id) | ~Q(id__in=ongoing_asset_ids)
-            # )
-        # else:
-        #     self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=ongoing_asset_ids)
+        # self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=rented_asset_ids).filter(condition_status='working')
+        self.fields['asset'].queryset = ProductAsset.objects.exclude(id__in=rented_asset_ids).filter(condition_status='working', is_sold=False)
+
+
+class SellProductForm(forms.ModelForm):
+    class Meta:
+        model = ProductAsset
+        fields = ['sold_to', 'sale_price', 'sale_date']
+        widgets = {
+            'sale_date': forms.DateInput(attrs={'type': 'date'})
+        }

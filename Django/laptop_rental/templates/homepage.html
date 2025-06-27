@@ -5,9 +5,10 @@
   <h1>Welcome to Laptop Rental System</h1>
   <div class="dashboard-grid">
     <a class="dashboard-box" href="/rentals/">📦 Ongoing Rentals</a>
-    <a class="dashboard-box" href="/products/">💻 Product List</a>
     <a class="dashboard-box" href="/customers/">👤 Customers</a>
+    <a class="dashboard-box" href="/products/">💻 Product List</a>
     <a class="dashboard-box" href="/history/">📜 Rental History</a>
+    <a class="dashboard-box" href="{% url 'sold_assets' %}">💸 Sold Products</a>
   </div>
 </div>
 {% endblock %}

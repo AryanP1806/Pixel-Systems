@@ -20,6 +20,7 @@
         <a href="/customers/">Customers</a>
         <a href="/products/">Product List</a>
         <a href="/history/">Rental History</a>
+        <a href="{% url 'sold_assets' %}">Sold Items</a>
       </div>
       <div class="nav-right">
         {% if user.is_authenticated %}
