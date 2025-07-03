@@ -23,6 +23,10 @@
     <label for="id_asset">Product (Asset):</label>
     {{ form.asset }}
   </p>
+  {% if form.asset.field.queryset.count == 0 %}
+  <p style="color: red">⚠️ No assets are available for rental at the moment.</p>
+  {% endif %}
+
   <p>
     <label for="id_rental_start_date">Start Date:</label>
     {{ form.rental_start_date }}

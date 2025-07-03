@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+<h2>{% block title %}Approval Dashboard{% endblock %}</h2>
+{% block content %}
+
+<h2>🛡 Pending Approvals</h2>
+
+<!-- Pending Products -->
+<h3>📦 Products</h3>
+{% if pending_products %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Type</th>
+    <th>Brand</th>
+    <th>Model</th>
+    <th>Submitted By</th>
+    <th>Actions</th>
+  </tr>
+  {% for p in pending_products %}
+  <tr>
+    <td>{{ p.type_of_asset }}</td>
+    <td>{{ p.brand }}</td>
+    <td>{{ p.model_no }}</td>
+    <td>{{ p.submitted_by }}</td>
+    <td>
+      <a href="{% url 'approve_product' p.pk %}">✅ Approve</a> |
+      <a href="{% url 'reject_product' p.pk %}">❌ Reject</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No pending products.</p>
+{% endif %}
+
+<!-- Pending Customers -->
+<h3>👤 Customers</h3>
+{% if pending_customers %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Name</th>
+    <th>Phone</th>
+    <th>Permanent</th>
+    <th>BNI</th>
+    <th>Submitted By</th>
+    <th>Actions</th>
+  </tr>
+  {% for c in pending_customers %}
+  <tr>
+    <td>{{ c.name }}</td>
+    <td>{{ c.phone_number_primary }}</td>
+    <td>{{ c.is_permanent }}</td>
+    <td>{{ c.is_bni_member }}</td>
+    <td>{{ c.submitted_by }}</td>
+    <td>
+      <a href="{% url 'approve_customer' c.pk %}">✅ Approve</a> |
+      <a href="{% url 'reject_customer' c.pk %}">❌ Reject</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No pending customers.</p>
+{% endif %}
+
+<!-- Pending Rentals -->
+<h3>📄 Rentals</h3>
+{% if pending_rentals %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Customer</th>
+    <th>Asset</th>
+    <th>Start Date</th>
+    <th>Duration (days)</th>
+    <th>Submitted By</th>
+    <th>Actions</th>
+  </tr>
+  {% for r in pending_rentals %}
+  <tr>
+    <td>{{ r.customer.name }}</td>
+    <td>{{ r.asset.asset_id }}</td>
+    <td>{{ r.rental_start_date }}</td>
+    <td>{{ r.duration_days }}</td>
+    <td>{{ r.submitted_by }}</td>
+    <td>
+      <a href="{% url 'approve_rental' r.pk %}">✅ Approve</a> |
+      <a href="{% url 'reject_rental' r.pk %}">❌ Reject</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No pending rentals.</p>
+{% endif %} {% endblock %}

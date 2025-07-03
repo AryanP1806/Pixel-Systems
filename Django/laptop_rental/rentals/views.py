@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair
-from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm
+from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair, PendingProduct, PendingCustomer, PendingRental
+from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingProductForm, PendingCustomerForm, PendingRentalForm
 from django.db.models import Q
 from django.db import IntegrityError
 from django.contrib import messages
@@ -11,6 +11,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.contrib.auth.decorators import user_passes_test
+
+
 
 
 def logout_view(request):
@@ -31,22 +34,6 @@ def sold_assets(request):
     products = ProductAsset.objects.filter(is_sold=True).order_by('-sale_date')
     return render(request, 'rentals/sold_assets.html', {'products': products})
 
-
-# @login_required
-# def sell_product(request, pk):
-#     product = get_object_or_404(ProductAsset, pk=pk)
-
-#     if request.method == 'POST':
-#         form = SellProductForm(request.POST, instance=product)
-#         if form.is_valid():
-#             sold_product = form.save(commit=False)
-#             sold_product.is_sold = True
-#             sold_product.save()
-#             return redirect('sold_assets')
-#     else:
-#         form = SellProductForm(instance=product)
-
-#     return render(request, 'rentals/sell_product.html', {'form': form, 'product': product})
 
 
 @login_required
@@ -105,6 +92,65 @@ def product_list(request):
     })
 
 
+
+# @login_required
+# def submit_product(request):
+#     if request.method == 'POST':
+#         form = PendingProductForm(request.POST)
+#         if form.is_valid():
+#             pending = form.save(commit=False)
+#             pending.submitted_by = request.user
+#             pending.save()
+#             return redirect('home')  # or show success message
+#     else:
+#         form = PendingProductForm()
+#     return render(request, 'rentals/submit_product.html', {'form': form})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approval_dashboard(request):
+    pending_products = PendingProduct.objects.all()
+    pending_customers = PendingCustomer.objects.all()
+    pending_rentals = PendingRental.objects.all()
+
+    return render(request, 'rentals/approval_dashboard.html', {
+        'pending_products': pending_products,
+        'pending_customers': pending_customers,
+        'pending_rentals': pending_rentals
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_product(request, pk):
+    pending = get_object_or_404(PendingProduct, pk=pk)
+
+    real_product = ProductAsset.objects.create(
+        type_of_asset=pending.type_of_asset,
+        brand=pending.brand,
+        model_no=pending.model_no,
+        serial_no=pending.serial_no,
+        purchase_price=pending.purchase_price,
+        current_value=pending.current_value,
+        purchase_date=pending.purchase_date,
+        under_warranty=pending.under_warranty,
+        warranty_duration_months=pending.warranty_duration_months,
+        purchased_from=pending.purchased_from,
+        condition_status=pending.condition_status,
+        edited_by=pending.submitted_by
+    )
+
+    pending.delete()
+    return redirect('approval_dashboard')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def reject_product(request, pk):
+    get_object_or_404(PendingProduct, pk=pk).delete()
+    return redirect('approval_dashboard')
+
+
 @login_required
 def rental_history(request):
     query = request.GET.get('q', '')
@@ -137,59 +183,154 @@ def rental_history(request):
         'query': query
     })
 
+
 @login_required
 def add_customer(request):
     if request.method == 'POST':
-        form = CustomerForm(request.POST)
-        if form.is_valid():
-            form.instance.edited_by = request.user
-            form.save()
-            return redirect('customer_list')
+        if request.user.is_superuser:
+            form = CustomerForm(request.POST)
+            if form.is_valid():
+                customer = form.save(commit=False)
+                customer.edited_by = request.user
+                customer.save()
+                return redirect('customer_list')
+        else:
+            form = PendingCustomerForm(request.POST)
+            if form.is_valid():
+                pending = form.save(commit=False)
+                pending.submitted_by = request.user
+                pending.save()
+                return redirect('customer_list')
     else:
-        form = CustomerForm()
+        form = CustomerForm() if request.user.is_superuser else PendingCustomerForm()
+
     return render(request, 'rentals/add_customer.html', {'form': form})
+
+
+
+
 
 @login_required
 def add_product(request):
     if request.method == 'POST':
-        form = ProductAssetForm(request.POST)
-        if form.is_valid():
-            product = form.save(commit=False)
-            product.edited_by = request.user
-            product.save()
-            return redirect('product_list')
+        if request.user.is_superuser:
+            form = ProductAssetForm(request.POST)
+            if form.is_valid():
+                product = form.save(commit=False)
+                product.edited_by = request.user
+                product.save()
+                return redirect('product_list')
+        else:
+            form = PendingProductForm(request.POST)
+            if form.is_valid():
+                pending = form.save(commit=False)
+                pending.submitted_by = request.user
+                pending.save()
+                return redirect('product_list')
     else:
-        form = ProductAssetForm()
+        form = ProductAssetForm() if request.user.is_superuser else PendingProductForm()
+
     return render(request, 'rentals/add_product.html', {'form': form})
 
 
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_customer(request, pk):
+    pending = get_object_or_404(PendingCustomer, pk=pk)
+    Customer.objects.create(
+        name=pending.name,
+        email=pending.email,
+        phone_number_primary=pending.phone_number_primary,
+        phone_number_secondary=pending.phone_number_secondary,
+        address_primary=pending.address_primary,
+        address_secondary=pending.address_secondary,
+        is_permanent=pending.is_permanent,
+        is_bni_member=pending.is_bni_member,
+        edited_by=pending.submitted_by
+    )
+    pending.delete()
+    return redirect('approval_dashboard')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def reject_customer(request, pk):
+    get_object_or_404(PendingCustomer, pk=pk).delete()
+    return redirect('approval_dashboard')
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import RentalForm, PendingRentalForm
+from .models import Rental, Payment
+
+@login_required
 def add_rental(request):
     if request.method == 'POST':
-        form = RentalForm(request.POST)
-        if form.is_valid():
-            rental = form.save(commit=False)
-            rental.edited_by = request.user
-            rental.status = 'ongoing'
-            rental.save()
+        if request.user.is_superuser:
+            form = RentalForm(request.POST)
+            if form.is_valid():
+                rental = form.save(commit=False)
+                rental.edited_by = request.user
+                rental.save()
 
-            # Create linked payment properly
-            Payment.objects.create(
-                rental=rental,
-                amount=form.cleaned_data['payment_amount'],
-                status=form.cleaned_data['payment_status'],
-                payment_method=form.cleaned_data['payment_method'],
-                edited_by=request.user
-            )
-
-            return redirect('rental_list')
+                # Create associated payment
+                Payment.objects.create(
+                    rental=rental,
+                    amount=form.cleaned_data['payment_amount'],
+                    status=form.cleaned_data['payment_status'],
+                    payment_method=form.cleaned_data['payment_method'],
+                    edited_by=request.user
+                )
+                return redirect('rental_list')
         else:
-            print("FORM ERRORS:", form.errors)  # Optional: log form errors
+            form = PendingRentalForm(request.POST)
+            if form.is_valid():
+                pending = form.save(commit=False)
+                pending.submitted_by = request.user
+
+                # ✅ Copy payment and edited_by manually
+                pending.payment_amount = form.cleaned_data.get('payment_amount')
+                pending.edited_by = request.user
+                pending.save()
+                return redirect('rental_list')
     else:
-        form = RentalForm()
+        form = RentalForm() if request.user.is_superuser else PendingRentalForm()
 
     return render(request, 'rentals/add_rental.html', {'form': form})
+
+
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_rental(request, pk):
+    pending = get_object_or_404(PendingRental, pk=pk)
+    rental = Rental.objects.create(
+    customer=pending.customer,
+    asset=pending.asset,
+    rental_start_date=pending.rental_start_date,
+    duration_days=pending.duration_days,
+    contract_number=pending.contract_number,
+    status=pending.status,
+    edited_by=pending.edited_by
+    )
+    Payment.objects.create(
+    rental=rental,
+    amount=pending.payment_amount,
+    status='pending',  # Or whatever was stored
+    payment_method='cash',  # Optional: add more fields to PendingRental
+    edited_by=pending.edited_by
+    )
+    pending.delete()
+    return redirect('approval_dashboard')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def reject_rental(request, pk):
+    get_object_or_404(PendingRental, pk=pk).delete()
+    return redirect('approval_dashboard')
+
+
 
 @login_required
 def edit_customer(request, pk):
