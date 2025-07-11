@@ -90,11 +90,35 @@ class ProductAsset(models.Model):
     
     @property
     def net_profit(self):
+        
         base_profit = self.total_rent_earned - self.total_repairs
         if self.is_sold and self.sale_price:
             base_profit += self.sale_price
         return base_profit
 
+
+
+
+
+
+
+class PendingProduct(models.Model):
+    type_of_asset = models.CharField(max_length=50, choices=ProductAsset.ASSET_TYPES)
+    brand = models.CharField(max_length=100)
+    model_no = models.CharField(max_length=100)
+    serial_no = models.CharField(max_length=100, unique=True)
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
+    current_value = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_date = models.DateField()
+    under_warranty = models.BooleanField(default=False)
+    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
+    purchased_from = models.CharField(max_length=255)
+    condition_status = models.CharField(max_length=20, default='working')
+    
+    
+    
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
 
 
 
@@ -146,6 +170,21 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+class PendingCustomer(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField(blank=True, null=True)
+    phone_number_primary = models.CharField(max_length=15)
+    phone_number_secondary = models.CharField(max_length=15, blank=True, null=True)
+    address_primary = models.TextField()
+    address_secondary = models.TextField(blank=True, null=True)
+    is_permanent = models.BooleanField(default=False)
+    is_bni_member = models.BooleanField(default=False)
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
 # -----------------------------
 # Rental
 # -----------------------------
@@ -175,6 +214,29 @@ class Rental(models.Model):
 
     def is_overdue(self):
         return self.status == 'ongoing' and date.today() > self.rental_end_date
+
+class PendingRental(models.Model):
+    STATUS_CHOICES = (
+        ('ongoing', 'Ongoing'),
+        ('overdue', 'Overdue'),
+        ('completed', 'Completed'),
+    )
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE,blank=True, null=True)
+    rental_start_date = models.DateField()
+    duration_days = models.PositiveIntegerField(blank=True)
+    rental_end_date = models.DateField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
+
+
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    contract_number = models.CharField(max_length=50, blank=True)
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='pending_rentals')
+    submitted_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
 
 # -----------------------------
 # Payment
@@ -210,3 +272,22 @@ class Repair(models.Model):
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+
+
+class PendingProductConfiguration(models.Model):
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
+    date_of_config = models.DateField()
+    ram = models.CharField(max_length=50, blank=True, null=True)
+    hdd = models.CharField(max_length=50, blank=True, null=True)
+    ssd = models.CharField(max_length=50, blank=True, null=True)
+    graphics = models.CharField(max_length=100, blank=True, null=True)
+    display_size = models.CharField(max_length=50, blank=True, null=True)
+    power_supply = models.CharField(max_length=100, blank=True, null=True)
+    detailed_config = models.TextField(blank=True, null=True)
+    repair_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+

@@ -5,11 +5,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Laptop Rental{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'styles2.css' %}" />
     <!-- <link
       rel="icon"
       type="image/x-icon"
-      href="C:/c++ projects/websites/Pixel Systems/Pixel Images/ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
+      href="ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
     /> -->
   </head>
   <body>
@@ -21,6 +21,11 @@
         <a href="/products/">Product List</a>
         <a href="/history/">Rental History</a>
         <a href="{% url 'sold_assets' %}">Sold Items</a>
+        {% if user.is_superuser %}
+        <a href="{% url 'approval_dashboard' %}"> Approvals</a>
+        <a href="{% url 'report_dashboard' %}"> Reports</a>
+
+        {% endif %}
       </div>
       <div class="nav-right">
         {% if user.is_authenticated %}

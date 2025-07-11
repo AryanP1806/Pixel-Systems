@@ -3,12 +3,28 @@
 {% block content %}
 <div class="homepage-center">
   <h1>Welcome to Laptop Rental System</h1>
-  <div class="dashboard-grid">
-    <a class="dashboard-box" href="/rentals/">📦 Ongoing Rentals</a>
-    <a class="dashboard-box" href="/customers/">👤 Customers</a>
-    <a class="dashboard-box" href="/products/">💻 Product List</a>
-    <a class="dashboard-box" href="/history/">📜 Rental History</a>
-    <a class="dashboard-box" href="{% url 'sold_assets' %}">💸 Sold Products</a>
+
+  <div class="section-grid">
+    <div class="section">
+      <h3>Rental Operations</h3>
+      <a href="{% url 'rental_list' %}">📦 Ongoing Rentals</a>
+      <a href="{% url 'rental_history' %}">📜 Rental History</a>
+    </div>
+
+    <div class="section">
+      <h3>Customer & Inventory</h3>
+      <a href="{% url 'customer_list' %}">👥 Customers</a>
+      <a href="{% url 'product_list' %}">💻 Product List</a>
+      <a href="{% url 'sold_assets' %}">💰 Sold Products</a>
+    </div>
+
+    {% if user.is_superuser %}
+    <div class="section">
+      <h3>Admin Tools</h3>
+      <a href="{% url 'approval_dashboard' %}">🛡️ Approvals</a>
+      <a href="{% url 'report_dashboard' %}">📈 Reports</a>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
