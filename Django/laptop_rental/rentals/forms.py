@@ -1,5 +1,5 @@
 from django import forms
-from .models import Customer, Rental, ProductAsset, ProductConfiguration, PendingProduct, PendingCustomer, PendingRental
+from .models import Customer, Rental, ProductAsset, ProductConfiguration, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration
 from django_select2.forms import Select2Widget
 from .models import Rental
 from django.db.models import Q
@@ -74,6 +74,14 @@ class ProductConfigurationForm(forms.ModelForm):
         widgets = {
             'date_of_config': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
+
+class PendingProductConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = PendingProductConfiguration
+        exclude = ['asset', 'submitted_by', 'submitted_at']
+
 
 # class RentalForm(forms.ModelForm):
 #     class Meta:
@@ -168,6 +176,7 @@ class PendingRentalForm(forms.ModelForm):
                 condition_status='working',
                 is_sold=False
             ).exclude(id__in=rented_ids)
+
 
 
 

@@ -35,7 +35,6 @@
     <th>Purchase Date</th>
     <th>Warranty</th>
     <th>Status</th>
-    <th>Profit</th>
     <th>Checked By</th>
     <th>Actions</th>
   </tr>
@@ -79,7 +78,7 @@
   {% endif %}
   </td>
 
-  <td>₹ {{ p.net_profit }}</td>
+  <!-- <td>₹ {{ p.net_profit }}</td> -->
     <td>{{ p.edited_by.username }}</td>
     <td>
       <a href="{% url 'product_detail' p.pk %}"><button>👁️ View</button></a> |

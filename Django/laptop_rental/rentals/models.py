@@ -90,6 +90,7 @@ class ProductAsset(models.Model):
     
     @property
     def net_profit(self):
+        
         base_profit = self.total_rent_earned - self.total_repairs
         if self.is_sold and self.sale_price:
             base_profit += self.sale_price
@@ -113,6 +114,9 @@ class PendingProduct(models.Model):
     warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
     purchased_from = models.CharField(max_length=255)
     condition_status = models.CharField(max_length=20, default='working')
+    
+    
+    
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
@@ -268,3 +272,22 @@ class Repair(models.Model):
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+
+
+class PendingProductConfiguration(models.Model):
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
+    date_of_config = models.DateField()
+    ram = models.CharField(max_length=50, blank=True, null=True)
+    hdd = models.CharField(max_length=50, blank=True, null=True)
+    ssd = models.CharField(max_length=50, blank=True, null=True)
+    graphics = models.CharField(max_length=100, blank=True, null=True)
+    display_size = models.CharField(max_length=50, blank=True, null=True)
+    power_supply = models.CharField(max_length=100, blank=True, null=True)
+    detailed_config = models.TextField(blank=True, null=True)
+    repair_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+

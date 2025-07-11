@@ -90,4 +90,38 @@
 </table>
 {% else %}
 <p>No pending rentals.</p>
+
+{% endif %} {% if pending_configs %}
+<h3>Pending Configurations</h3>
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Asset</th>
+    <th>Configurations</th>
+    <th>Submitted By</th>
+    <th>Submitted At</th>
+    <th>Actions</th>
+  </tr>
+  {% for c in pending_configs %}
+  <tr>
+    <td>{{ c.asset.asset_id }}</td>
+    <td>
+      <p>Ram: {{c.ram}}</p>
+      <p>Hdd:{{c.hdd}}</p>
+      <p>Ssd: {{c.ssd}}</p>
+      <p>graphics card: {{c.graphics}}</p>
+      <p>display Size: {{c.display_size}}</p>
+      <p>power Supply: {{c.power_supply}}</p>
+      <p>Details: {{c.detailed_config}}</p>
+      <p>Repair Cost: {{c.repair_cost}}</p>
+    </td>
+
+    <td>{{ c.submitted_by.username }}</td>
+    <td>{{ c.submitted_at }}</td>
+    <td>
+      <a href="{% url 'approve_config' c.id %}">✅ Approve</a> |
+      <a href="{% url 'reject_config' c.id %}">❌ Reject</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
 {% endif %} {% endblock %}

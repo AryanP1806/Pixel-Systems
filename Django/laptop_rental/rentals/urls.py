@@ -8,7 +8,7 @@ urlpatterns = [
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.add_product, name='add_product'),
     path('products/edit/<int:pk>/', views.edit_product, name='edit_product'),
-    path('products/<int:asset_id>/add_config/', views.add_config, name='add_config'),
+    path('products/<int:pk>/add_config/', views.add_config, name='add_config'),
     path('products/<int:pk>/', views.product_detail, name='product_detail'),
     path('products/clone/<int:pk>/', views.clone_product, name='clone_product'),
     path('products/sold/', views.sold_assets, name='sold_assets'),
@@ -36,5 +36,10 @@ urlpatterns = [
     path('approvals/customer/reject/<int:pk>/', views.reject_customer, name='reject_customer'),
     path('approvals/rental/approve/<int:pk>/', views.approve_rental, name='approve_rental'),
     path('approvals/rental/reject/<int:pk>/', views.reject_rental, name='reject_rental'),
+    path('approvals/config/approve/<int:pk>/', views.approve_config, name='approve_config'),
+    path('approvals/config/reject/<int:pk>/', views.reject_config, name='reject_config'),
 
+
+
+    path('reports/', views.report_dashboard, name='report_dashboard'),
 ]

@@ -147,12 +147,12 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'aryanpore3056@gmail.com'
-EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq'  # Use app password if using Gmail
+EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq' 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # Login 
 LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'  # or any home page
+LOGIN_REDIRECT_URL = '/'  
 LOGOUT_REDIRECT_URL = '/login/'  
 
