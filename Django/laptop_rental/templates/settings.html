@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Settings{% endblock %}</h1>
+{% block content %}
+<h2>Settings</h2>
+
+<div class="section-grid">
+  <div class="section">
+    <h3>Asset Types</h3>
+    <a href="{% url 'asset_type_list' %}">Manage Asset Types</a>
+  </div>
+
+  <!-- Future Settings -->
+  <div class="section">
+    <h3>Product configuration</h3>
+    <a href="{% url 'manage_cpu_Options' %}">Manage CPU</a>
+    <a href="{% url 'manage_hdd_Options' %}">Manage HDD</a>
+    <a href="{% url 'manage_ram_Options' %}">Manage RAM</a>
+
+    <a href="{% url 'manage_display_size_Options' %}">Manage Display Size</a>
+
+    <a href="{% url 'manage_graphics_Options' %}">Manage Graphics</a>
+  </div>
+
+  <div class="section">
+    <h3>More Coming Soon</h3>
+    <p>Other configuration Options will be added here.</p>
+  </div>
+</div>
+{% endblock %}

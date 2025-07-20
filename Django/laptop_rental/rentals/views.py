@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration
-from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingProductForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm
+from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption
+from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingProductForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm, SupplierForm, RepairForm, AssetTypeForm,CPUOptionForm,  HDDOptionForm, RAMOptionForm, DisplaySizeOptionForm, GraphicsOptionForm
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
 from django.db import IntegrityError
 from django.contrib import messages
@@ -27,13 +28,16 @@ def homepage(request):
 
 @login_required
 def rental_list(request):
-    rentals = Rental.objects.filter(status__in=['ongoing', 'overdue'])
+    rentals = Rental.objects.filter(status__in=['ongoing'])
     return render(request, 'rentals/rental_list.html', {'rentals': rentals})
 
 @login_required
 def sold_assets(request):
-    products = ProductAsset.objects.filter(is_sold=True).order_by('-sale_date')
+    products = ProductAsset.objects.filter(condition_status='sold').order_by('-sale_date')
     return render(request, 'rentals/sold_assets.html', {'products': products})
+
+def settings_page(request):
+    return render(request, 'settings.html')
 
 
 
@@ -64,7 +68,7 @@ def customer_list(request):
 @login_required
 def product_list(request):
     query = request.GET.get('q')
-    sort_by = request.GET.get('sort', '-purchase_date')
+    sort_by = request.GET.get('sort', 'asset_id')
     asset_type = request.GET.get('type')
 
     products = ProductAsset.objects.all()
@@ -94,18 +98,25 @@ def product_list(request):
 
 
 
-# @login_required
-# def submit_product(request):
-#     if request.method == 'POST':
-#         form = PendingProductForm(request.POST)
-#         if form.is_valid():
-#             pending = form.save(commit=False)
-#             pending.submitted_by = request.user
-#             pending.save()
-#             return redirect('home')  # or show success message
-#     else:
-#         form = PendingProductForm()
-#     return render(request, 'rentals/submit_product.html', {'form': form})
+def asset_type_list(request):
+    asset_types = AssetType.objects.all()
+    return render(request, 'products/asset_type_list.html', {'asset_types': asset_types})
+
+def add_asset_type(request):
+    form = AssetTypeForm(request.POST or None)
+    if form.is_valid():
+        form.save()
+        return redirect('asset_type_list')
+    return render(request, 'products/add_asset_type.html', {'form': form})
+
+def edit_asset_type(request, pk):
+    asset_type = get_object_or_404(AssetType, pk=pk)
+    form = AssetTypeForm(request.POST or None, instance=asset_type)
+    if form.is_valid():
+        form.save()
+        return redirect('asset_type_list')
+    return render(request, 'products/edit_asset_type.html', {'form': form})
+
 
 
 @login_required
@@ -132,6 +143,7 @@ def approve_config(request, pk):
     config = ProductConfiguration.objects.create(
         asset=pending.asset,
         date_of_config=pending.date_of_config,
+        cpu=pending.cpu,
         ram=pending.ram,
         hdd=pending.hdd,
         ssd=pending.ssd,
@@ -139,18 +151,17 @@ def approve_config(request, pk):
         display_size=pending.display_size,
         power_supply=pending.power_supply,
         detailed_config=pending.detailed_config,
-        repair_cost=pending.repair_cost,
         edited_by=pending.submitted_by
     )
 
-    if config.repair_cost and config.repair_cost > 0:
-        Repair.objects.create(
-            product=config.asset,
-            date=config.date_of_config,
-            cost=config.repair_cost,
-            description="From approved config",
-            edited_by=request.user
-        )
+    # if config.repair_cost and config.repair_cost > 0:
+    #     Repair.objects.create(
+    #         product=config.asset,
+    #         date=config.date_of_config,
+    #         cost=config.repair_cost,
+    #         description="From approved config",
+    #         edited_by=request.user
+    #     )
     pending.delete()
     return redirect('approval_dashboard')
 
@@ -214,8 +225,8 @@ def rental_history(request):
 
     rentals = rentals.order_by('-rental_start_date')
     # Add end_date for display
-    for rental in rentals:
-        rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+    # for rental in rentals:
+    #     rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
 
       # newest first
 
@@ -251,28 +262,84 @@ def add_customer(request):
 
 
 
+# @login_required
+# def add_product(request):
+#     if request.method == 'POST':
+#         if request.user.is_superuser:
+#             form = ProductAssetForm(request.POST)
+#             if form.is_valid():
+#                 product = form.save(commit=False)
+#                 product.edited_by = request.user
+#                 product.save()
+#                 return redirect('product_list')
+#         else:
+#             form = PendingProductForm(request.POST)
+#             if form.is_valid():
+#                 pending = form.save(commit=False)
+#                 pending.submitted_by = request.user
+#                 pending.save()
+#                 return redirect('product_list')
+#     else:
+#         form = ProductAssetForm() if request.user.is_superuser else PendingProductForm()
+
+#     return render(request, 'rentals/add_product.html', {'form': form})
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import ProductAssetForm, PendingProductForm
+from .models import ProductAsset, PendingProduct
+
 @login_required
 def add_product(request):
     if request.method == 'POST':
-        if request.user.is_superuser:
-            form = ProductAssetForm(request.POST)
-            if form.is_valid():
+        form = ProductAssetForm(request.POST)
+        if form.is_valid():
+            if request.user.is_superuser:
                 product = form.save(commit=False)
                 product.edited_by = request.user
                 product.save()
                 return redirect('product_list')
-        else:
-            form = PendingProductForm(request.POST)
-            if form.is_valid():
-                pending = form.save(commit=False)
-                pending.submitted_by = request.user
-                pending.save()
+            
+                
+            else:
+                # Create a PendingProduct instance from cleaned_data
+                pending = PendingProduct(
+                    type_of_asset=form.cleaned_data['type_of_asset'],
+                    brand=form.cleaned_data['brand'],
+                    model_no=form.cleaned_data['model_no'],
+                    serial_no=form.cleaned_data['serial_no'],
+                    purchase_price=form.cleaned_data['purchase_price'],
+                    current_value=form.cleaned_data['current_value'],
+                    purchase_date=form.cleaned_data['purchase_date'],
+                    under_warranty=form.cleaned_data['under_warranty'],
+                    warranty_duration_months=form.cleaned_data['warranty_duration_months'],
+                    purchased_from=form.cleaned_data['purchased_from'],
+                    condition_status=form.cleaned_data['condition_status'],
+                    hsn_code=form.cleaned_data.get('hsn_code'),
+                    asset_number=form.cleaned_data.get('asset_number'),
+                    asset_id=form.cleaned_data.get('asset_id'),
+                    sold_to=form.cleaned_data.get('sold_to'),
+                    sale_price=form.cleaned_data.get('sale_price'),
+                    sale_date=form.cleaned_data.get('sale_date'),
+                    date_marked_dead=form.cleaned_data.get('date_marked_dead'),
+                    damage_narration=form.cleaned_data.get('damage_narration'),
+                    submitted_by=request.user  # ✅ Automatically assign
+                )
+                try:
+                    pending.save()
+                except Exception as e:
+                    print("Pending product save error:", e)
+
                 return redirect('product_list')
+    
+        else:
+            return render(request, 'rentals/add_product.html', {'form': form})  
     else:
-        form = ProductAssetForm() if request.user.is_superuser else PendingProductForm()
+        form = ProductAssetForm()
 
     return render(request, 'rentals/add_product.html', {'form': form})
 
+
+            
 
 
 @login_required
@@ -350,7 +417,7 @@ def approve_rental(request, pk):
     customer=pending.customer,
     asset=pending.asset,
     rental_start_date=pending.rental_start_date,
-    duration_days=pending.duration_days,
+    # duration_days=pending.duration_days,
     contract_number=pending.contract_number,
     status=pending.status,
     edited_by=pending.edited_by
@@ -399,35 +466,95 @@ def edit_product(request, pk):
         form = ProductAssetForm(instance=asset)
     return render(request, 'rentals/edit_product.html', {'form': form, 'asset': asset})
 
+# @login_required
+# def add_config(request, pk):
+#     asset = get_object_or_404(ProductAsset, pk=pk)
+
+#     if request.method == 'POST':
+#         form = ProductConfigurationForm(request.POST)
+#         if form.is_valid():
+#             if request.user.is_superuser:
+#                 config = form.save(commit=False)
+#                 config.asset = asset
+#                 config.edited_by = request.user
+#                 config.save()
+#             else:
+#                 pending_config = PendingProductConfiguration(
+#                     asset=asset,
+#                     date_of_config=form.cleaned_data['date_of_config'],
+#                     ram=form.cleaned_data['ram'],
+#                     hdd=form.cleaned_data['hdd'],
+#                     ssd=form.cleaned_data['ssd'],
+#                     graphics=form.cleaned_data['graphics'],
+#                     display_size=form.cleaned_data['display_size'],
+#                     power_supply=form.cleaned_data['power_supply'],
+#                     detailed_config=form.cleaned_data['detailed_config'],
+#                     submitted_by=request.user
+#                 )
+#                 pending_config.save()
+#             return redirect('product_detail', pk=pk)
+#     else:
+#         form = ProductConfigurationForm(initial={'asset': asset})
+
+#     return render(request, 'rentals/add_config.html', {'form': form, 'asset': asset})
+
+
+from .models import ProductAsset, ProductConfiguration
+from .forms import ProductConfigurationForm
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404, redirect
 
 @login_required
-def add_config(request, pk):  # or asset_id if you use that
+def add_config(request, pk):
     asset = get_object_or_404(ProductAsset, pk=pk)
 
-    if request.user.is_superuser:
-        form = ProductConfigurationForm(request.POST or None)
-        if request.method == 'POST' and form.is_valid():
-            config = form.save(commit=False)
-            config.asset = asset  # ✅ assign asset here
-            config.edited_by = request.user
-            config.save()
-            if form.cleaned_data['repair_cost'] > 0:
-                Repair.objects.create(
-                    product=config.asset,
-                    date=config.date_of_config,
-                    cost=config.repair_cost,
-                    description="Cost during configuration",
-                    edited_by=request.user
+    # Try to get the latest configuration for pre-filling
+    last_config = asset.configurations.order_by('-date_of_config').first()
+
+    if request.method == 'POST':
+        form = ProductConfigurationForm(request.POST)
+        if form.is_valid():
+            if request.user.is_superuser:
+                config = form.save(commit=False)
+                config.asset = asset
+                config.edited_by = request.user
+                config.save()
+                return redirect('product_detail', pk=pk)
+            else:
+                # Handle non-superuser submission to PendingProductConfiguration
+                from .models import PendingProductConfiguration
+                pending = PendingProductConfiguration(
+                    asset=asset,
+                    date_of_config=form.cleaned_data['date_of_config'],
+                    cpu=form.cleaned_data.get('cpu'),
+                    ram=form.cleaned_data.get('ram'),
+                    hdd=form.cleaned_data.get('hdd'),
+                    ssd=form.cleaned_data.get('ssd'),
+                    graphics=form.cleaned_data.get('graphics'),
+                    display_size=form.cleaned_data.get('display_size'),
+                    power_supply=form.cleaned_data.get('power_supply'),
+                    detailed_config=form.cleaned_data.get('detailed_config'),
+                    submitted_by=request.user
                 )
-            return redirect('product_detail', pk=asset.pk)
+                pending.save()
+                return redirect('product_detail', pk=pk)
     else:
-        form = PendingProductConfigurationForm(request.POST or None)
-        if request.method == 'POST' and form.is_valid():
-            pending = form.save(commit=False)
-            pending.asset = asset  # ✅ assign asset here
-            pending.submitted_by = request.user
-            pending.save()
-            return redirect('product_list')
+        if last_config:
+            # Prefill with last config
+            form = ProductConfigurationForm(initial={
+                'cpu': last_config.cpu,
+                'ram': last_config.ram,
+                'hdd': last_config.hdd,
+                'ssd': last_config.ssd,
+                'graphics': last_config.graphics,
+                'display_size': last_config.display_size,
+                'power_supply': last_config.power_supply,
+                'detailed_config': last_config.detailed_config,
+                
+            })
+        else:
+            # First config: blank form
+            form = ProductConfigurationForm()
 
     return render(request, 'rentals/add_config.html', {'form': form, 'asset': asset})
 
@@ -435,7 +562,12 @@ def add_config(request, pk):  # or asset_id if you use that
 def product_detail(request, pk):
     product = get_object_or_404(ProductAsset, pk=pk)
     configs = product.configurations.all().order_by('-date_of_config')
-    return render(request, 'rentals/product_detail.html', {'product': product, 'configs': configs})
+    repairs = product.repairs.all().order_by('-date')
+    return render(request, 'rentals/product_detail.html', {
+        'product': product,
+        'configs': configs,
+        'repairs': repairs
+        })
 
 
 @login_required
@@ -516,12 +648,12 @@ def rental_list(request):
     filter_type = request.GET.get('filter')
 
     # Filter by status first
-    if filter_type == 'ongoing':
-        rentals = Rental.objects.filter(status='ongoing')
-    elif filter_type == 'overdue':
-        rentals = Rental.objects.filter(status='overdue')
-    else:
-        rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
+    # if filter_type == 'ongoing':
+    rentals = Rental.objects.filter(status='ongoing')
+    # elif filter_type == 'overdue':
+    #     rentals = Rental.objects.filter(status='overdue')
+    # else:
+    #     rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
 
     # Then apply search filter on the already filtered queryset
     if query:
@@ -533,8 +665,8 @@ def rental_list(request):
 
     # Sort and calculate due date
     rentals = rentals.order_by('-rental_start_date')
-    for rental in rentals:
-        rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+    # for rental in rentals:
+    #     rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
 
     return render(request, 'rentals/rental_list.html', {
         'rentals': rentals,
@@ -554,7 +686,7 @@ def mark_rental_completed(request, rental_id):
 def edit_rental(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
     from datetime import timedelta
-    rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+    # rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
 
     if request.method == 'POST':
         form = RentalForm(request.POST, instance=rental)
@@ -580,45 +712,27 @@ def edit_rental(request, rental_id):
 
 
 
-@login_required
-def check_overdue_view(request):
-    today = timezone.now().date()
-    rentals = Rental.objects.filter(status='ongoing')
+# @login_required
+# def check_overdue_view(request):
+#     today = timezone.now().date()
+#     rentals = Rental.objects.filter(status='ongoing')
 
-    for rental in rentals:
-        due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
-        days_left = (due_date - today).days
+#     for rental in rentals:
+#         due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+#         days_left = (due_date - today).days
 
-        # Overdue: send overdue email
-        if due_date < today:
-            rental.status = 'overdue'
-            rental.save()
+#         # Overdue: send overdue email
+#         if due_date < today:
+#             rental.status = 'overdue'
+#             rental.save()
 
-            send_mail(
-                subject='🔴 Rental Overdue Notification',
-                message=f'Rental for {rental.customer.name} is overdue.\nAsset ID: {rental.asset.asset_id}',
-                from_email='aryanpore3056@gmail.com',
-                recipient_list=['aryanpore3056@gmail.com'],
-                fail_silently=False,
-            )
-
-        # Reminder: 7 days before due date
-        elif days_left == 7:
-            send_mail(
-                subject='🟡 Rental Due in 7 Days',
-                message=(
-                    f'Rental for {rental.customer.name} is due on {due_date}.\n'
-                    f'Asset ID: {rental.asset.asset_id}\n'
-                    f'{days_left} days left.'
-                ),
-                from_email='aryanpore3056@gmail.com',
-                recipient_list=['aryanpore3056@gmail.com'],
-                fail_silently=False,
-            )
-
-    messages.success(request, "✔️ Rentals checked and emails sent if needed.")
-    return redirect('rental_list')
-
+#             send_mail(
+#                 subject='🔴 Rental Overdue Notification',
+#                 message=f'Rental for {rental.customer.name} is overdue.\nAsset ID: {rental.asset.asset_id}',
+#                 from_email='aryanpore3056@gmail.com',
+#                 recipient_list=['aryanpore3056@gmail.com'],
+#                 fail_silently=False,
+#             )
 
 
 
@@ -647,7 +761,7 @@ def report_dashboard(request):
     gross_profit = maintenance_cost = net_profit = None
     if product_obj:
         gross_profit = float(product_obj.total_rent_earned or 0)
-        if product_obj.is_sold and product_obj.sale_price:
+        if product_obj.condition_status=='sold' and product_obj.sale_price:
             gross_profit += float(product_obj.sale_price)
         maintenance_cost = float(product_obj.total_repairs or 0)
         net_profit = gross_profit - maintenance_cost
@@ -665,7 +779,7 @@ def report_dashboard(request):
 
     total_revenue = sum(r.payment.amount for r in rentals if hasattr(r, 'payment'))
     total_rentals = rentals.count()
-    total_days = sum(r.duration_days or 0 for r in rentals)
+    # total_days = sum(r.duration_days or 0 for r in rentals)
 
     # Monthly revenue data
     monthly = {}
@@ -690,8 +804,12 @@ def report_dashboard(request):
         total_income = sum(r.payment.amount for r in asset.rentals.all() if r.payment)
         type_revenue[asset_type] += float(total_income)
 
-    type_labels = list(type_revenue.keys())
-    type_values = list(type_revenue.values())
+    type_data = rentals.filter(payment__isnull=False).values('asset__type_of_asset__name').annotate(
+        total=Sum('payment__amount')
+    ).order_by('-total')
+
+    type_labels = [entry['asset__type_of_asset__name'] for entry in type_data]
+    type_values = [float(entry['total']) for entry in type_data if entry['total']]
 
 
 
@@ -711,7 +829,7 @@ def report_dashboard(request):
         'rentals': rentals,
         'total_revenue': total_revenue,
         'total_rentals': total_rentals,
-        'total_days': total_days,
+
         'gross_profit': gross_profit,
         'maintenance_cost': maintenance_cost,
         'net_profit': net_profit,
@@ -730,3 +848,255 @@ def report_dashboard(request):
 
     }
     return render(request, 'rentals/report_dashboard.html', context)
+
+
+
+
+
+@login_required
+def supplier_list(request):
+    query = request.GET.get('q', '')
+    suppliers = Supplier.objects.all()
+    if query:
+        suppliers = suppliers.filter(
+            Q(name__icontains=query) |
+            Q(gstin__icontains=query) |
+            Q(phone_primary__icontains=query) |
+            Q(phone_secondary__icontains=query) |
+            Q(email__icontains=query) |
+            Q(reference_name__icontains=query)
+        )
+
+    return render(request, 'rentals/supplier_list.html', {
+        'suppliers': suppliers,
+        'query': query
+    })
+
+
+@login_required
+def add_supplier(request):
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm()
+    return render(request, 'rentals/add_supplier.html', {'form': form})
+
+
+@login_required
+def edit_supplier(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            form.save()
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm(instance=supplier)
+    return render(request, 'rentals/edit_supplier.html', {'form': form, 'supplier': supplier})
+
+
+@login_required
+def send_billing_reminder(request):
+    today = now().day
+    print("Today's date:", today)
+    rentals_due_today = Rental.objects.filter(billing_day=today, status='ongoing')
+
+    if not rentals_due_today.exists():
+        messages.info(request, "No rentals due for billing today.")
+        return redirect('rental_list')
+
+    body_lines = []
+    for rental in rentals_due_today:
+        asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
+        customer_name = rental.customer.name if rental.customer else 'Unknown Customer'
+        body_lines.append(f"- Asset: {asset_id} | Customer: {customer_name}")
+
+    body = "Billing Reminder for Today:\n\n" + "\n".join(body_lines)
+
+    try:
+        send_mail(
+            subject="Todays Billing Reminder",
+            message=body,
+            from_email='aryanpore3056@gmail.com',
+            recipient_list=['aryanpore3056@gmail.com'],
+            fail_silently=False,
+            )
+        messages.success(request, "Billing reminder sent successfully!")
+    except Exception as e:
+        messages.error(request, f"Failed to send reminder: {e}")
+
+
+    return redirect('rental_list')
+
+
+
+# @login_required
+# def add_repair(request):
+#     if request.method == 'POST':
+#         form = RepairForm(request.POST)
+#         if form.is_valid():
+#             repair = form.save(commit=False)
+#             repair.edited_by = request.user
+#             repair.save()
+#             return redirect('product_list')  # or wherever you want to go after adding
+#     else:
+#         form = RepairForm()
+    
+#     return render(request, 'rentals/add_repair.html', {'form': form})
+
+
+@login_required
+def add_repair(request, pk=None):
+    product = None
+    if pk:
+        product = get_object_or_404(ProductAsset, pk=pk)
+
+    if request.method == 'POST':
+        form = RepairForm(request.POST)
+        if form.is_valid():
+            repair = form.save(commit=False)
+            repair.edited_by = request.user
+            form_product = form.cleaned_data.get("product")
+            if not form_product and product:
+                repair.product = product
+            repair.save()
+            return redirect('product_detail', pk=repair.product.pk)
+    else:
+        form = RepairForm(initial={'product': product} if product else None)
+        if product:
+            form.fields['product'].queryset = ProductAsset.objects.filter(id=product.id)
+            form.fields['product'].widget.attrs['readonly'] = True  # optional disable
+
+    return render(request, 'rentals/add_repair.html', {'form': form})
+
+
+def settings_home(request):
+    return render(request, 'rentals/settings.html')
+
+
+
+def manage_hdd_Options(request):
+    items = HDDOption.objects.all()
+    editing = False
+    instance = None
+
+    if request.GET.get("edit"):
+        instance = get_object_or_404(HDDOption, id=request.GET["edit"])
+        editing = True
+
+    form = HDDOptionForm(request.POST or None, instance=instance)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('manage_hdd_Options')
+
+    return render(request, 'rentals/manage_Options.html', {
+        'form': form,
+        'items': items,
+        'field_name': 'HDD',
+        'title': 'HDD',
+        'editing': editing,
+        'current_view': 'manage_hdd_Options',
+    })
+
+def manage_ram_Options(request):
+    items = RAMOption.objects.all()
+    editing = False
+    instance = None
+
+    if request.GET.get("edit"):
+        instance = get_object_or_404(RAMOption, id=request.GET["edit"])
+        editing = True
+
+    form = RAMOptionForm(request.POST or None, instance=instance)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('manage_ram_Options')
+
+    return render(request, 'rentals/manage_Options.html', {
+        'form': form,
+        'items': items,
+        'field_name': 'RAM',
+        'title': 'RAM',
+        'editing': editing,
+        'current_view': 'manage_ram_Options',
+    })
+
+
+def manage_cpu_Options(request):
+    items = CPUOption.objects.all()
+    editing = False
+    instance = None
+
+    if request.GET.get("edit"):
+        instance = get_object_or_404(CPUOption, id=request.GET["edit"])
+        editing = True
+
+    form = CPUOptionForm(request.POST or None, instance=instance)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('manage_cpu_Options')
+
+    return render(request, 'rentals/manage_Options.html', {
+        'form': form,
+        'items': items,
+        'field_name': 'CPU',
+        'title': 'CPU',
+        'editing': editing,
+        'current_view': 'manage_cpu_Options',
+    })
+
+
+def manage_display_size_Options(request):
+    items = DisplaySizeOption.objects.all()
+    editing = False
+    instance = None
+
+    if request.GET.get("edit"):
+        instance = get_object_or_404(DisplaySizeOption, id=request.GET["edit"])
+        editing = True
+
+    form = DisplaySizeOptionForm(request.POST or None, instance=instance)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('manage_display_size_Options')
+
+    return render(request, 'rentals/manage_Options.html', {
+        'form': form,
+        'items': items,
+        'field_name': 'Display Size',
+        'title': 'Display Size',
+        'editing': editing,
+        'current_view': 'manage_display_size_Options',
+    })
+
+
+def manage_graphics_Options(request):
+    items =GraphicsOption.objects.all()
+    editing = False
+    instance = None
+
+    if request.GET.get("edit"):
+        instance = get_object_or_404(GraphicsOption, id=request.GET["edit"])
+        editing = True
+
+    form = GraphicsOptionForm(request.POST or None, instance=instance)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('manage_graphics_Options')
+
+    return render(request, 'rentals/manage_Options.html', {
+        'form': form,
+        'items': items,
+        'field_name': 'Graphics',
+        'title': 'Graphics',
+        'editing': editing,
+        'current_view': 'manage_graphics_Options',
+    })

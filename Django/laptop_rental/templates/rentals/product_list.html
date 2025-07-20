@@ -53,19 +53,8 @@
       <p></p>
       {% endif %}
     </td>
-  <!-- <td>
-  {% if p.condition_status == 'missing' %}
-    <span style="color: red;">Missing</span>
-  {% elif p.condition_status == 'damaged' %}
-    <span style="color: orange;">Damaged</span>
-  {% elif p.is_available %}
-    <span style="color: green;">Available</span>
-  {% else %}
-    <span style="color: gray;">Rented</span>
-  {% endif %}
-</td> -->
   <td>
-  {% if p.is_sold %}
+  {% if p.condition_status == 'sold' %}
     <span style="color: purple;">Sold</span>
   {% elif p.condition_status == 'missing' %}
     <span style="color: red;">Missing</span>
@@ -81,10 +70,11 @@
   <!-- <td>₹ {{ p.net_profit }}</td> -->
     <td>{{ p.edited_by.username }}</td>
     <td>
-      <a href="{% url 'product_detail' p.pk %}"><button>👁️ View</button></a> |
-      <a href="{% url 'edit_product' p.pk %}"><button>✏️ Edit</button></a> |
-      <a href="{% url 'add_config' p.pk %}"><button>➕ Add Config</button></a> |
-      <a href="{% url 'clone_product' p.pk %}"><button>📄 Clone</button></a>
+      <a href="{% url 'add_repair' p.pk %}"><button>Repair</button></a> |
+      <a href="{% url 'product_detail' p.pk %}"><button>View</button></a> |
+      <a href="{% url 'edit_product' p.pk %}"><button>Edit</button></a> |
+      <a href="{% url 'add_config' p.pk %}"><button>Config</button></a> |
+      <a href="{% url 'clone_product' p.pk %}"><button>Clone</button></a>
     </td>
   </tr>
   {% endfor %}

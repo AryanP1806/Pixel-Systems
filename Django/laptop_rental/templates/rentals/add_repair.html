@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Add Repair{% endblock %}</h1>
+
+{% block content %}
+<h2>Add Repair</h2>
+<form method="post">
+  {% csrf_token %}
+
+  <p>
+    <label for="id_product">Asset:</label>
+    {{ form.product }}
+  </p>
+  <p>
+    <label for="id_name">By Whom:</label>
+    {{ form.name }}
+  </p>
+
+  <p>
+    <label for="id_date">Date:</label>
+    {{ form.date }}
+  </p>
+
+  <p>
+    <label for="id_cost">Cost:</label>
+    {{ form.cost }}
+  </p>
+
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}
