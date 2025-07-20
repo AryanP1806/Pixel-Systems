@@ -14,8 +14,14 @@
     <div class="section">
       <h3>Customer & Inventory</h3>
       <a href="{% url 'customer_list' %}">👥 Customers</a>
+      <a href="{% url 'supplier_list' %}">👥 Suppliers</a>
       <a href="{% url 'product_list' %}">💻 Product List</a>
       <a href="{% url 'sold_assets' %}">💰 Sold Products</a>
+    </div>
+
+    <div class="section">
+      <h3>Customization</h3>
+      <a href="{% url 'settings_page' %}">⚙️ Settings</a>
     </div>
 
     {% if user.is_superuser %}
@@ -24,6 +30,7 @@
       <a href="{% url 'approval_dashboard' %}">🛡️ Approvals</a>
       <a href="{% url 'report_dashboard' %}">📈 Reports</a>
     </div>
+
     {% endif %}
   </div>
 </div>

@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-=+5z17xm4&9igf5#5zx(zixk(ay+0bhr+f&3hx!8n!l0c!skf2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.0.90'] 
 
 
 # Application definition
@@ -117,11 +117,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 # 🔐 SESSION BEHAVIOR SETTINGS
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
@@ -147,7 +147,8 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'aryanpore3056@gmail.com'
-EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq' 
+# EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq' 
+EMAIL_HOST_PASSWORD = 'vlsi kbcq rdba zdlw' 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 

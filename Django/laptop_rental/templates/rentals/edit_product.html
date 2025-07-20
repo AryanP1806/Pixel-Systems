@@ -1,10 +1,152 @@
 {% extends 'base.html' %}
-<h1>{% block title %}Edit {{ product.name }}{% endblock %}</h1>
+<h1>{% block title %}Edit Product{% endblock %}</h1>
 {% block content %}
-<h2>Edit Products - {{ product.name }}</h2>
+<h2>Edit Product</h2>
 
 <form method="post">
-  {% csrf_token %} {{ form.as_p }}
+  {% csrf_token %} {% if form.errors %}
+  <div style="color: red">
+    <strong>There were errors with your submission:</strong>
+    <ul>
+      {% for field in form %} {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+      {% endfor %} {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <span>
+    <label for="id_asset_number">Asset id(eg.007):</label>
+    {{ form.asset_number }}
+  </span>
+
+  <p>
+    <label for="id_asset_suffix">Asset id suffix (optional):</label>
+    {{ form.asset_suffix }}
+  </p>
+  <p>_______________________________________________________</p>
+  <p>
+    <label for="id_asset_id">Asset id full(eg.Pixel/2025/007):</label>
+    {{ form.asset_id }}
+  </p>
+
+  <p>
+    <label for="id_type_of_asset">Asset Type:</label>
+    {{ form.type_of_asset }}
+  </p>
+  <p>
+    <label for="id_brand">Brand:</label>
+    {{ form.brand }}
+  </p>
+  <p>
+    <label for="id_model_no">Model No:</label>
+    {{ form.model_no }}
+  </p>
+  <p>
+    <label for="id_serial_no">Serial No:</label>
+    {{ form.serial_no }}
+  </p>
+
+  <p>
+    <label for="id_hsn_code">HSN Code:</label>
+    {{ form.hsn_code }}
+  </p>
+
+  <p>
+    <label for="id_purchase_price">Purchase Price:</label>
+    {{ form.purchase_price }}
+  </p>
+
+  <p>
+    <label for="id_current_value">Current Value:</label>
+    {{ form.current_value }}
+  </p>
+
+  <p>
+    <label for="id_purchase_date">Purchase Date:</label>
+    {{ form.purchase_date }}
+  </p>
+  <p>
+    <label for="id_under_warranty">Under Warranty:</label>
+    {{ form.under_warranty }}
+  </p>
+  <p>
+    <label for="id_warranty_duration_months">Warranty Duration (months):</label>
+    {{ form.warranty_duration_months }}
+  </p>
+
+  <p>
+    <label for="id_purchased_from">Purchased from:</label>
+    {{ form.purchased_from }}
+  </p>
+  <p>
+    <label for="id_condition_status">Condition Status:</label>
+    {{ form.condition_status }}
+  </p>
+
+  <p class="sold-only" style="display: none">
+    <label for="id_sold_to">Sold To:</label>
+    {{ form.sold_to }}
+  </p>
+  <p class="sold-only" style="display: none">
+    <label for="id_sale_price">Sale Price:</label>
+    {{ form.sale_price }}
+  </p>
+  <p class="sold-only" style="display: none">
+    <label for="id_sale_date">Sale Date:</label>
+    {{ form.sale_date }}
+  </p>
+
+  <p class="damaged-only" style="display: none">
+    <label for="id_date_marked_dead">Date Marked Dead:</label>
+    {{ form.date_marked_dead }}
+  </p>
+  <p class="damaged-only" style="display: none">
+    <label for="id_damage_narration">Damage Narration:</label>
+    {{ form.damage_narration }}
+  </p>
+
   <button type="submit">Save Changes</button>
 </form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const warrantyCheckbox = document.getElementById("id_under_warranty");
+    const durationField = document
+      .getElementById("id_warranty_duration_months")
+      .closest("p");
+
+    function toggleWarranty() {
+      durationField.style.display = warrantyCheckbox.checked ? "block" : "none";
+    }
+
+    warrantyCheckbox.addEventListener("change", toggleWarranty);
+    toggleWarranty();
+
+    const conditionField = document.getElementById("id_condition_status");
+
+    const soldFields = ["id_sold_to", "id_sale_price", "id_sale_date"];
+    const damagedFields = ["id_date_marked_dead", "id_damage_narration"];
+
+    function toggleConditionFields() {
+      const status = conditionField.value;
+
+      // Sold condition fields
+      soldFields.forEach((id) => {
+        const el = document.getElementById(id)?.closest("p");
+        if (el) el.style.display = status === "sold" ? "block" : "none";
+      });
+
+      // Damaged condition fields
+      damagedFields.forEach((id) => {
+        const el = document.getElementById(id)?.closest("p");
+        if (el) el.style.display = status === "damaged" ? "block" : "none";
+      });
+    }
+
+    conditionField.addEventListener("change", toggleConditionFields);
+
+    toggleConditionFields();
+  });
+</script>
 {% endblock %}

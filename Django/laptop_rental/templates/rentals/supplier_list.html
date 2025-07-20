@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Suppliers{% endblock %}</h1>
+{% block content %}
+<h2>Suppliers</h2>
+
+<a href="{% url 'add_supplier' %}"><button>➕ Add Supplier</button></a>
+
+<form method="get" style="margin-top: 20px">
+  <input
+    type="text"
+    name="q"
+    placeholder="Search suppliers..."
+    value="{{ query|default:'' }}"
+  />
+  <button type="submit">Search</button>
+</form>
+
+<table border="1" cellpadding="8" style="margin-top: 20px">
+  <tr>
+    <th>Name</th>
+    <th>GSTIN</th>
+    <th>Address</th>
+    <th>Contact</th>
+    <th>Email</th>
+    <th>Reference</th>
+    <th>Actions</th>
+  </tr>
+  {% for supplier in suppliers %}
+  <tr>
+    <td>{{ supplier.name }}</td>
+    <td>{{ supplier.gstin }}</td>
+    <td>
+      {{ supplier.address_1 }} {% if supplier.address_2 %}<br />{{
+      supplier.address_2 }}{% endif %}
+    </td>
+    <td>
+      {{ supplier.contact_primary }}{% if supplier.contact_secondary %}, {{
+      supplier.contact_secondary }}{% endif %}
+    </td>
+    <td>{{ supplier.email }}</td>
+    <td>{{ supplier.reference_name }}</td>
+    <td>
+      <a href="{% url 'edit_supplier' supplier.pk %}"
+        ><button>✏️ Edit</button></a
+      >
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="7">No suppliers found.</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

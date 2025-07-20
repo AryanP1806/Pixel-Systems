@@ -1,0 +1,18 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Asset Types</h2>
+<a href="{% url 'add_asset_type' %}">Add Asset Type</a>
+<table>
+  <tr>
+    <th>Name</th>
+    <th>Order</th>
+    <th>Actions</th>
+  </tr>
+  {% for type in asset_types %}
+  <tr>
+    <td>{{ type.name }}</td>
+    <td>{{ type.display_order }}</td>
+    <td><a href="{% url 'edit_asset_type' type.id %}">Edit</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

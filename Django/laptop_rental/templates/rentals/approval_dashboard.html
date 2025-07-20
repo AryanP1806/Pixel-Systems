@@ -103,7 +103,10 @@
   </tr>
   {% for c in pending_configs %}
   <tr>
-    <td>{{ c.asset.asset_id }}</td>
+    <td>
+      <p>{{ c.asset.asset_id }}</p>
+      <p>{{ c.asset.type_of_asset }}</p>
+    </td>
     <td>
       <p>Ram: {{c.ram}}</p>
       <p>Hdd:{{c.hdd}}</p>
@@ -112,7 +115,6 @@
       <p>display Size: {{c.display_size}}</p>
       <p>power Supply: {{c.power_supply}}</p>
       <p>Details: {{c.detailed_config}}</p>
-      <p>Repair Cost: {{c.repair_cost}}</p>
     </td>
 
     <td>{{ c.submitted_by.username }}</td>

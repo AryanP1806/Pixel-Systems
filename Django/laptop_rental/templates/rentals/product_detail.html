@@ -19,10 +19,38 @@
   <li>Purchased From: {{ product.purchased_from }}</li>
 </ul>
 
+<h3>Repair History</h3>
+{% if repairs %}
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Name</th>
+      <th>Cost</th>
+      <th>Edited By</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for repair in repairs %}
+    <tr>
+      <td>{{ repair.date }}</td>
+      <td>{{ repair.name }}</td>
+      <td>₹{{ repair.cost }}</td>
+      <td>{{ repair.edited_by }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No repairs logged for this product.</p>
+{% endif %}
+<a href="{% url 'add_repair' product.pk %}">➕ Add Repairs</a>
+
 <h3>Configuration History:</h3>
 <table border="1" cellpadding="8">
   <tr>
     <th>Date</th>
+    <th>CPU</th>
     <th>RAM</th>
     <th>HDD</th>
     <th>SSD</th>
@@ -36,6 +64,7 @@
   {% for config in configs %}
   <tr>
     <td>{{ config.date_of_config }}</td>
+    <td>{{ config.cpu }}</td>
     <td>{{ config.ram }}</td>
     <td>{{ config.hdd }}</td>
     <td>{{ config.ssd }}</td>
