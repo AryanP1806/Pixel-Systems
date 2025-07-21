@@ -13,8 +13,7 @@
       {% endfor %} {% endfor %}
     </ul>
   </div>
-  {% endif %}
-
+  {% endif %} {% if user.is_superuser %}
   <span>
     <label for="id_asset_number">Asset id(eg.007):</label>
     {{ form.asset_number }}
@@ -25,6 +24,7 @@
     {{ form.asset_suffix }}
   </p>
   <p>_______________________________________________________</p>
+  {% endif %}
   <p>
     <label for="id_asset_id">Asset id full(eg.Pixel/2025/007):</label>
     {{ form.asset_id }}

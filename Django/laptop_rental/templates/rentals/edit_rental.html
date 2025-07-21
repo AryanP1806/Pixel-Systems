@@ -41,24 +41,30 @@
   </p>
 
   <p>
-    <label for="id_payment_amount">Payment Amount:</label>
-    {{ form.payment_amount }}
-  </p>
-  <p>
     <label for="id_payment_status">Payment Status:</label>
     {{ form.payment_status }}
   </p>
-  <div id="payment-method-container" style="display: none">
+  <p>
     <label for="id_payment_method">Payment Method:</label>
     {{ form.payment_method }}
+  </p>
+  <p>
+    <label for="id_payment_amount">Payment Amount:</label>
+    {{ form.payment_amount }}
+  </p>
+
+  <p>
+    <label for="id_status">Status:</label>
+    {{ form.status }}
+  </p>
+
+  <div id="end-date-field" style="display: none">
+    <label for="id_rental_end_date">Rental End Date:</label>
+    {{ form.rental_end_date }}
   </div>
 
   <p>
-    <label for="id_notes">status:</label>
-    {{ form.status }}
-  </p>
-  <p>
-    <button type="submit">Add Rental</button>
+    <button type="submit">Edit Rental</button>
   </p>
 </form>
 
@@ -70,24 +76,22 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    $("#id_customer").select2();
-    $("#id_asset").select2();
+    const statusField = document.getElementById("id_status");
+    const endDateField = document.getElementById("end-date-field");
 
-    const statusField = document.getElementById("id_payment_status");
-    const methodContainer = document.getElementById("payment-method-container");
-
-    function toggleMethod() {
-      if (statusField.value === "paid") {
-        methodContainer.style.display = "block";
+    function toggleEndDateField() {
+      if (statusField.value === "completed") {
+        endDateField.style.display = "block";
       } else {
-        methodContainer.style.display = "none";
+        endDateField.style.display = "none";
       }
     }
 
-    if (statusField) {
-      statusField.addEventListener("change", toggleMethod);
-      toggleMethod(); // Initial check
-    }
+    statusField.addEventListener("change", toggleEndDateField);
+    toggleEndDateField(); // Initial check
+
+    $("#id_customer").select2();
+    $("#id_asset").select2();
   });
 </script>
 {% endblock %}
