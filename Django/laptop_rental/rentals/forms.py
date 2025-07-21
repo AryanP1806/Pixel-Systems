@@ -87,54 +87,34 @@ class ProductAssetForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.original_instance = kwargs.get('instance', None)
         super().__init__(*args, **kwargs)
-        self.fields['type_of_asset'].queryset = AssetType.objects.all()
-
-
-    def clean_asset_number(self):
-        asset_number = self.cleaned_data.get('asset_number')
-        qs = ProductAsset.objects.filter(asset_id=asset_number)
-        
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-            return asset_number
-        if asset_number:
-            exists_main = ProductAsset.objects.filter(asset_number=asset_number).exists()
-            exists_pending = PendingProduct.objects.filter(asset_number=asset_number).exists()
-            if exists_main or exists_pending:
-                raise forms.ValidationError("Asset id already exists. Please enter a unique number.")
-        return asset_number
 
     def clean_asset_id(self):
-        asset_id = self.cleaned_data.get('asset_id')
-        qs = ProductAsset.objects.filter(asset_id=asset_id)
-        # Skip check if empty, let save() generate it
-        if not asset_id:
-            return asset_id
-
-        # Check in both ProductAsset and PendingProduct
-        exists_in_main = ProductAsset.objects.filter(asset_id=asset_id).exists()
-        exists_in_pending = PendingProduct.objects.filter(asset_id=asset_id).exists()
-
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-            return asset_id
-        if exists_in_main or exists_in_pending:
-            raise ValidationError("Asset ID already exists. Please choose a unique one.")
+        asset_id = self.cleaned_data['asset_id']
+        if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(asset_id=asset_id).exists():
+            raise forms.ValidationError("Asset ID already exists. Please choose a unique one.")
         return asset_id
 
     def clean_serial_no(self):
-        serial_no = self.cleaned_data.get('serial_no')
-        qs = ProductAsset.objects.filter(serial_no=serial_no)
-
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-
-        if qs.exists():
-            raise ValidationError("Serial number already exists.")
-
+        serial_no = self.cleaned_data['serial_no']
+        if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(serial_no=serial_no).exists():
+            raise forms.ValidationError("Serial number already exists.")
         return serial_no
 
+    def clean_asset_number(self):
+        asset_number = self.cleaned_data.get('asset_number')
+        asset_suffix = self.cleaned_data.get('asset_suffix')
+        if not asset_suffix:
+            asset_suffix = ""
+        if asset_number:
+            asset_suffix = asset_suffix or ""
+
+            if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(asset_number=asset_number, asset_suffix=asset_suffix).exists():
+                raise forms.ValidationError("Asset number already exists.")
+        return asset_number
+    
+    
 
     def clean(self):
         cleaned = super().clean()
@@ -162,7 +142,7 @@ class PendingProductForm(forms.ModelForm):
     class Meta:
         model = PendingProduct
         fields = '__all__'
-        exclude = ['edited_by', 'edited_at']
+        exclude = ['asset_number','','edited_by', 'edited_at']
         widgets = {
             'purchase_date': forms.DateInput(attrs={'type': 'date'}),
             'under_warranty': forms.CheckboxInput(),
@@ -171,52 +151,35 @@ class PendingProductForm(forms.ModelForm):
             'type_of_asset': forms.Select(attrs={'class': 'form-control'}),
             'date_marked_dead': forms.DateInput(attrs={'type': 'date'}),
         }
-
-    def clean_asset_number(self):
-        asset_number = self.cleaned_data.get('asset_number')
-        qs = ProductAsset.objects.filter(asset_id=asset_number)
-        
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-            return asset_number
-        if asset_number:
-            exists_main = ProductAsset.objects.filter(asset_number=asset_number).exists()
-            exists_pending = PendingProduct.objects.filter(asset_number=asset_number).exists()
-            if exists_main or exists_pending:
-                raise forms.ValidationError("Asset id already exists. Please enter a unique number.")
-        return asset_number
+    
+    def __init__(self, *args, **kwargs):
+        self.original_instance = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
 
     def clean_asset_id(self):
-        asset_id = self.cleaned_data.get('asset_id')
-        qs = ProductAsset.objects.filter(asset_id=asset_id)
-        # Skip check if empty, let save() generate it
-        if not asset_id:
-            return asset_id
-
-        # Check in both ProductAsset and PendingProduct
-        exists_in_main = ProductAsset.objects.filter(asset_id=asset_id).exists()
-        exists_in_pending = PendingProduct.objects.filter(asset_id=asset_id).exists()
-
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-            return asset_id
-        if exists_in_main or exists_in_pending:
-            raise ValidationError("Asset ID already exists. Please choose a unique one.")
+        asset_id = self.cleaned_data['asset_id']
+        if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(asset_id=asset_id).exists():
+            raise forms.ValidationError("Asset ID already exists. Please choose a unique one.")
         return asset_id
 
     def clean_serial_no(self):
-        serial_no = self.cleaned_data.get('serial_no')
-        qs = ProductAsset.objects.filter(serial_no=serial_no)
-
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-
-        if qs.exists():
-            raise ValidationError("Serial number already exists.")
-
+        serial_no = self.cleaned_data['serial_no']
+        if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(serial_no=serial_no).exists():
+            raise forms.ValidationError("Serial number already exists.")
         return serial_no
 
+    def clean_asset_number(self):
+        asset_number = self.cleaned_data.get('asset_number')
+        asset_suffix = self.cleaned_data.get('asset_suffix')
+        if not asset_suffix:
+            asset_suffix = ""
+        if asset_number:
+            asset_suffix = asset_suffix or ""
 
+            if ProductAsset.objects.exclude(pk=getattr(self.original_instance, 'pk', None)).filter(asset_number=asset_number, asset_suffix=asset_suffix).exists():
+                raise forms.ValidationError("Asset number already exists.")
+        return asset_number
+    
     def clean(self):
         cleaned = super().clean()
         condition = cleaned.get("condition_status")
@@ -236,27 +199,27 @@ class PendingProductForm(forms.ModelForm):
                 self.add_error('damage_narration', "Please provide damage narration.")
 
         return cleaned
+    
+    # def save(self, *args, **kwargs):
+    #     if not self.asset_id:
+    #         year = self.purchase_date.year if self.purchase_date else now().year
+    #         prefix = f"Pixel/{year}/"
+    #         existing_ids = list(
+    #             ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)
+    #         ) + list(
+    #             PendingProduct.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)
+    #         )
 
-    def save(self, *args, **kwargs):
-        if not self.asset_id:
-            year = self.purchase_date.year if self.purchase_date else now().year
-            prefix = f"Pixel/{year}/"
-            existing_ids = list(
-                ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)
-            ) + list(
-                PendingProduct.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)
-            )
+    #         number = 1
+    #         while True:
+    #             suffix = str(number).zfill(3)
+    #             new_id = prefix + suffix
+    #             if new_id not in existing_ids:
+    #                 self.asset_id = new_id
+    #                 break
+    #             number += 1
 
-            number = 1
-            while True:
-                suffix = str(number).zfill(3)
-                new_id = prefix + suffix
-                if new_id not in existing_ids:
-                    self.asset_id = new_id
-                    break
-                number += 1
-
-        super().save(*args, **kwargs)
+    #     super().save(*args, **kwargs)
 
 
 
@@ -331,12 +294,14 @@ class RentalForm(forms.ModelForm):
             'rental_start_date',
             'contract_number',
             'status',
-            'billing_day'
+            'billing_day',
+            'rental_end_date'
         ]
         widgets = {
             'customer': forms.Select(attrs={'class': 'autocomplete'}),
             'asset': forms.Select(attrs={'class': 'autocomplete'}),
-            'rental_start_date': forms.DateInput(attrs={'type': 'date'})
+            'rental_start_date': forms.DateInput(attrs={'type': 'date'}),
+            'rental_end_date': forms.DateInput(attrs={'type': 'date'})
         }
 
     def __init__(self, *args, **kwargs):
@@ -373,11 +338,14 @@ class PendingRentalForm(forms.ModelForm):
 
     class Meta:
         model = PendingRental
+        include = ['customer', 'asset', 'rental_start_date', 'contract_number', 'status', 'billing_day', 'rental_end_date']
         exclude = ['submitted_by', 'submitted_at']
         widgets = {
             'customer': forms.Select(attrs={'class': 'autocomplete'}),
             'asset': forms.Select(attrs={'class': 'autocomplete'}),
-            'rental_start_date': forms.DateInput(attrs={'type': 'date'})
+            'rental_start_date': forms.DateInput(attrs={'type': 'date'}),
+            'rental_end_date': forms.DateInput(attrs={'type': 'date'})
+        
         }
     
     def __init__(self, *args, **kwargs):

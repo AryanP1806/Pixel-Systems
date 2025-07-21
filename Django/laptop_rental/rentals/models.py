@@ -216,6 +216,9 @@ class PendingProduct(models.Model):
         ('missing', 'Missing'),
         ('sold', 'Sold'),
     ]
+    original_product = models.ForeignKey(ProductAsset, null=True, blank=True, on_delete=models.SET_NULL)
+    pending_type = models.CharField(max_length=10, choices=[('add', 'Add'), ('edit', 'Edit')], default='add')
+    
     asset_suffix = models.CharField(max_length=1, null=True, blank=True)
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
@@ -240,23 +243,21 @@ class PendingProduct(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
 
+
     def save(self, *args, **kwargs):
+        # year = self.purchase_date.year if self.purchase_date else now().year
+        # prefix = f"Pixel/{year}/"
+
         if not self.asset_id:
             year = self.purchase_date.year if self.purchase_date else now().year
 
-            # Check if asset number is given
-            if self.asset_number:
+            if self.asset_number:  # Asset number manually given
                 number_str = str(self.asset_number).zfill(3)
-                suffix = f" {self.asset_suffix}" if hasattr(self, 'asset_suffix') and self.asset_suffix else ""
+                suffix = f" {self.asset_suffix}" if self.asset_suffix else ""
                 generated_id = f"Pixel/{year}/{number_str}{suffix}"
             else:
-                # Auto-generate next available asset ID
-                from .models import ProductAsset, PendingProduct
-                existing_ids = set(
-                    ProductAsset.objects.filter(asset_id__startswith=f"Pixel/{year}/").values_list("asset_id", flat=True)
-                ).union(
-                    PendingProduct.objects.filter(asset_id__startswith=f"Pixel/{year}/").values_list("asset_id", flat=True)
-                )
+                # Generate next available number automatically
+                existing_ids = ProductAsset.objects.filter(purchase_date__year=year).values_list('asset_id', flat=True)
 
                 used_numbers = set()
                 for aid in existing_ids:
@@ -273,20 +274,33 @@ class PendingProduct(models.Model):
 
                 generated_id = f"Pixel/{year}/{str(next_number).zfill(3)}"
 
-            # Check uniqueness in both ProductAsset and PendingProduct
-            from .models import ProductAsset, PendingProduct
-            if ProductAsset.objects.filter(asset_id=generated_id).exists() or PendingProduct.objects.filter(asset_id=generated_id).exclude(pk=self.pk).exists():
-                raise ValidationError(f"Asset ID '{generated_id}' already exists. Please choose a unique one.")
-
-            self.asset_id = generated_id
-
-        else:
-            # Manually entered asset_id
-            from .models import ProductAsset, PendingProduct
-            if ProductAsset.objects.filter(asset_id=self.asset_id).exists() or PendingProduct.objects.filter(asset_id=self.asset_id).exclude(pk=self.pk).exists():
-                raise ValidationError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+        # If full asset_id already provided, use it after validation
+        
+        # Check uniqueness across both ProductAsset and PendingProduct (except self)
+        # if ProductAsset.objects.filter(asset_id=self.asset_id).exists() or \
+        # PendingProduct.objects.filter(asset_id=self.asset_id).exclude(pk=self.pk).exists():
+        #     raise ValidationError({'asset_id': 'Asset ID already exists. Please choose a unique one.'})
 
         super().save(*args, **kwargs)
+
+
+    def get_next_available_number(self, year):
+        prefix = f"Pixel/{year}/"
+        existing_ids = list(ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)) + \
+                    list(PendingProduct.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True))
+
+        used_numbers = set()
+        for aid in existing_ids:
+            try:
+                num_part = aid.replace(prefix, '').split()[0]
+                used_numbers.add(int(num_part))
+            except:
+                pass
+
+        for i in range(1, 1000):
+            if i not in used_numbers:
+                return f"{i:03d}"
+        return "999"
 
 
 

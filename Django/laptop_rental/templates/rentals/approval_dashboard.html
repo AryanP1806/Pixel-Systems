@@ -9,17 +9,34 @@
 {% if pending_products %}
 <table border="1" cellpadding="8">
   <tr>
+    <th>Asset Id/no.</th>
     <th>Type</th>
     <th>Brand</th>
     <th>Model</th>
+    <th>Serial No</th>
+    <th>Purchased Date</th>
+    <th>Purchase Price</th>
+    <th>Warrenty</th>
     <th>Submitted By</th>
     <th>Actions</th>
   </tr>
   {% for p in pending_products %}
   <tr>
+    <td>{{ p.asset_id }}</td>
     <td>{{ p.type_of_asset }}</td>
     <td>{{ p.brand }}</td>
     <td>{{ p.model_no }}</td>
+    <td>{{ p.serial_no }}</td>
+    <td>{{ p.purchase_date }}</td>
+    <td>{{ p.purchase_price }}</td>
+    <td>
+      {% if p.under_warranty %} {{ p.warranty_duration_months }} months
+      <p></p>
+      {% else %} No
+      <p></p>
+      {% endif %}
+    </td>
+
     <td>{{ p.submitted_by }}</td>
     <td>
       <a href="{% url 'approve_product' p.pk %}">✅ Approve</a> |
@@ -70,7 +87,7 @@
     <th>Customer</th>
     <th>Asset</th>
     <th>Start Date</th>
-    <th>Duration (days)</th>
+    <th>Billing Date</th>
     <th>Submitted By</th>
     <th>Actions</th>
   </tr>
@@ -79,7 +96,7 @@
     <td>{{ r.customer.name }}</td>
     <td>{{ r.asset.asset_id }}</td>
     <td>{{ r.rental_start_date }}</td>
-    <td>{{ r.duration_days }}</td>
+    <td>{{ r.billing_day }}</td>
     <td>{{ r.submitted_by }}</td>
     <td>
       <a href="{% url 'approve_rental' r.pk %}">✅ Approve</a> |

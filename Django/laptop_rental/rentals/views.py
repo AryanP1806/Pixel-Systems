@@ -177,23 +177,41 @@ def reject_config(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def approve_product(request, pk):
     pending = get_object_or_404(PendingProduct, pk=pk)
-
-    real_product = ProductAsset.objects.create(
-        type_of_asset=pending.type_of_asset,
-        brand=pending.brand,
-        model_no=pending.model_no,
-        serial_no=pending.serial_no,
-        purchase_price=pending.purchase_price,
-        current_value=pending.current_value,
-        purchase_date=pending.purchase_date,
-        under_warranty=pending.under_warranty,
-        warranty_duration_months=pending.warranty_duration_months,
-        purchased_from=pending.purchased_from,
-        condition_status=pending.condition_status,
-        edited_by=pending.submitted_by
-    )
-
+    if pending.pending_type == 'edit' and pending.original_product:
+        product = pending.original_product
+        # copy fields
+        for field in [
+            'type_of_asset', 'brand', 'model_no', 'serial_no', 'purchase_price', 'current_value',
+            'purchase_date', 'under_warranty', 'warranty_duration_months', 'purchased_from',
+            'condition_status', 'asset_number', 'asset_id', 'hsn_code', 'sold_to', 'sale_price',
+            'sale_date', 'date_marked_dead', 'damage_narration']:
+            setattr(product, field, getattr(pending, field))
+        product.save()
+    else:
+        ProductAsset.objects.create(
+            type_of_asset=pending.type_of_asset,
+            brand=pending.brand,
+            model_no=pending.model_no,
+            serial_no=pending.serial_no,
+            purchase_price=pending.purchase_price,
+            current_value=pending.current_value,
+            purchase_date=pending.purchase_date,
+            under_warranty=pending.under_warranty,
+            warranty_duration_months=pending.warranty_duration_months,
+            purchased_from=pending.purchased_from,
+            condition_status=pending.condition_status,
+            asset_number=pending.asset_number,
+            asset_id=pending.asset_id,
+            hsn_code=pending.hsn_code,
+            sold_to=pending.sold_to,
+            sale_price=pending.sale_price,
+            sale_date=pending.sale_date,
+            date_marked_dead=pending.date_marked_dead,
+            damage_narration=pending.damage_narration,
+            edited_by=pending.submitted_by
+        )
     pending.delete()
+    messages.success(request, "Approved successfully.")
     return redirect('approval_dashboard')
 
 @login_required
@@ -417,7 +435,7 @@ def approve_rental(request, pk):
     customer=pending.customer,
     asset=pending.asset,
     rental_start_date=pending.rental_start_date,
-    # duration_days=pending.duration_days,
+    billing_day=pending.billing_day,
     contract_number=pending.contract_number,
     status=pending.status,
     edited_by=pending.edited_by
@@ -452,19 +470,67 @@ def edit_customer(request, pk):
         form = CustomerForm(instance=customer)
     return render(request, 'rentals/edit_customer.html', {'form': form, 'customer': customer})
 
+# @login_required
+# def edit_product(request, pk):
+#     asset = get_object_or_404(ProductAsset, pk=pk)
+#     if request.method == 'POST':
+#         form = ProductAssetForm(request.POST, instance=asset)
+#         if form.is_valid():
+#             product = form.save(commit=False)
+#             product.edited_by = request.user
+#             form.save()
+#             return redirect('product_list')
+#     else:
+#         form = ProductAssetForm(instance=asset)
+#     return render(request, 'rentals/edit_product.html', {'form': form, 'asset': asset})
+
+
 @login_required
 def edit_product(request, pk):
-    asset = get_object_or_404(ProductAsset, pk=pk)
-    if request.method == 'POST':
-        form = ProductAssetForm(request.POST, instance=asset)
-        if form.is_valid():
+    product = get_object_or_404(ProductAsset, pk=pk)
+    if request.user.is_superuser:
+        form = ProductAssetForm(request.POST or None, instance=product)
+        if request.method == 'POST' and form.is_valid():
             product = form.save(commit=False)
             product.edited_by = request.user
-            form.save()
+            product.save()
             return redirect('product_list')
     else:
-        form = ProductAssetForm(instance=asset)
-    return render(request, 'rentals/edit_product.html', {'form': form, 'asset': asset})
+        if request.method == 'POST':
+            form = ProductAssetForm(request.POST, instance=product)
+            if form.is_valid():
+                cleaned = form.cleaned_data
+                pending = PendingProduct(
+                    original_product=product,
+                    pending_type='edit',
+                    submitted_by=request.user,
+                    type_of_asset=cleaned['type_of_asset'],
+                    brand=cleaned['brand'],
+                    model_no=cleaned['model_no'],
+                    serial_no=cleaned['serial_no'],
+                    purchase_price=cleaned['purchase_price'],
+                    current_value=cleaned['current_value'],
+                    purchase_date=cleaned['purchase_date'],
+                    under_warranty=cleaned['under_warranty'],
+                    warranty_duration_months=cleaned['warranty_duration_months'],
+                    purchased_from=cleaned['purchased_from'],
+                    condition_status=cleaned['condition_status'],
+                    asset_number=cleaned.get('asset_number'),
+                    asset_id=cleaned.get('asset_id'),
+                    hsn_code=cleaned.get('hsn_code'),
+                    sold_to=cleaned.get('sold_to'),
+                    sale_price=cleaned.get('sale_price'),
+                    sale_date=cleaned.get('sale_date'),
+                    date_marked_dead=cleaned.get('date_marked_dead'),
+                    damage_narration=cleaned.get('damage_narration'),
+                )
+                pending.save()
+                messages.success(request, "Changes submitted for approval.")
+                return redirect('product_list')
+        else:
+            form = ProductAssetForm(instance=product)
+    return render(request, 'rentals/edit_product.html', {'form': form, 'product': product})
+
 
 # @login_required
 # def add_config(request, pk):
@@ -907,7 +973,7 @@ def send_billing_reminder(request):
     if not rentals_due_today.exists():
         messages.info(request, "No rentals due for billing today.")
         return redirect('rental_list')
-
+    
     body_lines = []
     for rental in rentals_due_today:
         asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
