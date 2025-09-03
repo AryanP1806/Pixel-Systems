@@ -269,7 +269,7 @@ class PendingProductConfigurationForm(forms.ModelForm):
         self.fields['ram'].queryset = RAMOption.objects.all().order_by('order')
         self.fields['display_size'].queryset = DisplaySizeOption.objects.all().order_by('order')
         self.fields['graphics'].queryset = GraphicsOption.objects.all().order_by('order')
-
+        self.fields['date_of_config'].widget = forms.DateInput(attrs={'type': 'date'})
 
 # class RentalForm(forms.ModelForm):
 #     class Meta:
@@ -293,6 +293,7 @@ class RentalForm(forms.ModelForm):
             'asset',
             'rental_start_date',
             'contract_number',
+            'contract_validity',
             'status',
             'billing_day',
             'rental_end_date'
@@ -301,7 +302,8 @@ class RentalForm(forms.ModelForm):
             'customer': forms.Select(attrs={'class': 'autocomplete'}),
             'asset': forms.Select(attrs={'class': 'autocomplete'}),
             'rental_start_date': forms.DateInput(attrs={'type': 'date'}),
-            'rental_end_date': forms.DateInput(attrs={'type': 'date'})
+            'rental_end_date': forms.DateInput(attrs={'type': 'date'}),
+            'contract_validity': forms.DateInput(attrs={'type': 'date'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -344,7 +346,8 @@ class PendingRentalForm(forms.ModelForm):
             'customer': forms.Select(attrs={'class': 'autocomplete'}),
             'asset': forms.Select(attrs={'class': 'autocomplete'}),
             'rental_start_date': forms.DateInput(attrs={'type': 'date'}),
-            'rental_end_date': forms.DateInput(attrs={'type': 'date'})
+            'rental_end_date': forms.DateInput(attrs={'type': 'date'}),
+            'contract_validity': forms.DateInput(attrs={'type': 'date'}),
         
         }
     

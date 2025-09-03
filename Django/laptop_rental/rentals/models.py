@@ -355,8 +355,8 @@ class Customer(models.Model):
         return self.name
     
 
-
 class PendingCustomer(models.Model):
+    original_customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL)  # ✅ Add this
     name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     phone_number_primary = models.CharField(max_length=15)
@@ -365,9 +365,8 @@ class PendingCustomer(models.Model):
     address_secondary = models.TextField(blank=True, null=True)
     is_permanent = models.BooleanField(default=False)
     is_bni_member = models.BooleanField(default=False)
-    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     reference_name = models.CharField(max_length=100, blank=True, null=True)
-
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
 # -----------------------------
@@ -388,6 +387,7 @@ class Rental(models.Model):
     )
     rental_end_date = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
+    contract_validity = models.DateField(blank=True, null=True)
 
 
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -397,21 +397,14 @@ class Rental(models.Model):
 
 
 class PendingRental(models.Model):
-    STATUS_CHOICES = (
-        ('ongoing', 'Ongoing'),
-        ('completed', 'Completed'),
-    )
-
+    original_rental = models.ForeignKey(Rental, null=True, blank=True, on_delete=models.SET_NULL)  # ✅ Add this
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE,blank=True, null=True)
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, blank=True, null=True)
     rental_start_date = models.DateField()
-    billing_day = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text="Day of the month for billing"
-    )
+    billing_day = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Day of the month for billing")
     rental_end_date = models.DateField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
-
+    status = models.CharField(max_length=20, choices=[('ongoing', 'Ongoing'), ('completed', 'Completed')], default='ongoing')
+    contract_validity = models.DateField(blank=True, null=True)
 
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     contract_number = models.CharField(max_length=50, blank=True)
@@ -474,6 +467,11 @@ class PendingProductConfiguration(models.Model):
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
+    is_edit = models.BooleanField(default=False)
+    original_config = models.ForeignKey(ProductConfiguration, on_delete=models.SET_NULL, null=True, blank=True)
+
+
+
 
 
 
@@ -492,7 +490,21 @@ class Supplier(models.Model):
     email = models.EmailField()
     reference_name = models.CharField(max_length=100, blank=True, null=True)
 
+    type_of_seller = models.ForeignKey(
+        AssetType, on_delete=models.SET_NULL, null=True, blank=True, related_name="vendors"
+    )
     def __str__(self):
         return f"{self.name} ({self.gstin})"
 
 
+
+class PendingRepair(models.Model):
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
+    product = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='pending_repairs')
+    repair_date = models.DateField()
+    issue = models.TextField()
+    cost = models.DecimalField(max_digits=10, decimal_places=2)
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_edit = models.BooleanField(default=False)
+    original_repair = models.ForeignKey(Repair, on_delete=models.SET_NULL, null=True, blank=True)

@@ -1,0 +1,39 @@
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #f5f9ff;
+  margin: 20px;
+}
+nav {
+  background: #2d5f8b;
+  color: white;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+nav a {
+  color: white;
+  text-decoration: none;
+}
+.hero {
+  padding: 40px;
+  text-align: center;
+  background: #e0f0ff;
+}
+.pet-card,
+.product {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin: 10px;
+  background: white;
+  max-width: 300px;
+}
+footer {
+  text-align: center;
+  padding: 10px;
+  background: #ccc;
+}

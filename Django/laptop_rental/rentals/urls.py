@@ -39,6 +39,7 @@ urlpatterns = [
     path('rentals/edit/<int:rental_id>/', views.edit_rental, name='edit_rental'),
     # path('rentals/check_overdue/', views.check_overdue_view, name='check_overdue'),
     path('send-billing-reminder/', views.send_billing_reminder, name='send_billing_reminder'),
+    path("check-contracts/", views.check_contracts, name="check_contracts"),
     
     path('history/', views.rental_history, name='rental_history'),    
 
@@ -55,6 +56,11 @@ urlpatterns = [
     path('approvals/rental/reject/<int:pk>/', views.reject_rental, name='reject_rental'),
     path('approvals/config/approve/<int:pk>/', views.approve_config, name='approve_config'),
     path('approvals/config/reject/<int:pk>/', views.reject_config, name='reject_config'),
+    
+    path('approvals/config/edit/approve/<int:pk>/', views.approve_edited_config, name='approve_edited_config'),
+    path('approvals/config/edit/reject/<int:pk>/', views.reject_edited_config, name='reject_edited_config'),
+    path('approvals/repair/edit/approve/<int:pk>/', views.approve_edited_repair, name='approve_edited_repair'),
+    path('approvals/repair/edit/reject/<int:pk>/', views.reject_edited_repair, name='reject_edited_repair'),
 
     path('suppliers/', views.supplier_list, name='supplier_list'),
     path('suppliers/add/', views.add_supplier, name='add_supplier'),

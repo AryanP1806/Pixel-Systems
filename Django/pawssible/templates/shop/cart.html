@@ -1,0 +1,15 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+<!-- <link rel="stylesheet" href="{% static 'appointment/style.css' %}" /> -->
+
+<h2>Your Cart</h2>
+<a href="/shop/">Back</a>
+
+{% for item in cart_items %}
+<div>
+  <strong>{{ item.product.name }}</strong> (x{{ item.quantity }}) - ₹
+  <span></span>{{ item.product.price }}
+</div>
+{% endfor %}
+<a href="{% url 'shop:checkout' %}">Proceed to Checkout</a>
+
+{% endblock %}

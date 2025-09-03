@@ -4,6 +4,13 @@
 <h2>Product List</h2>
 <a href="{% url 'add_product' %}"><button>➕ Add Product</button></a>
 
+{% if messages %}
+<ul>
+  {% for message in messages %}
+  <li style="color: green">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 <pre>
 <form method="get" style="margin-bottom: 20px;">
   <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">

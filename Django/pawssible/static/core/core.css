@@ -1,0 +1,29 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.grid div {
+  background-color: white;
+  border: 1px solid #ddd;
+  padding: 30px 20px;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.grid div:hover {
+  transform: translateY(-5px);
+}
+
+.grid div a {
+  text-decoration: none;
+  font-weight: bold;
+  color: #007bff;
+  font-size: 18px;
+}

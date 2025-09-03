@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+<link rel="stylesheet" href="{% static 'community/style.css' %}" />
+
+<div class="community-container">
+  <h2>Community Posts</h2>
+  <a href="{% url 'community:post' %}" class="new-post-button"
+    >📌 Create New Post</a
+  >
+
+  {% for post in posts %}
+  <div class="community-post">
+    <h3>{{ post.title }}</h3>
+    <p class="author">Posted by: {{ post.user.username }}</p>
+    <p>{{ post.content }}</p>
+
+    {% if post.image %}
+    <img src="{{ post.image.url }}" alt="{{ post.title }}" />
+    {% endif %}
+
+    <div class="comment-section">
+      {% for comment in post.comments.all|slice:":3" %}
+      <div class="comment">💬{{ comment.user }}: {{ comment.text }}</div>
+      {% empty %}
+      <div class="comment">No comments yet.</div>
+      {% endfor %}
+    </div>
+
+    <form action="{% url 'community:comment' post.id %}" method="post">
+      {% csrf_token %}
+      <input type="text" name="text" placeholder="Add a comment" />
+      <button type="submit">Post</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

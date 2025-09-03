@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption
+from .models import Rental, Customer, ProductAsset, ProductConfiguration, Payment,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption, PendingRepair
 from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingProductForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm, SupplierForm, RepairForm, AssetTypeForm,CPUOptionForm,  HDDOptionForm, RAMOptionForm, DisplaySizeOptionForm, GraphicsOptionForm
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
@@ -120,20 +120,32 @@ def edit_asset_type(request, pk):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
 def approval_dashboard(request):
     pending_products = PendingProduct.objects.all()
     pending_customers = PendingCustomer.objects.all()
     pending_rentals = PendingRental.objects.all()
     pending_configs = PendingProductConfiguration.objects.all()
 
-    return render(request, 'rentals/approval_dashboard.html', {
-        'pending_products': pending_products,
-        'pending_customers': pending_customers,
-        'pending_rentals': pending_rentals,
-        'pending_configs': pending_configs,
-    })
 
+    products_data = [
+        {"pending": p, "old": p.original_product} for p in pending_products
+    ]
+    customers_data = [
+        {"pending": pc, "old": pc.original_customer} for pc in pending_customers
+    ]
+    rentals_data = [
+        {"pending": pr, "old": pr.original_rental} for pr in pending_rentals
+    ]
+    configs_data = [
+        {"pending": cfg, "old": cfg.original_config} for cfg in pending_configs
+    ]
+    
+    return render(request, "rentals/approval_dashboard.html", {
+        "pending_products": products_data,
+        "pending_customers": customers_data,
+        "pending_rentals": rentals_data,
+        "pending_configs": configs_data,
+    })
 
 
 @login_required
@@ -359,24 +371,41 @@ def add_product(request):
 
             
 
-
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def approve_customer(request, pk):
     pending = get_object_or_404(PendingCustomer, pk=pk)
-    Customer.objects.create(
-        name=pending.name,
-        email=pending.email,
-        phone_number_primary=pending.phone_number_primary,
-        phone_number_secondary=pending.phone_number_secondary,
-        address_primary=pending.address_primary,
-        address_secondary=pending.address_secondary,
-        is_permanent=pending.is_permanent,
-        is_bni_member=pending.is_bni_member,
-        edited_by=pending.submitted_by
-    )
+
+    if pending.original_customer:
+        customer = pending.original_customer
+        customer.name = pending.name
+        customer.email = pending.email
+        customer.phone_number_primary = pending.phone_number_primary
+        customer.phone_number_secondary = pending.phone_number_secondary
+        customer.address_primary = pending.address_primary
+        customer.address_secondary = pending.address_secondary
+        customer.is_permanent = pending.is_permanent
+        customer.is_bni_member = pending.is_bni_member
+        customer.reference_name = pending.reference_name
+        customer.edited_by = pending.submitted_by
+        customer.save()
+    else:
+        Customer.objects.create(
+            name=pending.name,
+            email=pending.email,
+            phone_number_primary=pending.phone_number_primary,
+            phone_number_secondary=pending.phone_number_secondary,
+            address_primary=pending.address_primary,
+            address_secondary=pending.address_secondary,
+            is_permanent=pending.is_permanent,
+            is_bni_member=pending.is_bni_member,
+            reference_name=pending.reference_name,
+            edited_by=pending.submitted_by,
+        )
+
     pending.delete()
-    return redirect('approval_dashboard')
+    messages.success(request, "Customer approved successfully.")
+    return redirect("approval_dashboard")
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -431,24 +460,54 @@ def add_rental(request):
 @user_passes_test(lambda u: u.is_superuser)
 def approve_rental(request, pk):
     pending = get_object_or_404(PendingRental, pk=pk)
-    rental = Rental.objects.create(
-    customer=pending.customer,
-    asset=pending.asset,
-    rental_start_date=pending.rental_start_date,
-    billing_day=pending.billing_day,
-    contract_number=pending.contract_number,
-    status=pending.status,
-    edited_by=pending.edited_by
-    )
-    Payment.objects.create(
-    rental=rental,
-    amount=pending.payment_amount,
-    status='pending',  # Or whatever was stored
-    payment_method='cash',  # Optional: add more fields to PendingRental
-    edited_by=pending.edited_by
-    )
+
+    if pending.original_rental:
+        rental = pending.original_rental
+        rental.customer = pending.customer
+        rental.asset = pending.asset
+        rental.rental_start_date = pending.rental_start_date
+        rental.rental_end_date = pending.rental_end_date
+        rental.billing_day = pending.billing_day
+        rental.contract_number = pending.contract_number
+        rental.contract_validity = pending.contract_validity
+        rental.status = pending.status
+        rental.edited_by = pending.submitted_by
+        rental.save()
+
+        Payment.objects.update_or_create(
+            rental=rental,
+            defaults={
+                "amount": pending.payment_amount,
+                "status": "pending",
+                "payment_method": "cash",
+
+                "edited_by": pending.submitted_by,
+            },
+        )
+    else:
+        rental = Rental.objects.create(
+            customer=pending.customer,
+            asset=pending.asset,
+            rental_start_date=pending.rental_start_date,
+            rental_end_date=pending.rental_end_date,
+            billing_day=pending.billing_day,
+            contract_number=pending.contract_number,
+            contract_validity=pending.contract_validity,
+            status=pending.status,
+            edited_by=pending.submitted_by,
+        )
+
+        Payment.objects.create(
+            rental=rental,
+            amount=pending.payment_amount,
+            status="pending",
+            payment_method="cash",
+            edited_by=pending.submitted_by,
+        )
+
     pending.delete()
-    return redirect('approval_dashboard')
+    messages.success(request, "Rental approved successfully.")
+    return redirect("approval_dashboard")
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -461,28 +520,40 @@ def reject_rental(request, pk):
 @login_required
 def edit_customer(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
-    if request.method == 'POST':
-        form = CustomerForm(request.POST, instance=customer)
-        if form.is_valid():
-            form.save()
-            return redirect('customer_list')
-    else:
-        form = CustomerForm(instance=customer)
-    return render(request, 'rentals/edit_customer.html', {'form': form, 'customer': customer})
 
-# @login_required
-# def edit_product(request, pk):
-#     asset = get_object_or_404(ProductAsset, pk=pk)
-#     if request.method == 'POST':
-#         form = ProductAssetForm(request.POST, instance=asset)
-#         if form.is_valid():
-#             product = form.save(commit=False)
-#             product.edited_by = request.user
-#             form.save()
-#             return redirect('product_list')
-#     else:
-#         form = ProductAssetForm(instance=asset)
-#     return render(request, 'rentals/edit_product.html', {'form': form, 'asset': asset})
+    if request.user.is_superuser:
+        form = CustomerForm(request.POST or None, instance=customer)
+        if request.method == "POST" and form.is_valid():
+            updated_customer = form.save(commit=False)
+            updated_customer.edited_by = request.user
+            updated_customer.save()
+            messages.success(request, "Customer updated successfully.")
+            return redirect("customer_list")
+    else:
+        if request.method == "POST":
+            form = CustomerForm(request.POST, instance=customer)
+            if form.is_valid():
+                cleaned = form.cleaned_data
+                pending = PendingCustomer(
+                    original_customer=customer,  # ✅ Link original customer
+                    name=cleaned["name"],
+                    email=cleaned["email"],
+                    phone_number_primary=cleaned["phone_number_primary"],
+                    phone_number_secondary=cleaned.get("phone_number_secondary"),
+                    address_primary=cleaned["address_primary"],
+                    address_secondary=cleaned.get("address_secondary"),
+                    is_permanent=cleaned.get("is_permanent", False),
+                    is_bni_member=cleaned.get("is_bni_member", False),
+                    reference_name=cleaned.get("reference_name"),
+                    submitted_by=request.user,
+                )
+                pending.save()
+                messages.success(request, "Customer changes submitted for approval.")
+                return redirect("customer_list")
+        else:
+            form = CustomerForm(instance=customer)
+
+    return render(request, "rentals/edit_customer.html", {"form": form, "customer": customer})
 
 
 @login_required
@@ -531,38 +602,6 @@ def edit_product(request, pk):
             form = ProductAssetForm(instance=product)
     return render(request, 'rentals/edit_product.html', {'form': form, 'product': product})
 
-
-# @login_required
-# def add_config(request, pk):
-#     asset = get_object_or_404(ProductAsset, pk=pk)
-
-#     if request.method == 'POST':
-#         form = ProductConfigurationForm(request.POST)
-#         if form.is_valid():
-#             if request.user.is_superuser:
-#                 config = form.save(commit=False)
-#                 config.asset = asset
-#                 config.edited_by = request.user
-#                 config.save()
-#             else:
-#                 pending_config = PendingProductConfiguration(
-#                     asset=asset,
-#                     date_of_config=form.cleaned_data['date_of_config'],
-#                     ram=form.cleaned_data['ram'],
-#                     hdd=form.cleaned_data['hdd'],
-#                     ssd=form.cleaned_data['ssd'],
-#                     graphics=form.cleaned_data['graphics'],
-#                     display_size=form.cleaned_data['display_size'],
-#                     power_supply=form.cleaned_data['power_supply'],
-#                     detailed_config=form.cleaned_data['detailed_config'],
-#                     submitted_by=request.user
-#                 )
-#                 pending_config.save()
-#             return redirect('product_detail', pk=pk)
-#     else:
-#         form = ProductConfigurationForm(initial={'asset': asset})
-
-#     return render(request, 'rentals/add_config.html', {'form': form, 'asset': asset})
 
 
 from .models import ProductAsset, ProductConfiguration
@@ -635,18 +674,50 @@ def product_detail(request, pk):
         'repairs': repairs
         })
 
-
 @login_required
-def edit_config(request, config_id):
-    config = get_object_or_404(ProductConfiguration, pk=config_id)
-    if request.method == 'POST':
-        form = ProductConfigurationForm(request.POST, instance=config)
-        if form.is_valid():
-            form.save()
-            return redirect('product_detail', pk=config.asset.pk)
+def edit_config(request, pk):
+    config = get_object_or_404(ProductConfiguration, pk=pk)
+
+    if request.user.is_superuser:
+        # Superusers can directly edit
+        form = ProductConfigurationForm(request.POST or None, instance=config)
+        if request.method == "POST" and form.is_valid():
+            updated_config = form.save(commit=False)
+            updated_config.edited_by = request.user
+            updated_config.save()
+            messages.success(request, "Configuration updated successfully.")
+            return redirect("config_list")
     else:
-        form = ProductConfigurationForm(instance=config)
-    return render(request, 'rentals/edit_config.html', {'form': form, 'config': config})
+        # Normal users → Create a pending config
+        if request.method == "POST":
+            form = ProductConfigurationForm(request.POST, instance=config)
+            if form.is_valid():
+                cleaned = form.cleaned_data
+
+                # ✅ Ensure date_of_config is always set
+                date_value = cleaned.get("date_of_config") or config.date_of_config or now().date()
+
+                PendingProductConfiguration.objects.create(
+                    asset=config.asset,
+                    date_of_config=date_value,
+                    cpu=cleaned.get("cpu"),
+                    ram=cleaned.get("ram"),
+                    hdd=cleaned.get("hdd"),
+                    ssd=cleaned.get("ssd"),
+                    graphics=cleaned.get("graphics"),
+                    display_size=cleaned.get("display_size"),
+                    power_supply=cleaned.get("power_supply"),
+                    detailed_config=cleaned.get("detailed_config"),
+                    submitted_by=request.user,
+                    is_edit=True,
+                    original_config=config,
+                )
+                messages.success(request, "Configuration changes submitted for approval.")
+                return redirect("config_list")
+        else:
+            form = ProductConfigurationForm(instance=config)
+
+    return render(request, "rentals/edit_config.html", {"form": form, "config": config})
 
 
 
@@ -716,12 +787,7 @@ def rental_list(request):
     # Filter by status first
     # if filter_type == 'ongoing':
     rentals = Rental.objects.filter(status='ongoing')
-    # elif filter_type == 'overdue':
-    #     rentals = Rental.objects.filter(status='overdue')
-    # else:
-    #     rentals = Rental.objects.filter(Q(status='ongoing') | Q(status='overdue'))
-
-    # Then apply search filter on the already filtered queryset
+    
     if query:
         rentals = rentals.filter(
             Q(customer__name__icontains=query) |
@@ -751,54 +817,62 @@ def mark_rental_completed(request, rental_id):
 @login_required
 def edit_rental(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
-    from datetime import timedelta
-    # rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
 
-    if request.method == 'POST':
-        form = RentalForm(request.POST, instance=rental)
-        if form.is_valid():
-            rental = form.save()
-            # update or create the payment too
-            payment_data = {
-                'amount': form.cleaned_data['payment_amount'],
-                'status': form.cleaned_data['payment_status'],
-                'payment_method': form.cleaned_data['payment_method']
-            }
-            Payment.objects.update_or_create(rental=rental, defaults=payment_data)
-            return redirect('rental_list')
-    else:
+    if request.user.is_superuser:
         initial_data = {
-        'payment_amount': rental.payment.amount if hasattr(rental, 'payment') else 0,
-        'payment_status': rental.payment.status if hasattr(rental, 'payment') else 'pending',
-        'payment_method': rental.payment.payment_method if hasattr(rental, 'payment') else 'cash',
+            "payment_amount": rental.payment.amount if hasattr(rental, "payment") else 0,
+            "payment_status": rental.payment.status if hasattr(rental, "payment") else "pending",
+            "payment_method": rental.payment.payment_method if hasattr(rental, "payment") else "cash",
         }
-        form = RentalForm(instance=rental, initial=initial_data)
+        form = RentalForm(request.POST or None, instance=rental, initial=initial_data)
+        if request.method == "POST" and form.is_valid():
+            updated_rental = form.save(commit=False)
+            updated_rental.edited_by = request.user
+            updated_rental.save()
 
-    return render(request, 'rentals/edit_rental.html', {'form': form,'rental': rental})
+            Payment.objects.update_or_create(
+                rental=updated_rental,
+                defaults={
+                    "amount": form.cleaned_data["payment_amount"],
+                    "status": form.cleaned_data["payment_status"],
+                    "payment_method": form.cleaned_data["payment_method"],
+                    "edited_by": request.user,
+                },
+            )
+            messages.success(request, "Rental updated successfully.")
+            return redirect("rental_list")
+    else:
+        if request.method == "POST":
+            form = RentalForm(request.POST, instance=rental)
+            if form.is_valid():
+                cleaned = form.cleaned_data
+                pending = PendingRental(
+                    original_rental=rental,  # ✅ Link original rental
+                    customer=cleaned["customer"],
+                    asset=cleaned["asset"],
+                    rental_start_date=cleaned["rental_start_date"],
+                    rental_end_date=cleaned["rental_end_date"],
+                    billing_day=cleaned.get("billing_day"),
+                    contract_number=cleaned.get("contract_number"),
+                    contract_validity=cleaned.get("contract_validity"),
+                    status=cleaned.get("status"),
+                    payment_amount=cleaned.get("payment_amount"),
+                    edited_by=request.user,
+                    submitted_by=request.user,
+                )
+                pending.save()
+                messages.success(request, "Rental changes submitted for approval.")
+                return redirect("rental_list")
+        else:
+            initial_data = {
+                "payment_amount": rental.payment.amount if hasattr(rental, "payment") else 0,
+                "payment_status": rental.payment.status if hasattr(rental, "payment") else "pending",
+                "payment_method": rental.payment.payment_method if hasattr(rental, "payment") else "cash",
+            }
+            form = RentalForm(instance=rental, initial=initial_data)
 
+    return render(request, "rentals/edit_rental.html", {"form": form, "rental": rental})
 
-
-# @login_required
-# def check_overdue_view(request):
-#     today = timezone.now().date()
-#     rentals = Rental.objects.filter(status='ongoing')
-
-#     for rental in rentals:
-#         due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
-#         days_left = (due_date - today).days
-
-#         # Overdue: send overdue email
-#         if due_date < today:
-#             rental.status = 'overdue'
-#             rental.save()
-
-#             send_mail(
-#                 subject='🔴 Rental Overdue Notification',
-#                 message=f'Rental for {rental.customer.name} is overdue.\nAsset ID: {rental.asset.asset_id}',
-#                 from_email='aryanpore3056@gmail.com',
-#                 recipient_list=['aryanpore3056@gmail.com'],
-#                 fail_silently=False,
-#             )
 
 
 
@@ -815,7 +889,23 @@ def report_dashboard(request):
     end = request.GET.get('end_date')
 
   # rentals = Rental.objects.filter(status='completed')
-    rentals = Rental.objects.select_related('payment').all()
+    rentals = Rental.objects.select_related('asset', 'customer').all()
+    customer_business = []
+    customer_type = request.GET.get('customer_type')
+
+    if customer_type == 'BNI':
+        rentals = rentals.filter(customer__is_bni_member=True)
+        selected_customers = Customer.objects.filter(is_bni_member=True)
+
+    elif customer_type == 'Permanent':
+        rentals = rentals.filter(customer__is_permanent=True)
+        selected_customers = Customer.objects.filter(is_permanent=True)
+    else:
+        selected_customers = []
+
+    for customer in selected_customers:
+        total = Rental.objects.filter(customer=customer).aggregate(total=Sum('price'))['total'] or 0
+        customer_business.append({'name': customer.name, 'total': total})
 
     product_obj = None
     if product_id:
@@ -825,12 +915,17 @@ def report_dashboard(request):
             product_obj = None
 
     gross_profit = maintenance_cost = net_profit = None
+    sold_asset = 0.0
     if product_obj:
+        purchase_price = float(product_obj.purchase_price or 0)
         gross_profit = float(product_obj.total_rent_earned or 0)
         if product_obj.condition_status=='sold' and product_obj.sale_price:
-            gross_profit += float(product_obj.sale_price)
+            # gross_profit += float(product_obj.sale_price)
+            sold_asset = float(product_obj.sale_price or 0)
+        else:
+            sold_asset = 0.0
         maintenance_cost = float(product_obj.total_repairs or 0)
-        net_profit = gross_profit - maintenance_cost
+        net_profit =  gross_profit - maintenance_cost -  purchase_price 
 
 
 
@@ -845,8 +940,7 @@ def report_dashboard(request):
 
     total_revenue = sum(r.payment.amount for r in rentals if hasattr(r, 'payment'))
     total_rentals = rentals.count()
-    # total_days = sum(r.duration_days or 0 for r in rentals)
-
+    total_days = float(sum((r.rental_end_date - r.rental_start_date).days for r in rentals if r.rental_end_date and r.rental_start_date))
     # Monthly revenue data
     monthly = {}
     for r in rentals:
@@ -895,9 +989,11 @@ def report_dashboard(request):
         'rentals': rentals,
         'total_revenue': total_revenue,
         'total_rentals': total_rentals,
-
+        'purchase_price': product_obj.purchase_price if product_obj else 0,
         'gross_profit': gross_profit,
+        'sold_asset': sold_asset,
         'maintenance_cost': maintenance_cost,
+        'total_days': total_days,
         'net_profit': net_profit,
         'product_obj': product_obj, 
         'product_id': product_id,
@@ -907,6 +1003,7 @@ def report_dashboard(request):
         'monthly_labels': json.dumps(list(reversed(monthly.keys()))),
         'monthly_values': json.dumps([float(v) for v in reversed(monthly.values())]),
         'top_assets': top_assets,
+        'customer_business': customer_business,
         'type_labels': json.dumps(type_labels),
         'type_values': json.dumps(type_values),
         'customer_labels': json.dumps(customer_labels),
@@ -945,6 +1042,7 @@ def add_supplier(request):
         form = SupplierForm(request.POST)
         if form.is_valid():
             form.save()
+            messages.success(request, "Vendor added successfully.")
             return redirect('supplier_list')
     else:
         form = SupplierForm()
@@ -1036,7 +1134,7 @@ def add_repair(request, pk=None):
             form.fields['product'].queryset = ProductAsset.objects.filter(id=product.id)
             form.fields['product'].widget.attrs['readonly'] = True  # optional disable
 
-    return render(request, 'rentals/add_repair.html', {'form': form})
+    return render(request, 'rentals/add_repair.html', {'form': form, 'product': product})
 
 
 def settings_home(request):
@@ -1166,3 +1264,174 @@ def manage_graphics_Options(request):
         'editing': editing,
         'current_view': 'manage_graphics_Options',
     })
+
+
+
+@login_required
+def edit_config(request, config_id):
+    config = get_object_or_404(ProductConfiguration, id=config_id)
+
+    if request.user.is_superuser:
+        form = ProductConfigurationForm(request.POST or None, instance=config)
+        if request.method == 'POST' and form.is_valid():
+            form.save()
+            return redirect('product_detail', pk=config.asset.pk)
+    else:
+        if request.method == 'POST':
+            form = ProductConfigurationForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                pending = PendingProductConfiguration(
+                    asset=config.asset,
+                    ram=data['ram'],
+                    hdd=data['hdd'],
+                    ssd=data['ssd'],
+                    graphics=data['graphics'],
+                    display_size=data['display_size'],
+                    power_supply=data['power_supply'],
+                    detailed_config=data['detailed_config'],
+                    submitted_by=request.user,
+                    is_edit=True,
+                    original_config=config,
+                )
+                pending.save()
+                return redirect('product_detail', pk=config.asset.pk)
+        else:
+            form = ProductConfigurationForm(instance=config)
+
+    return render(request, 'rentals/edit_config.html', {'form': form, 'config': config})
+
+
+@login_required
+def edit_repair(request, pk):
+    repair = get_object_or_404(Repair, pk=pk)
+
+    if request.user.is_superuser:
+        form = RepairForm(request.POST or None, instance=repair)
+        if request.method == 'POST' and form.is_valid():
+            form.save()
+            return redirect('product_detail', pk=repair.product.pk)
+    else:
+        if request.method == 'POST':
+            form = RepairForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                pending = PendingRepair(
+                    product=repair.product,
+                    asset=repair.asset,
+                    repair_date=data['repair_date'],
+                    issue=data['issue'],
+                    cost=data['cost'],
+                    submitted_by=request.user,
+                    is_edit=True,
+                    original_repair=repair,
+                )
+                pending.save()
+                return redirect('product_detail', pk=repair.product.pk)
+        else:
+            form = RepairForm(instance=repair)
+
+    return render(request, 'rentals/edit_repair.html', {'form': form, 'repair': repair})
+
+
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_edited_config(request, pk):
+    pending = get_object_or_404(PendingProductConfiguration, pk=pk)
+    config = pending.original_config
+
+    # Apply changes
+    config.ram = pending.ram
+    config.hdd = pending.hdd
+    config.ssd = pending.ssd
+    config.graphics = pending.graphics
+    config.display_size = pending.display_size
+    config.power_supply = pending.power_supply
+    config.detailed_config = pending.detailed_config
+    config.save()
+
+    pending.delete()
+    messages.success(request, "Configuration update approved.")
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def reject_edited_config(request, pk):
+    pending = get_object_or_404(PendingProductConfiguration, pk=pk)
+    pending.delete()
+    messages.info(request, "Configuration update rejected.")
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_edited_repair(request, pk):
+    pending = get_object_or_404(PendingRepair, pk=pk)
+    repair = pending.original_repair
+
+    repair.product = pending.product
+    repair.issue_reported = pending.issue_reported
+    repair.resolution = pending.resolution
+    repair.cost = pending.cost
+    repair.repair_date = pending.repair_date
+    repair.save()
+
+    pending.delete()
+    messages.success(request, "Repair update approved.")
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def reject_edited_repair(request, pk):
+    pending = get_object_or_404(PendingRepair, pk=pk)
+    pending.delete()
+    messages.info(request, "Repair update rejected.")
+    return redirect('approval_dashboard')
+
+
+
+@login_required
+def check_contracts(request):
+    today = now().date()
+
+    expired_rentals = Rental.objects.filter(
+        contract_validity__isnull=False,
+        contract_validity__lt=today,
+        status="ongoing",
+    )
+
+    body_lines = []
+    for rental in expired_rentals:
+        asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
+        customer_name = rental.customer.name if rental.customer else 'Unknown Customer'
+        body_lines.append(f"- Asset: {asset_id} | Customer: {customer_name}")
+
+    body = "Contract Expiry Reminder:\n\n" + "\n".join(body_lines)
+    # for rental in expired_rentals:
+    #     subject = f"Contract Expired for Rental #{rental.id}"
+    #     message = f"""
+    #     """
+
+        # message = f"""
+        # Hello {rental.customer.name},
+
+        # Your rental contract for asset {rental.asset.asset_id} has expired on {rental.contract_validity}.
+
+        # Please return or renew your rental as soon as possible.
+        # """
+    if rental.customer.email:
+            # send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [rental.customer.email])
+            send_mail(
+            subject="Todays Contract Expiry Reminder",
+            message=body,
+            from_email='aryanpore3056@gmail.com',
+            recipient_list=['aryanpore3056@gmail.com'],
+            fail_silently=False,
+            )
+    
+    messages.success(request, f"Checked {expired_rentals.count()} rentals for contract expiry.")
+    return redirect("rental_list")

@@ -39,18 +39,18 @@
     <label for="id_contract_number">Contract Number:</label>
     {{ form.contract_number }}
   </p>
-
+  <p>
+    <label for="id_contract_validity">Contract Validity:</label>
+    {{ form.contract_validity }}
+  </p>
   <p>
     <label for="id_payment_status">Payment Status:</label>
     {{ form.payment_status }}
   </p>
-  <p>
-    <label for="id_payment_method">Payment Method:</label>
-    {{ form.payment_method }}
-  </p>
+
   <p>
     <label for="id_payment_amount">Payment Amount:</label>
-    {{ form.payment_amount }}
+    {{ form.payment_amount }} {{ form.payment_method }}
   </p>
 
   <p>

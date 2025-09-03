@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% block content %} {% load static %}
+<link rel="stylesheet" href="{% static 'appointment/style.css' %}" />
+<style>
+  .for {
+    text-align: center;
+    background-color: aliceblue;
+    border: 2px black;
+  }
+</style>
+<h2>Choose Payment Method</h2>
+
+<form method="POST" class="for">
+  {% csrf_token %} {% if not show_qr %}
+  <label>
+    <input type="radio" name="payment_method" value="GPay" required />
+    GPay </label
+  ><br />
+  <label>
+    <input type="radio" name="payment_method" value="Cash on Delivery" />
+    Cash on Delivery </label
+  ><br />
+  <button type="submit">Pay Now</button>
+  {% endif %}
+</form>
+
+{% if show_qr %}
+<h3>Scan the QR Code to Pay</h3>
+<img src="{% static 'shop/g_pay.jpeg' %}" alt="GPay QR" width="300" />
+<p>Once payment is done, click the button below to confirm your order:</p>
+<form method="POST">
+  {% csrf_token %}
+  <input type="hidden" name="payment_method" value="GPay" />
+  <input type="hidden" name="confirm" value="yes" />
+  <button type="submit">✅ I've Paid</button>
+</form>
+{% endif %} {% endblock %}

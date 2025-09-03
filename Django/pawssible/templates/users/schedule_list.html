@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% load static %}{% block content %}
+<h2>My Pet Schedule</h2>
+
+<link rel="stylesheet" href="{% static 'users/sche.css' %}" />
+
+<body>
+  <h1>Weekly Pet Care Schedule</h1>
+  <a href="{% url 'users:create_schedule' %}" class="schedule-btn"
+    >➕ Add Schedule</a
+  >
+  <div class="cont">
+    <table class="sche">
+      <thead>
+        <tr>
+          <th>Activity</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for schedule in schedules %}
+        <tr>
+          <th>
+            <strong>{{ schedule.title }}</strong>
+          </th>
+          <th>
+            {{ schedule.scheduled_time}} {% empty %} No schedule yet.
+            <p></p>
+            {% endfor %}
+          </th>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+
+{% endblock %}

@@ -19,6 +19,7 @@
   <tr>
     <th>Name</th>
     <th>GSTIN</th>
+    <th>Type Of Seller</th>
     <th>Address</th>
     <th>Contact</th>
     <th>Email</th>
@@ -29,13 +30,16 @@
   <tr>
     <td>{{ supplier.name }}</td>
     <td>{{ supplier.gstin }}</td>
+    <td>{{ supplier.type_of_seller }}</td>
     <td>
-      {{ supplier.address_1 }} {% if supplier.address_2 %}<br />{{
-      supplier.address_2 }}{% endif %}
+      1) {{ supplier.address_primary }} {% if supplier.address_secondary %}<br />
+      <p></p>
+      2) {{ supplier.address_secondary }}{% endif %}
     </td>
     <td>
-      {{ supplier.contact_primary }}{% if supplier.contact_secondary %}, {{
-      supplier.contact_secondary }}{% endif %}
+      {{ supplier.phone_primary }}{% if supplier.phone_secondary %},
+      <p></p>
+      {{ supplier.phone_secondary }}{% endif %}
     </td>
     <td>{{ supplier.email }}</td>
     <td>{{ supplier.reference_name }}</td>

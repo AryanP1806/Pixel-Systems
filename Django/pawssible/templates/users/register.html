@@ -1,0 +1,20 @@
+{% extends 'base.html' %} {% block content %} {% load static %}
+<link rel="stylesheet" href="{% static 'base/style.css' %}" />
+<div style="max-width: 400px; margin: auto; padding: 20px">
+  <h2>Register</h2>
+
+  {% if messages %} {% for message in messages %}
+  <p class="para" style="color: green">{{ message }}</p>
+  {% endfor %} {% endif %}
+
+  <form method="POST">
+    {% csrf_token %} {{ form.as_p }}
+    <button type="submit">Register</button>
+  </form>
+
+  <p>
+    Already have an account?
+    <a href="{% url 'login' %}">Login here</a>.
+  </p>
+</div>
+{% endblock %}

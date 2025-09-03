@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Floating Chatbox</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #fefdf9;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+      }
+
+      /* Floating Chat Container */
+      .chatbox {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 320px;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        z-index: 999;
+        border: 1px solid #d4e4e2;
+      }
+
+      /* Header */
+      .chatbox-header {
+        background-color: #d4e4e2;
+        color: #0d4037;
+        padding: 12px 16px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .chatbox-header .title {
+        font-size: 15px;
+      }
+
+      .chatbox-header .close {
+        cursor: pointer;
+        font-size: 16px;
+        color: #666;
+      }
+
+      /* Chat Body */
+      .chatbox-body {
+        padding: 15px;
+        flex: 1;
+        background-color: #fdfdfd;
+        overflow-y: auto;
+        max-height: 250px;
+      }
+
+      .chat-message {
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chat-message.bot {
+        align-items: flex-start;
+      }
+
+      .chat-message.user {
+        align-items: flex-end;
+      }
+
+      .chat-bubble {
+        background-color: #f5f5f5;
+        color: #333;
+        padding: 10px 14px;
+        border-radius: 10px;
+        max-width: 90%;
+        font-size: 14px;
+      }
+
+      .chat-bubble.user {
+        background-color: #ff7750;
+        color: white;
+      }
+
+      .chat-time {
+        font-size: 11px;
+        margin-top: 4px;
+        color: #888;
+      }
+
+      /* Chat Input */
+      .chatbox-input {
+        display: flex;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        background: #fff;
+      }
+
+      .chatbox-input input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .chatbox-input button {
+        background-color: #ff7750;
+        color: white;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 20px;
+        margin-left: 8px;
+        cursor: pointer;
+      }
+
+      .chatbox-input button:hover {
+        background-color: #e85d36;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Floating Chat Box -->
+    <div class="chatbox">
+      <div class="chatbox-header">
+        <span class="title">🐾 Pawsie AI</span>
+        <span class="close">✕</span>
+      </div>
+      <div class="chatbox-body">
+        <div class="chat-message bot">
+          <div class="chat-bubble">
+            That sounds wonderful! Our certified pet sitters would love to care
+            for your furry friend. Would you like me to help you book a service?
+          </div>
+          <div class="chat-time">22:30</div>
+        </div>
+        <div class="chat-message user">
+          <div class="chat-bubble user">Hi</div>
+          <div class="chat-time">22:30</div>
+        </div>
+      </div>
+      <div class="chatbox-input">
+        <input type="text" placeholder="Ask about pet care, adoption..." />
+        <button>➤</button>
+      </div>
+    </div>
+  </body>
+</html>

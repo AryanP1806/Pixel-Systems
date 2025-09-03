@@ -5,12 +5,13 @@
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Laptop Rental{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'styles2.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'styles7.css' %}" />
     <!-- <link
       rel="icon"
       type="image/x-icon"
       href="ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
     /> -->
+    <style></style>
   </head>
   <body>
     <nav class="navbar">
@@ -30,7 +31,7 @@
       </div>
       <div class="nav-right">
         {% if user.is_authenticated %}
-        <span style="color: white">Logged in as {{ user.username }} |</span>
+        <span>Logged in as {{ user.username }} |</span>
         <a href="{% url 'logout' %}">Logout</a>
         {% else %}
         <a href="{% url 'login' %}">Login</a>
@@ -40,4 +41,5 @@
 
     <div class="container">{% block content %}{% endblock %}</div>
   </body>
+  <footer>Made By AP</footer>
 </html>

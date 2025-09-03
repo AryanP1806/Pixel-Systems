@@ -1,0 +1,13 @@
+{% extends 'base.html' %} {% block content %}
+<h2>My Pet Schedule</h2>
+<a href="{% url 'users:create_schedule' %}" class="schedule-btn"
+  >➕ Add Schedule</a
+>
+<ul>
+  {% for schedule in schedules %}
+  <li><strong>{{ schedule.title }}</strong> — {{ schedule.scheduled_time }}</li>
+  {% empty %}
+  <li>No schedule yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

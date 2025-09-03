@@ -1,0 +1,24 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+<link rel="stylesheet" href="{% static 'adoption/style.css' %}" />
+
+<h2>Pets Available for Adoption</h2>
+
+<div class="adoption-list">
+  {% for pet in pets %}
+  <div class="adoption-card">
+    <img
+      class="adoption-card-img"
+      src="{{ pet.image.url }}"
+      alt="{{ pet.name }}"
+    />
+    <h3>{{ pet.name }}</h3>
+    <p><strong>Breed:</strong> {{ pet.breed }}</p>
+    <p><strong>Type:</strong> {{ pet.type }}</p>
+    <p><strong>Age:</strong> {{ pet.age }} years</p>
+    <p>{{ pet.description|truncatewords:20 }}</p>
+  </div>
+  {% empty %}
+  <p>No pets available for adoption right now.</p>
+  {% endfor %}
+</div>
+{% endblock %}

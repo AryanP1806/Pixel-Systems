@@ -1,0 +1,76 @@
+{% extends 'base.html' %} {% block content %}
+<head>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'core/style.css' %}" />
+</head>
+<style>
+  main {
+    padding: 0;
+    margin: 0;
+  }
+</style>
+<!-- Hero Section -->
+<body>
+  <section class="hero">
+    <h1>WELCOME TO ALL IN ONE PET CARE</h1>
+    <p>CARE THAT MAKES IT PAWSSIBLE</p>
+  </section>
+
+  <!-- Flexbox Grid Section -->
+  <section class="shop-section">
+    <h2>🐾 Pet Essentials</h2>
+    <div class="product-container">
+      <div class="product-card">
+        <img src="{% static 'core/images/store.jpg' %}" alt="Dog Food" />
+        <h3>Store</h3>
+        <button class="btn"><a href="/shop/">More</a></button>
+      </div>
+
+      <div class="product-card">
+        <img src="{% static 'core/images/groom.jpg' %}" alt="Cat Toys" />
+        <h3>Grooming</h3>
+        <button class="btn">More</button>
+      </div>
+
+      <div class="product-card">
+        <img src="{% static 'core/images/chatbot.jpg' %}" alt="Pet Bed" />
+        <h3>Community</h3>
+        <button class="btn"><a href="/community/">More</a></button>
+      </div>
+
+      <div class="product-card">
+        <img src="{% static 'core/images/excercise.jpg' %}" alt="Pet Shampoo" />
+        <h3>Adoption</h3>
+        <button class="btn"><a href="/adoption/">Adoption</a></button>
+      </div>
+
+      <div class="product-card">
+        <img src="{% static 'core/images/vet.jpg' %}" alt="Cat Litter Box" />
+        <h3>Vet Consultant</h3>
+        <button class="btn"><a href="/vet/">More</a></button>
+      </div>
+    </div>
+  </section>
+  <!-- <map>
+    <h2>Location</h2>
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.8092209165507!2d73.93491957518992!3d18.446969282632367!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bc2e999215c9f2b%3A0xa9b93c99a6184c98!2sKeystone%20School%20of%20Engineering!5e0!3m2!1sen!2sin!4v1753677426601!5m2!1sen!2sin"
+      width="100%"
+      height="450"
+      style="border: 0"
+      allowfullscreen=""
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.557685616765!2d73.91287037519015!3d18.458381382623134!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bc2ea38c0e71ea9%3A0x7b450702bdd6f1a3!2sThe%20Bishop&#39;s%20Co-Ed%20School!5e0!3m2!1sen!2sin!4v1753677685449!5m2!1sen!2sin"
+      width="100%"
+      height="450"
+      style="border: 0"
+      allowfullscreen=""
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+  </map> -->
+</body>
+{% endblock %}

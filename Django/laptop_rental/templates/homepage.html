@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-<h1>{% block title %}Home - Laptop Rental{% endblock %}</h1>
+<h1>{% block title %}Home - Asset Rental{% endblock %}</h1>
 {% block content %}
 <div class="homepage-center">
-  <h1>Welcome to Laptop Rental System</h1>
+  <h1>Welcome to Asset Management System</h1>
 
   <div class="section-grid">
     <div class="section">
@@ -24,10 +24,10 @@
       <a href="{% url 'settings_page' %}">⚙️ Settings</a>
     </div>
 
-    {% if user.is_superuser %}
     <div class="section">
       <h3>Admin Tools</h3>
       <a href="{% url 'approval_dashboard' %}">🛡️ Approvals</a>
+      {% if user.is_superuser %}
       <a href="{% url 'report_dashboard' %}">📈 Reports</a>
     </div>
 

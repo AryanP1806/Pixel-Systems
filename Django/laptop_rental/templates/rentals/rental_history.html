@@ -23,8 +23,8 @@
     <th>Rental End</th>
     <th>Payment Amount</th>
     <th>Payment Status</th>
-    <th>Payment Method</th>
     <th>Contract No.</th>
+    <th>Contract Validity</th>
     <th>Checked By</th>
   </tr>
   {% for rental in rentals %}
@@ -34,11 +34,11 @@
     <td>{{ rental.asset.serial_no }}</td>
     <td>{{ rental.asset.model_no }}</td>
     <td>{{ rental.rental_start_date }}</td>
-    <td>{{ rental.end_date|date:"F j, Y" }}</td>
+    <td>{{ rental.rental_end_date|date:"F j, Y" }}</td>
     <td>{{ rental.payment.amount }}</td>
     <td>{{ rental.payment.status }}</td>
-    <td>{{ rental.payment.payment_method }}</td>
     <td>{{ rental.contract_number }}</td>
+    <td>{{ rental.contract_validity|date:"F j, Y" }}</td>
     <td>{{ rental.edited_by.username }}</td>
   </tr>
   {% empty %}

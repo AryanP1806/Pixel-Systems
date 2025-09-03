@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}📊 Report Dashboard{% endblock %}
+{% block content %}
+<h2>Rental Reports</h2>
+
+<form method="get" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 15px;">
+  <div>
+    <label>Customer:</label>
+    <select name="customer">
+      <option value="">All</option>
+      {% for c in customers %}
+        <option value="{{ c.id }}" {% if request.GET.customer == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Product:</label>
+    <select name="product">
+      <option value="">All</option>
+      {% for p in products %}
+        <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.asset_id }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Start Date:</label>
+    <input type="date" name="start_date" value="{{ request.GET.start_date }}">
+  </div>
+
+  <div>
+    <label>End Date:</label>
+    <input type="date" name="end_date" value="{{ request.GET.end_date }}">
+  </div>
+
+  <div>
+    <label>&nbsp;</label><br>
+    <!-- <a href="?customer_type=BNI" class="btn" style="padding: 8px 14px; background-color: #10b981; color: white; border-radius: 6px; text-decoration: none;">BNI</a>
+    <a href="?customer_type=Permanent" class="btn" style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none;">Permanent</a> -->
+    <a href="?customer_type=BNI" class="btn" style="padding: 8px 14px; background-color: #10b981; color: white; border-radius: 6px; text-decoration: none;">BNI</a>
+    <a href="?customer_type=Permanent" class="btn" style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none;">Permanent</a>
+    
+  </div>
+
+  <div>
+    <label>&nbsp;</label><br>
+    <p><button type="submit">Generate Report</button>
+  </p>
+    </div>
+
+</form>
+
+
+<div class="section-grid">
+  <div class="section"><a href="#top-assets">Top Performing Assets</a></div>
+  <div class="section"><a href="#type-pie">Revenue by Type</a></div>
+  <div class="section"><a href="#customer-bar">Customer Comparison</a></div>
+</div>
+
+
+<hr>
+<h3>Results</h3>
+<ul>
+  <li><strong>Total Rentals:</strong> {{ total_rentals }}</li>
+  <li><strong>Total Days Rented:</strong> {{ total_days }}</li>
+{% if product_id %}
+    <h3>💰 Financial Summary for {{ product_obj.asset_id }}</h3>
+    <li><strong>Purchase Price:</strong> ₹ {{ purchase_price }}</li>
+    <li><strong>Gross Profit:</strong> ₹ {{ gross_profit }}</li>
+    <li><strong>Maintenance Cost:</strong> ₹ {{ maintenance_cost }}</li>
+    {% if sold_asset %}
+      <li><strong>Sold Asset:</strong> ₹ {{ sold_asset }}</li>
+    {% endif %}
+    
+      <li><strong>Net Profit:</strong> ₹ {{ net_profit }}</li>
+    
+{% else %}
+  <li><strong>Total Revenue:</strong> ₹ {{ total_revenue }}</li>
+{% endif %}
+
+
+
+</ul>
+<div style="max-width: 800px; margin: auto;">
+<canvas id="revenueChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  const revenueChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ monthly_labels|safe }},
+      datasets: [{
+        label: 'Monthly Revenue (₹)',
+        data: {{ monthly_values|safe }},
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+</script>
+</div>
+<h3 id="top-assets">📊 Top Performing Assets</h3>
+<table border="1" cellpadding="6">
+  <tr><th>Asset</th><th>Total Income (₹)</th></tr>
+  {% for asset in top_assets %}
+    <tr>
+      <td>{{ asset.asset_id }} ({{ asset.brand }} {{ asset.model_no }})</td>
+      <td>₹ {{ asset.total_income }}</td>
+    </tr>
+  {% endfor %}
+</table>
+
+<h3 id="type-pie">🧩 Revenue by Asset Type</h3>
+<div style="max-width: 600px; margin: auto;">
+<canvas id="typePieChart" width="400" height="150"></canvas>
+<script>
+  new Chart(document.getElementById('typePieChart'), {
+    type: 'pie',
+    data: {
+      labels: {{ type_labels|safe }},
+      datasets: [{
+        label: 'Revenue',
+        data: {{ type_values|safe }},
+        backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545', '#6c757d','#6610f2', '#e83e8c'],
+      }]
+    }
+  });
+</script>
+</div>
+
+<h3 id="customer-bar">🏆 Customers by Rental Business</h3>
+
+<div style="max-width: 800px; margin: auto;">
+<canvas id="customerBarChart" width="400" height="150"></canvas>
+<script>
+  new Chart(document.getElementById('customerBarChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ customer_labels|safe }},
+      datasets: [{
+        label: 'Total ₹ from Customer',
+        data: {{ customer_values|safe }},
+        backgroundColor: '#17a2b8'
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+</script>
+</div>
+
+{% endblock %}

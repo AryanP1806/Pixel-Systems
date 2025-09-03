@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pet Care Website</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      /* Navbar */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #f5624d;
+        padding: 1rem 2rem;
+        color: white;
+      }
+
+      .navbar h1 {
+        margin: 0;
+      }
+
+      .navbar ul {
+        list-style: none;
+        display: flex;
+        gap: 20px;
+        margin: 0;
+      }
+
+      .navbar li {
+        cursor: pointer;
+      }
+
+      /* Hero Section */
+      .hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: url("https://images.unsplash.com/photo-1574158622682-e40e69881006")
+          center/cover no-repeat;
+        height: 400px;
+        color: white;
+        padding: 0 4rem;
+      }
+
+      .hero h2 {
+        font-size: 2.5rem;
+        background-color: rgba(0, 0, 0, 0.6);
+        padding: 1rem;
+        border-radius: 10px;
+      }
+
+      /* Flex Cards */
+      .services {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        padding: 2rem;
+        background-color: #f9f9f9;
+      }
+
+      .card {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 250px;
+        text-align: center;
+        padding: 1rem;
+        transition: transform 0.3s;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+      }
+
+      .card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+
+      .card h3 {
+        margin: 1rem 0 0.5rem;
+      }
+
+      /* Footer */
+      footer {
+        background-color: #222;
+        color: #ddd;
+        padding: 1rem 2rem;
+        text-align: center;
+      }
+
+      @media (max-width: 768px) {
+        .hero {
+          flex-direction: column;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .hero h2 {
+          font-size: 2rem;
+          padding: 0.5rem;
+        }
+
+        .navbar {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .navbar ul {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <div class="navbar">
+      <h1>PawCare</h1>
+      <ul>
+        <li>Home</li>
+        <li>Store</li>
+        <li>Consult</li>
+        <li>Grooming</li>
+        <li>Contact</li>
+      </ul>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="hero">
+      <h2>Your Pet's Health & Happiness Is Our Mission 🐶🐱</h2>
+    </div>
+
+    <!-- Services Cards -->
+    <div class="services">
+      <div class="card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/616/616408.png"
+          alt="Vet"
+        />
+        <h3>Vet Consultation</h3>
+        <p>Book expert vets online or in-clinic.</p>
+      </div>
+
+      <div class="card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/4712/4712039.png"
+          alt="Chatbot"
+        />
+        <h3>Chatbot</h3>
+        <p>24/7 Pet assistance powered by AI.</p>
+      </div>
+
+      <div class="card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/616/616408.png"
+          alt="Store"
+        />
+        <h3>Pet Store</h3>
+        <p>Toys, accessories, medicines & more.</p>
+      </div>
+
+      <div class="card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/2784/2784460.png"
+          alt="Grooming"
+        />
+        <h3>Grooming</h3>
+        <p>Professional care for your pet's look.</p>
+      </div>
+
+      <div class="card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/2965/2965567.png"
+          alt="Food"
+        />
+        <h3>Pet Food</h3>
+        <p>Nutritious food for every breed & age.</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      &copy; 2025 PawCare | All rights reserved | Follow us on @PawCare
+    </footer>
+  </body>
+</html>

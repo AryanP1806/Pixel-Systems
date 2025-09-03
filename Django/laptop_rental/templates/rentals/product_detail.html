@@ -2,7 +2,13 @@
 <h1>{% block title %}Product Details{% endblock %}</h1>
 {% block content %}
 <h2>Product Details: {{ product.asset_id }}</h2>
-
+{% if messages %}
+<ul>
+  {% for message in messages %}
+  <li style="color: green">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 <ul>
   <li>Type: {{ product.type_of_asset }}</li>
   <li>Brand: {{ product.brand }}</li>
@@ -75,12 +81,16 @@
     <td>{{ config.detailed_config }}</td>
     <td>{{ config.edited_by.username }}</td>
     <td>
+      {% if user.is_superuser %}
       <a href="{% url 'edit_config' config.pk %}">✏️</a>
+
       <a
         href="{% url 'delete_config' config.pk %}"
         onclick="return confirm('Are you sure?')"
         >🗑️</a
       >
+      {% else %}
+      <span style="color: gray">(Admin Only) </span>{% endif %}
     </td>
   </tr>
   {% empty %}
