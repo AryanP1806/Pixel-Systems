@@ -8,7 +8,32 @@
   <div class="section"><a href="#type-pie">Revenue by Type</a></div>
   <div class="section"><a href="#customer-bar">Customer Comparison</a></div>
 </div>
+<pre>
 
+
+</pre>
+<div><a
+        href="{% url 'export_reports_csv' %}"
+        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none; margin-right: 10px;"
+      >
+        Export CSV
+      </a>
+      
+      <a
+        href="{% url 'export_reports_excel' %}"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none; margin-right: 10px;"
+      >
+        Export Excel
+      </a>
+      <a
+        href="{% url 'export_reports_pdf' %}"
+        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+        style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none;"
+      >
+        Export PDF
+      </a></div>
 <div class="filters-section">
     <form method="get" id="filterForm">
       <div class="filters-grid">
@@ -112,7 +137,7 @@
   });
 </script>
 </div>
-
+<hr>
 <h3 id="type-pie">🧩 Revenue by Asset Type</h3>
 <div style="max-width: 600px; margin: auto;">
 <canvas id="typePieChart" width="400" height="150"></canvas>
@@ -130,7 +155,7 @@
   });
 </script>
 </div>
-
+<hr>
 <h3 id="top-assets">📊 Top Performing Assets</h3>
 <table border="1" cellpadding="6">
   <tr><th>Asset</th><th>Total Income (₹)</th></tr>
@@ -141,7 +166,7 @@
     </tr>
   {% endfor %}
 </table>
-
+<hr>
 <h3 id="customer-bar">🏆 Customers by Rental Business</h3>
 
 <div style="max-width: 800px; margin: auto;">

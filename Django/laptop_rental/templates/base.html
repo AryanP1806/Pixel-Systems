@@ -5,12 +5,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Laptop Rental{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'styles7.css' %}" />
-    <!-- <link
-      rel="icon"
-      type="image/x-icon"
-      href="ChatGPT Image Jun 7, 2025, 05_26_03 PM.webp"
-    /> -->
+    <link rel="stylesheet" type="text/css" href="{% static 'styles10.css' %}" />
+
+    <!-- jQuery (must be loaded first) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Django Autocomplete Light CSS/JS -->
+    {{ form.media.css }}
+
     <style></style>
   </head>
   <body>
@@ -26,7 +28,6 @@
         {% if user.is_superuser %}
         <a href="{% url 'approval_dashboard' %}"> Approvals</a>
         <a href="{% url 'report_dashboard' %}"> Reports</a>
-
         {% endif %}
       </div>
       <div class="nav-right">
@@ -39,7 +40,19 @@
       </div>
     </nav>
 
+    <!-- <img src="pslogo.png" alt="" width="100px" height="100px" /> -->
     <div class="container">{% block content %}{% endblock %}</div>
+
+    <!-- Django Autocomplete Light JS -->
+    {{ form.media.js }}
+
+    <script>
+      document
+        .getElementById("year-select")
+        ?.addEventListener("change", function () {
+          document.getElementById("year-filter-form")?.submit();
+        });
+    </script>
   </body>
   <footer>Made By AP</footer>
 </html>

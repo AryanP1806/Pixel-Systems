@@ -1,10 +1,10 @@
 {% extends 'base.html' %} {% block title %}Approval Dashboard{% endblock %}
 <p></p>
 {% block content %}
-<h2>🛡 Pending Approvals</h2>
+<h1>🛡 Pending Approvals</h1>
 
 <!-- ✅ PRODUCTS -->
-<h3>📦 Products</h3>
+<h2><b>📦 Products</b></h2>
 {% if pending_products %}
 <table border="1" cellpadding="8">
   <tr>
@@ -26,14 +26,14 @@
   </tr>
   <tr>
     <td>Asset Type</td>
-    <td>{{ item.old.type_of_asset }}</td>
+    <td>{{ item.old.type_of_asset|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.type_of_asset != item.pending.type_of_asset %}background-color:#ffe0e0;{% endif %}"
     >
       {{ item.pending.type_of_asset }}
     </td>
-    <td rowspan="8">{{ item.pending.submitted_by }}</td>
-    <td rowspan="8">
+    <td rowspan="11">{{ item.pending.submitted_by }}</td>
+    <td rowspan="11">
       {% if request.user.is_superuser %}
       <a href="{% url 'approve_product' item.pending.pk %}"
         ><button>✅ Approve</button></a
@@ -49,7 +49,7 @@
   </tr>
   <tr>
     <td>Brand</td>
-    <td>{{ item.old.brand }}</td>
+    <td>{{ item.old.brand|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.brand != item.pending.brand %}background-color:#ffe0e0;{% endif %}"
     >
@@ -58,7 +58,7 @@
   </tr>
   <tr>
     <td>Model</td>
-    <td>{{ item.old.model_no }}</td>
+    <td>{{ item.old.model_no|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.model_no != item.pending.model_no %}background-color:#ffe0e0;{% endif %}"
     >
@@ -67,7 +67,7 @@
   </tr>
   <tr>
     <td>Serial No</td>
-    <td>{{ item.old.serial_no }}</td>
+    <td>{{ item.old.serial_no|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.serial_no != item.pending.serial_no %}background-color:#ffe0e0;{% endif %}"
     >
@@ -76,7 +76,7 @@
   </tr>
   <tr>
     <td>Purchase Date</td>
-    <td>{{ item.old.purchase_date }}</td>
+    <td>{{ item.old.purchase_date|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.purchase_date != item.pending.purchase_date %}background-color:#ffe0e0;{% endif %}"
     >
@@ -85,7 +85,7 @@
   </tr>
   <tr>
     <td>Purchase Price</td>
-    <td>{{ item.old.purchase_price }}</td>
+    <td>{{ item.old.purchase_price|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.purchase_price != item.pending.purchase_price %}background-color:#ffe0e0;{% endif %}"
     >
@@ -94,7 +94,7 @@
   </tr>
   <tr>
     <td>Current Value</td>
-    <td>{{ item.old.current_value }}</td>
+    <td>{{ item.old.current_value|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.current_value != item.pending.current_value %}background-color:#ffe0e0;{% endif %}"
     >
@@ -103,7 +103,7 @@
   </tr>
   <tr>
     <td>HSN Code</td>
-    <td>{{ item.old.hsn_code }}</td>
+    <td>{{ item.old.hsn_code|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.hsn_code != item.pending.hsn_code %}background-color:#ffe0e0;{% endif %}"
     >
@@ -112,7 +112,7 @@
   </tr>
   <tr>
     <td>Purchased From</td>
-    <td>{{ item.old.purchased_from }}</td>
+    <td>{{ item.old.purchased_from|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.purchased_from != item.pending.purchased_from %}background-color:#ffe0e0;{% endif %}"
     >
@@ -121,7 +121,7 @@
   </tr>
   <tr>
     <td>Under Warranty</td>
-    <td>{{ item.old.under_warranty }}</td>
+    <td>{{ item.old.under_warranty|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.under_warranty != item.pending.under_warranty %}background-color:#ffe0e0;{% endif %}"
     >
@@ -130,17 +130,16 @@
   </tr>
   <tr>
     <td>Warranty Duration (months)</td>
-    <td>{{ item.old.warranty_duration_months }}</td>
+    <td>{{ item.old.warranty_duration_months|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.warranty_duration_months != item.pending.warranty_duration_months %}background-color:#ffe0e0;{% endif %}"
     >
       {{ item.pending.warranty_duration_months }}
     </td>
   </tr>
-
   <tr>
     <td>Condition</td>
-    <td>{{ item.old.condition_status }}</td>
+    <td>{{ item.old.condition_status|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.condition_status != item.pending.condition_status %}background-color:#ffe0e0;{% endif %}"
     >
@@ -151,10 +150,10 @@
 </table>
 {% else %}
 <p>No pending products.</p>
-{% endif %}
 
+{% endif %}
 <!-- ✅ CUSTOMERS -->
-<h3>👤 Customers</h3>
+<h2><b>👤 Customers</b></h2>
 {% if pending_customers %}
 <table border="1" cellpadding="8">
   <tr>
@@ -167,19 +166,23 @@
   {% for item in pending_customers %}
   <tr>
     <td colspan="5">
-      <b>Customer: {{ item.old.name|default:"New Customer" }}</b>
+      <b>
+        {% if item.old %}Editing Customer
+        <p></p>
+        {{ item.old.name }}{% else %}New Customer{% endif %}
+      </b>
     </td>
   </tr>
   <tr>
     <td>Name</td>
-    <td>{{ item.old.name }}</td>
+    <td>{{ item.old.name|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.name != item.pending.name %}background-color:#ffe0e0;{% endif %}"
     >
       {{ item.pending.name }}
     </td>
-    <td rowspan="6">{{ item.pending.submitted_by }}</td>
-    <td rowspan="6">
+    <td rowspan="8">{{ item.pending.submitted_by }}</td>
+    <td rowspan="8">
       {% if request.user.is_superuser %}
       <a href="{% url 'approve_customer' item.pending.pk %}"
         ><button>✅ Approve</button></a
@@ -195,7 +198,7 @@
   </tr>
   <tr>
     <td>Phone 1</td>
-    <td>{{ item.old.phone_number_primary }}</td>
+    <td>{{ item.old.phone_number_primary|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.phone_number_primary != item.pending.phone_number_primary %}background-color:#ffe0e0;{% endif %}"
     >
@@ -204,7 +207,7 @@
   </tr>
   <tr>
     <td>Phone 2</td>
-    <td>{{ item.old.phone_number_secondary }}</td>
+    <td>{{ item.old.phone_number_secondary|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.phone_number_secondary != item.pending.phone_number_secondary %}background-color:#ffe0e0;{% endif %}"
     >
@@ -213,7 +216,7 @@
   </tr>
   <tr>
     <td>Address 1</td>
-    <td>{{ item.old.address_primary }}</td>
+    <td>{{ item.old.address_primary|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.address_primary != item.pending.address_primary %}background-color:#ffe0e0;{% endif %}"
     >
@@ -222,7 +225,7 @@
   </tr>
   <tr>
     <td>Address 2</td>
-    <td>{{ item.old.address_secondary }}</td>
+    <td>{{ item.old.address_secondary|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.address_secondary != item.pending.address_secondary %}background-color:#ffe0e0;{% endif %}"
     >
@@ -231,7 +234,7 @@
   </tr>
   <tr>
     <td>Email</td>
-    <td>{{ item.old.email }}</td>
+    <td>{{ item.old.email|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.email != item.pending.email %}background-color:#ffe0e0;{% endif %}"
     >
@@ -240,7 +243,7 @@
   </tr>
   <tr>
     <td>Permanent</td>
-    <td>{{ item.old.is_permanent }}</td>
+    <td>{{ item.old.is_permanent|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.is_permanent != item.pending.is_permanent %}background-color:#ffe0e0;{% endif %}"
     >
@@ -249,7 +252,7 @@
   </tr>
   <tr>
     <td>BNI</td>
-    <td>{{ item.old.is_bni_member }}</td>
+    <td>{{ item.old.is_bni_member|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.is_bni_member != item.pending.is_bni_member %}background-color:#ffe0e0;{% endif %}"
     >
@@ -258,7 +261,7 @@
   </tr>
   <tr>
     <td>Reference</td>
-    <td>{{ item.old.reference_name }}</td>
+    <td>{{ item.old.reference_name|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.reference_name != item.pending.reference_name %}background-color:#ffe0e0;{% endif %}"
     >
@@ -272,7 +275,7 @@
 {% endif %}
 
 <!-- ✅ RENTALS -->
-<h3>📄 Rentals</h3>
+<h2><b>🔄 Rentals</b></h2>
 {% if pending_rentals %}
 <table border="1" cellpadding="8">
   <tr>
@@ -284,18 +287,25 @@
   </tr>
   {% for item in pending_rentals %}
   <tr>
-    <td colspan="5"><b>Rental for {{ item.pending.customer.name }}</b></td>
+    <td colspan="5">
+      <b>
+        {% if item.old %}Editing Rental for
+        <p></p>
+        {{ item.pending.customer.name }}{% else %}New Rental for {{
+        item.pending.customer.name }}{% endif %}
+      </b>
+    </td>
   </tr>
   <tr>
     <td>Asset</td>
-    <td>{{ item.old.asset.asset_id }}</td>
+    <td>{{ item.old.asset.asset_id|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.asset != item.pending.asset %}background-color:#ffe0e0;{% endif %}"
     >
       {{ item.pending.asset.asset_id }}
     </td>
-    <td rowspan="6">{{ item.pending.submitted_by }}</td>
-    <td rowspan="6">
+    <td rowspan="7">{{ item.pending.submitted_by }}</td>
+    <td rowspan="7">
       {% if request.user.is_superuser %}
       <a href="{% url 'approve_rental' item.pending.pk %}"
         ><button>✅ Approve</button></a
@@ -311,7 +321,7 @@
   </tr>
   <tr>
     <td>Asset Type</td>
-    <td>{{ item.old.asset.type_of_asset.name }}</td>
+    <td>{{ item.old.asset.type_of_asset.name|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.asset.type_of_asset != item.pending.asset.type_of_asset %}background-color:#ffe0e0;{% endif %}"
     >
@@ -320,7 +330,7 @@
   </tr>
   <tr>
     <td>Payment Amount</td>
-    <td>{{ item.old.payment.amount }}</td>
+    <td>{{ item.old.payment.amount|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.payment.amount != item.pending.payment_amount %}background-color:#ffe0e0;{% endif %}"
     >
@@ -329,7 +339,7 @@
   </tr>
   <tr>
     <td>Start Date</td>
-    <td>{{ item.old.rental_start_date }}</td>
+    <td>{{ item.old.rental_start_date|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.rental_start_date != item.pending.rental_start_date %}background-color:#ffe0e0;{% endif %}"
     >
@@ -338,7 +348,7 @@
   </tr>
   <tr>
     <td>Billing Day</td>
-    <td>{{ item.old.billing_day }}</td>
+    <td>{{ item.old.billing_day|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.billing_day != item.pending.billing_day %}background-color:#ffe0e0;{% endif %}"
     >
@@ -347,7 +357,7 @@
   </tr>
   <tr>
     <td>Contract No.</td>
-    <td>{{ item.old.contract_number }}</td>
+    <td>{{ item.old.contract_number|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.contract_number != item.pending.contract_number %}background-color:#ffe0e0;{% endif %}"
     >
@@ -363,10 +373,9 @@
       {{ item.pending.contract_validity|default:"-" }}
     </td>
   </tr>
-
   <tr>
     <td>Status</td>
-    <td>{{ item.old.status }}</td>
+    <td>{{ item.old.status|default:"-" }}</td>
     <td
       style="{% if item.old and item.old.status != item.pending.status %}background-color:#ffe0e0;{% endif %}"
     >
@@ -380,7 +389,7 @@
 {% endif %}
 
 <!-- ✅ CONFIGURATIONS -->
-<h3>🖥 Configurations</h3>
+<h2><b>🖥 Configurations</b></h2>
 {% if pending_configs %}
 <table border="1" cellpadding="8">
   <tr>
@@ -488,4 +497,85 @@
 </table>
 {% else %}
 <p>No pending configs.</p>
+{% endif %}
+
+<!-- ✅ REPAIRS -->
+<h2><b>🔨 Pending Repairs</b></h2>
+{% if pending_repairs %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>Field</th>
+    <th>Old Value</th>
+    <th>New Value</th>
+    <th>Submitted By</th>
+    <th>Actions</th>
+  </tr>
+  {% for item in pending_repairs %}
+  <tr>
+    <td colspan="5">
+      <b>
+        {% if item.old %}Editing Repair for
+        <p></p>
+        {{ item.pending.product.asset_id }} {% else %}New Repair{% endif %}
+      </b>
+    </td>
+  </tr>
+
+  <tr>
+    <td>Asset</td>
+    <td>{{ item.old.product.asset_id|default:"-" }}</td>
+    <td
+      style="{% if item.old and item.old.product.asset_id != item.pending.product.asset_id %}background-color:#ffe0e0;{% endif %}"
+    >
+      {{ item.pending.product.asset_id }}
+    </td>
+    <td rowspan="4">{{ item.pending.submitted_by.username }}</td>
+    <td rowspan="4">
+      {% if request.user.is_superuser %}
+      <a href="{% url 'approve_edited_repair' item.pending.pk %}"
+        ><button>✅ Approve</button></a
+      >
+      |
+      <a href="{% url 'reject_edited_repair' item.pending.pk %}"
+        ><button>❌ Reject</button></a
+      >
+      {% else %}
+      <span style="color: gray">(Admin Only)</span>
+      {% endif %}
+    </td>
+  </tr>
+
+  <tr>
+    <td>Name</td>
+    <td>{{ item.old.name|default:"-" }}</td>
+    <td
+      style="{% if item.old and item.old.name != item.pending.name %}background-color:#ffe0e0;{% endif %}"
+    >
+      {{ item.pending.name }}
+    </td>
+  </tr>
+
+  <tr>
+    <td>Date</td>
+    <td>{{ item.old.date|default:"-" }}</td>
+    <td
+      style="{% if item.old and item.old.date != item.pending.date %}background-color:#ffe0e0;{% endif %}"
+    >
+      {{ item.pending.date }}
+    </td>
+  </tr>
+
+  <tr>
+    <td>Cost</td>
+    <td>{{ item.old.cost|default:"-" }}</td>
+    <td
+      style="{% if item.old and item.old.cost != item.pending.cost %}background-color:#ffe0e0;{% endif %}"
+    >
+      {{ item.pending.cost }}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No pending repairs.</p>
 {% endif %} {% endblock %}

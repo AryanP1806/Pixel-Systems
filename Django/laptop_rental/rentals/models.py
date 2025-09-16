@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.timezone import now
-from datetime import timedelta, date, timezone
+from django.utils import timezone
+from datetime import timedelta, date
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
@@ -96,11 +97,11 @@ class ProductAsset(models.Model):
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
     model_no = models.CharField(max_length=100)
-    serial_no = models.CharField(max_length=100, unique=True)
-    hsn_code = models.CharField(max_length=15, blank=True)
+    serial_no = models.CharField(max_length=100,null=True,blank=True)
+    # hsn_code = models.CharField(max_length=15, blank=True)
     asset_number = models.PositiveIntegerField(null=True, blank=True)
     asset_suffix = models.CharField(max_length=1, null=True, blank=True)  # optional
-
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # Total accumulated revenue
 
 
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -130,11 +131,11 @@ class ProductAsset(models.Model):
 
 
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
+    edited_at = models.DateTimeField(null=True, blank=True) 
 
     def save(self, *args, **kwargs):
         if not self.asset_id:
-            year = self.purchase_date.year if self.purchase_date else now().year
+            year = self.purchase_date.year if self.purchase_date else timezone.now().year
 
             if self.asset_number:  # Asset number manually given
                 number_str = str(self.asset_number).zfill(3)
@@ -164,6 +165,9 @@ class ProductAsset(models.Model):
                 raise ValueError(f"Asset ID '{generated_id}' already exists. Please use a unique one.")
 
             self.asset_id = generated_id
+
+            if self.edited_by:  # Only update when there's an editor
+                self.edited_at = timezone.now()  
 
         else:
             # Asset ID manually entered → check uniqueness
@@ -223,7 +227,7 @@ class PendingProduct(models.Model):
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
     model_no = models.CharField(max_length=100)
-    serial_no = models.CharField(max_length=100, unique=True)
+    serial_no = models.CharField(max_length=100)
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
     current_value = models.DecimalField(max_digits=10, decimal_places=2)
     purchase_date = models.DateField()
@@ -231,7 +235,7 @@ class PendingProduct(models.Model):
     warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
     purchased_from = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
     condition_status = models.CharField(max_length=20, choices=CONDITION_CHOICES)  # same choices
-    hsn_code = models.CharField(max_length=15, blank=True, null=True)
+    # hsn_code = models.CharField(max_length=15, blank=True, null=True)
     asset_number = models.PositiveIntegerField(null=True, blank=True)
     asset_id = models.CharField(max_length=50, blank=True, null=True)
     sold_to = models.CharField(max_length=255, blank=True, null=True)
@@ -249,7 +253,7 @@ class PendingProduct(models.Model):
         # prefix = f"Pixel/{year}/"
 
         if not self.asset_id:
-            year = self.purchase_date.year if self.purchase_date else now().year
+            year = self.purchase_date.year if self.purchase_date else timezone.now().year
 
             if self.asset_number:  # Asset number manually given
                 number_str = str(self.asset_number).zfill(3)
@@ -319,8 +323,14 @@ class ProductConfiguration(models.Model):
     display_size = models.ForeignKey(DisplaySizeOption, on_delete=models.SET_NULL, null=True, blank=True)
     power_supply = models.CharField(max_length=100, blank=True, null=True)
     detailed_config = models.TextField(blank=True, null=True)
-
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Config on {self.date_of_config} for {self.asset}"
@@ -345,11 +355,15 @@ class Customer(models.Model):
 
     reference_name = models.CharField(max_length=100, blank=True, null=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
+    edited_at = models.DateTimeField(auto_now=True)
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['name', 'phone_number_primary'], name='unique_customer_by_name_and_phone'),
         ]
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -393,7 +407,14 @@ class Rental(models.Model):
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     contract_number = models.CharField(max_length=50, blank=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(auto_now=True)
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
+    def is_active(self):
+        return self.status == 'active'
 
 
 class PendingRental(models.Model):
@@ -412,35 +433,12 @@ class PendingRental(models.Model):
 
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='pending_rentals')
     submitted_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-
+    def is_active(self):
+        return self.status == 'active'
 
 # -----------------------------
 # Payment
 # -----------------------------
-class Payment(models.Model):
-   
-    
-    METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('card', 'Card'),
-        ('upi', 'UPI'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('paid', 'Paid'),
-        ('partial', 'Partial'),
-        ('unpaid', 'Unpaid'),
-    ]
-
-    rental = models.OneToOneField(Rental, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_date = models.DateField(auto_now_add=True)
-    payment_method = models.CharField(max_length=20, choices=METHOD_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unpaid')
-    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
-    def __str__(self):
-        return f"Payment #{self.id} - {self.rental} - {self.amount}"
 
 class Repair(models.Model):
     product = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='repairs')
@@ -448,7 +446,11 @@ class Repair(models.Model):
     date = models.DateField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-
+    edited_at = models.DateTimeField(auto_now=True)
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
 
 class PendingProductConfiguration(models.Model):
@@ -463,7 +465,8 @@ class PendingProductConfiguration(models.Model):
     display_size = models.ForeignKey(DisplaySizeOption, on_delete=models.SET_NULL, null=True, blank=True)
     power_supply = models.CharField(max_length=100, blank=True, null=True)
     detailed_config = models.TextField(blank=True, null=True)
-
+    
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
@@ -479,32 +482,32 @@ class PendingProductConfiguration(models.Model):
 
 class Supplier(models.Model):
     name = models.CharField(max_length=100)
-    gstin = models.CharField(max_length=20, verbose_name="GSTIN Number")
+    gstin = models.CharField(max_length=20, verbose_name="GSTIN Number", blank=True, null=True)
 
-    address_primary = models.TextField()
+    address_primary = models.TextField(blank=True, null=True)
     address_secondary = models.TextField(blank=True, null=True)
 
-    phone_primary = models.CharField(max_length=15)
+    phone_primary = models.CharField(max_length=15,blank=True, null=True)
     phone_secondary = models.CharField(max_length=15, blank=True, null=True)
 
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     reference_name = models.CharField(max_length=100, blank=True, null=True)
 
-    type_of_seller = models.ForeignKey(
-        AssetType, on_delete=models.SET_NULL, null=True, blank=True, related_name="vendors"
-    )
     def __str__(self):
-        return f"{self.name} ({self.gstin})"
+        return self.name
+    
 
-
+    
 
 class PendingRepair(models.Model):
-    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
-    product = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='pending_repairs')
-    repair_date = models.DateField()
-    issue = models.TextField()
-    cost = models.DecimalField(max_digits=10, decimal_places=2)
-    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    original_repair = models.ForeignKey('Repair', on_delete=models.CASCADE, null=True, blank=True)
+    product = models.ForeignKey('ProductAsset', on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    is_edit = models.BooleanField(default=False)  # True = edit or delete pending
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    is_edit = models.BooleanField(default=False)
-    original_repair = models.ForeignKey(Repair, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Pending Repair for {self.product.asset_id}"

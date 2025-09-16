@@ -54,7 +54,7 @@ function initRentalSlider() {
   const images = [
     "Pixel Images/12d400b928e32c0902d39d155d10e4c0.webp",
     "Pixel Images/new-modern-powerful-gaming-computer-with-beautiful-rgb-lights-different-color-glass-case-table-dark_63762-7255.avif",
-    "Pixel Images/425073.e0863a509bc786e573ee300d811bbb63.webp",
+    // "Pixel Images/425073.e0863a509bc786e573ee300d811bbb63.webp",
   ];
   let current = 0;
 

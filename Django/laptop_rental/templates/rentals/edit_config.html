@@ -13,7 +13,9 @@
   {% endif %}
   <h1>{{ config.asset.asset_id }}</h1>
   <p>
-    <label for="id_date_of_config">Date of Configuration:</label>
+    <label for="id_date_of_config"
+      ><span style="color: red">*</span>Date of Configuration:</label
+    >
     {{ form.date_of_config }}
   </p>
   <p>
@@ -53,6 +55,10 @@
     {{ form.detailed_config }}
   </p>
 
+  <p>
+    <label for="id_cost">Cost:</label>
+    {{ form.cost }}
+  </p>
   <p>
     <button type="submit">Update</button>
   </p>

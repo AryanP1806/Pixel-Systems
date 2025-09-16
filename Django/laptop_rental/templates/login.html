@@ -1,22 +1,41 @@
-{% extends "base.html" %}
-<h1>{% block title %}Login{% endblock %}</h1>
+{% extends "base.html" %}{% load static %} {% block title %}Login{% endblock %}
 {% block content %}
-<div class="login-wrapper">
-  <h2>Login</h2>
-  <form method="post">
-    {% csrf_token %}
-    <div class="form-row">
-      <label>Username:</label>
-      {{ form.username }}
-    </div>
-    <div class="form-row">
-      <label>Password:</label>
-      {{ form.password }}
-    </div>
-    <button type="submit">Login</button>
-  </form>
-  {% if form.errors %}
-  <p style="color: red">Invalid username or password.</p>
-  {% endif %}
+
+<style>
+  .login-image img {
+    max-width: 200px;
+    height: auto;
+    position: fixed;
+    left: 0;
+    bottom: 10vh;
+  }
+
+  .form-row {
+    margin-bottom: 15px;
+  }
+</style>
+<div class="login-container">
+  <div class="login-wrapper">
+    <h2>Login</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <label>Username:</label>
+        {{ form.username }}
+      </div>
+      <div class="form-row">
+        <label>Password:</label>
+        {{ form.password }}
+      </div>
+      <button type="submit">Login</button>
+    </form>
+    {% if form.errors %}
+    <p style="color: red">Invalid username or password.</p>
+    {% endif %}
+  </div>
+
+  <div class="login-image">
+    <img src="{% static 'images/pslogo.png' %}" alt="Login Banner" />
+  </div>
 </div>
 {% endblock %}

@@ -14,23 +14,27 @@
   </div>
   {% endif %}
   <p>
-    <label for="id_name">Name:</label>
+    <label for="id_name"><span style="color: red">*</span>Name: </label>
     {{ form.name }}
   </p>
+
   <p>
     <label for="id_email">Email:</label>
     {{ form.email }}
   </p>
+
   <p>
-    <label for="id_phone_number_primary">Phone 1:</label>
+    <label for="id_phone_number_primary"
+      ><span style="color: red">*</span>Phone 1:</label
+    >
     {{ form.phone_number_primary }}
   </p>
   <p>
     <label for="id_phone_number_secondary">Phone 2:</label>
     {{ form.phone_number_secondary }}
   </p>
-  <p>
-    <label for="id_address_primary">Address 1:</label>
+  <p>Address 1:</label
+    >
     {{ form.address_primary }}
   </p>
   <p>

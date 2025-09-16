@@ -7,21 +7,21 @@
   {% csrf_token %}
 
   <p>
-    <label for="id_product">Asset:</label>
+    <label for="id_product"><span style="color: red">*</span>Asset:</label>
     {{ form.product }}
   </p>
   <p>
-    <label for="id_name">By Whom:</label>
+    <label for="id_name"><span style="color: red">*</span>By Whom:</label>
     {{ form.name }}
   </p>
 
   <p>
-    <label for="id_date">Date:</label>
+    <label for="id_date"><span style="color: red">*</span>Date:</label>
     {{ form.date }}
   </p>
 
   <p>
-    <label for="id_cost">Cost:</label>
+    <label for="id_cost"><span style="color: red">*</span>Cost:</label>
     {{ form.cost }}
   </p>
 

@@ -49,38 +49,46 @@
   <button type="submit">🔍 Search</button>
 </form>
 
-<table border="1" cellpadding="8">
-  <tr>
-    <th>Name</th>
-    <th>Email</th>
-    <th>Primary Address</th>
-    <th>Secondary Address</th>
-    <th>Primary Phone</th>
-    <th>Secondary Phone</th>
-    <th>Permanent?</th>
-    <th>BNI?</th>
-    <th>Edited By</th>
-    <th>Actions</th>
-  </tr>
-  {% for customer in customers %}
-  <tr>
-    <td>{{ customer.name }}</td>
-    <td>{{ customer.email }}</td>
-    <td>{{ customer.address_primary }}</td>
-    <td>{{ customer.address_secondary|default:'NA' }}</td>
-    <td>{{ customer.phone_number_primary }}</td>
-    <td>{{ customer.phone_number_secondary }}</td>
-    <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
-    <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
-    <td>{{ customer.edited_by.username }}</td>
-    <td>
-      <a href="{% url 'edit_customer' customer.id %}"><button>Edit</button></a>
-    </td>
-  </tr>
-  {% empty %}
-  <tr>
-    <td colspan="4">No customers found.</td>
-  </tr>
-  {% endfor %}
-</table>
+<div class="table-container">
+  <table border="1" cellpadding="8">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Primary Address</th>
+        <th>Secondary Address</th>
+        <th>Primary Phone</th>
+        <th>Secondary Phone</th>
+        <th>Permanent?</th>
+        <th>BNI?</th>
+        <th>Edited By</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for customer in customers %}
+      <tr>
+        <td>{{ customer.name }}</td>
+        <td>{{ customer.email }}</td>
+        <td>{{ customer.address_primary }}</td>
+        <td>{{ customer.address_secondary|default:'NA' }}</td>
+        <td>{{ customer.phone_number_primary }}</td>
+        <td>{{ customer.phone_number_secondary }}</td>
+        <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
+        <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
+        <td>{{ customer.edited_by.username }}</td>
+        <td>
+          <a href="{% url 'edit_customer' customer.id %}"
+            ><button>Edit</button></a
+          >
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">No customers found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
