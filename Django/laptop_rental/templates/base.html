@@ -2,10 +2,26 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+  <style>
+    .login-image img {
+      max-width: 200px;
+      height: auto;
+      position: fixed;
+      left: 2vh;
+      top: 12vh;
+      z-index: 100;
+      opacity: 0.2;
+    }
+
+    .form-row {
+      margin-bottom: 15px;
+    }
+  </style>
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Laptop Rental{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'styles10.css' %}" />
+    <!-- <link rel="stylesheet" type="text/css" href="{% static 'styles10.css' %}" /> -->
+    <link rel="stylesheet" type="text/css" href="{% static 'aryan.css' %}" />
 
     <!-- jQuery (must be loaded first) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -13,7 +29,7 @@
     <!-- Django Autocomplete Light CSS/JS -->
     {{ form.media.css }}
 
-    <style></style>
+    <link rel="icon" type="image/png" href="{% static 'images/icon.png' %}" />
   </head>
   <body>
     <nav class="navbar">
@@ -39,6 +55,9 @@
         {% endif %}
       </div>
     </nav>
+    <div class="login-image">
+      <img src="{% static 'images/pslogo.png' %}" alt="Login Banner" />
+    </div>
 
     <!-- <img src="pslogo.png" alt="" width="100px" height="100px" /> -->
     <div class="container">{% block content %}{% endblock %}</div>

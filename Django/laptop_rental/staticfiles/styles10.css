@@ -90,6 +90,7 @@ nav {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-light);
+  /* border-bottom: 1px solid var(--border-; */
   padding: var(--space-lg) var(--space-xl);
   position: sticky;
   top: 0;
@@ -97,13 +98,14 @@ nav {
   box-shadow: var(--shadow-sm);
   width: 100%;
   min-width: 100vw;
+  /* margin-bottom: 10px; */
 }
 
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  width: 100;
   max-width: none;
 }
 

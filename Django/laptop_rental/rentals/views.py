@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Rental, Customer, ProductAsset, ProductConfiguration,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption, PendingRepair
-from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingProductForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm, SupplierForm, RepairForm, AssetTypeForm,CPUOptionForm,  HDDOptionForm, RAMOptionForm, DisplaySizeOptionForm, GraphicsOptionForm
+from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm, SupplierForm, RepairForm, AssetTypeForm,CPUOptionForm,  HDDOptionForm, RAMOptionForm, DisplaySizeOptionForm, GraphicsOptionForm
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
 from django.db import IntegrityError
@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.utils.timezone import now
 from django.utils.dateparse import parse_date
 import uuid
-from datetime import timedelta
+from datetime import date,timedelta
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.core.mail import send_mail
@@ -21,6 +21,9 @@ import csv
 import pandas as pd
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
+from django.urls import reverse
+from dateutil.relativedelta import relativedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 def logout_view(request):
     logout(request)
@@ -71,8 +74,8 @@ def customer_list(request):
 
 @login_required
 def product_list(request):
-    query = request.GET.get('q')
-    sort_by = request.GET.get('sort', '-asset_id')
+    query = request.GET.get('q','')
+    sort_by = request.GET.get('sort', 'asset_id')
     asset_type = request.GET.get('type')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -333,6 +336,7 @@ def add_product(request):
                 product = form.save(commit=False)
                 product.edited_by = request.user
                 product.save()
+                messages.success(request, f"✅ Product '{product.asset_id}' was successfully created.") 
                 return redirect('product_list')
             
                 
@@ -593,7 +597,9 @@ def edit_product(request, pk):
             product = form.save(commit=False)
             product.edited_by = request.user
             product.save()
-            return redirect('product_list')
+            messages.success(request, f"✏️ Product '{product.asset_id}' was successfully updated.")
+            
+            return redirect(f"{reverse('product_list')}?q={request.GET.get('q', '')}&type={request.GET.get('type', '')}")
     else:
         if request.method == 'POST':
             form = ProductAssetForm(request.POST, instance=product)
@@ -625,7 +631,8 @@ def edit_product(request, pk):
                 )
                 pending.save()
                 messages.success(request, "Changes submitted for approval.")
-                return redirect('product_list')
+                return redirect(f"{reverse('product_list')}?q={request.GET.get('q', '')}&type={request.GET.get('type', '')}")
+
         else:
             form = ProductAssetForm(instance=product)
     return render(request, 'rentals/edit_product.html', {'form': form, 'product': product})
@@ -971,6 +978,40 @@ def report_dashboard(request):
     customer_labels = [name for name, _ in sorted_customers]
     customer_values = [value for _, value in sorted_customers]
 
+
+    top_repaired_assets = (
+        Repair.objects.values('product__asset_id', 'product__brand', 'product__model_no')
+        .annotate(total_repairs=Count('id'), total_cost=Sum('cost'))
+        .order_by('-total_cost')[:5]
+    )
+
+    today = timezone.now().date()
+    in_warranty_assets = []
+    for asset in products:
+        if asset.purchase_date and asset.warranty_duration_months and asset.warranty_duration_months > 0:
+            expiry_date = asset.purchase_date + relativedelta(months=asset.warranty_duration_months)
+            if today <= expiry_date:
+                in_warranty_assets.append({
+                    "asset_id": asset.asset_id,
+                    "brand": asset.brand,
+                    "model_no": asset.model_no,
+                    "expiry_date": expiry_date,
+                    "days_left": (expiry_date - today).days
+                })
+    in_warranty_count = len(in_warranty_assets)
+
+
+    # Repairs with active warranty
+    today = timezone.now().date()
+
+    repairs = Repair.objects.all()
+    repairs_with_warranty = []
+
+    for r in repairs:
+        expiry = r.repair_warranty_expiry_date  # use property method
+        if expiry and today <= expiry:
+            repairs_with_warranty.append(r)
+
     # Final context
     context = {
         'customers': customers,
@@ -982,6 +1023,15 @@ def report_dashboard(request):
         'gross_profit': gross_profit,
         'sold_asset': sold_asset,
         'maintenance_cost': maintenance_cost,
+        "in_warranty_count": in_warranty_count,
+        "in_warranty_assets": in_warranty_assets,
+
+
+        "repairs_with_warranty":repairs_with_warranty,
+
+        # Top repaired
+        "top_repaired_assets": top_repaired_assets,
+
         'total_days': total_days,
         'net_profit': net_profit,
         'product_obj': product_obj,
@@ -994,145 +1044,108 @@ def report_dashboard(request):
         'type_values': json.dumps(type_values),
         'customer_labels': json.dumps(customer_labels),
         'customer_values': json.dumps(customer_values),
+
+
     }
 
     return render(request, 'rentals/report_dashboard.html', context)
 
-
-# @login_required
-# def report_dashboard(request):
-#     customers = Customer.objects.all()
-#     products = ProductAsset.objects.all()
-
-#     customer_id = request.GET.get('customer')
-#     product_id = request.GET.get('product')
-#     start = request.GET.get('start_date')
-#     end = request.GET.get('end_date')
-
-#   # rentals = Rental.objects.filter(status='completed')
-#     rentals = Rental.objects.select_related('asset', 'customer').all()
-#     customer_business = []
-#     customer_type = request.GET.get('customer_type')
-
-#     if customer_type == 'BNI':
-#         rentals = rentals.filter(customer__is_bni_member=True)
-#         selected_customers = Customer.objects.filter(is_bni_member=True)
-
-#     elif customer_type == 'Permanent':
-#         rentals = rentals.filter(customer__is_permanent=True)
-#         selected_customers = Customer.objects.filter(is_permanent=True)
-#     else:
-#         selected_customers = []
-
-#     for customer in selected_customers:
-#         total = Rental.objects.filter(customer=customer).aggregate(total=Sum('price'))['total'] or 0
-#         customer_business.append({'name': customer.name, 'total': total})
-
-#     product_obj = None
-#     if product_id:
-#         try:
-#             product_obj = ProductAsset.objects.get(id=product_id)
-#         except ProductAsset.DoesNotExist:
-#             product_obj = None
-
-#     gross_profit = maintenance_cost = net_profit = None
-#     sold_asset = 0.0
-#     if product_obj:
-#         purchase_price = float(product_obj.purchase_price or 0)
-#         gross_profit = float(product_obj.total_rent_earned or 0)
-#         if product_obj.condition_status=='sold' and product_obj.sale_price:
-#             # gross_profit += float(product_obj.sale_price)
-#             sold_asset = float(product_obj.sale_price or 0)
-#         else:
-#             sold_asset = 0.0
-#         maintenance_cost = float(product_obj.total_repairs or 0)
-#         net_profit =  gross_profit - maintenance_cost -  purchase_price 
+from datetime import date, timedelta
+from decimal import Decimal, ROUND_HALF_UP
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .models import Rental, ProductAsset
 
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def run_revenue_calculator(request):
+    """
+    View to recalculate revenue for all rentals and update each product's total revenue.
+    Accessible only to superusers.
+    """
+    today = date.today()
 
-#     if customer_id:
-#         rentals = rentals.filter(customer_id=customer_id)
-#     if product_id:
-#         rentals = rentals.filter(asset_id=product_id)
-#     if start:
-#         rentals = rentals.filter(rental_start_date__gte=parse_date(start))
-#     if end:
-#         rentals = rentals.filter(rental_start_date__lte=parse_date(end))
+    # Step 1: Reset all revenues to 0
+    ProductAsset.objects.update(revenue=Decimal('0.00'))
 
-#     total_revenue = sum(r.payment.amount for r in rentals if hasattr(r, 'payment'))
-#     total_rentals = rentals.count()
-#     total_days = float(sum((r.rental_end_date - r.rental_start_date).days for r in rentals if r.rental_end_date and r.rental_start_date))
-#     # Monthly revenue data
-#     monthly = {}
-#     for r in rentals:
-#         if hasattr(r, 'payment'):
-#             month = r.rental_start_date.strftime("%Y-%m")
-#             monthly[month] = monthly.get(month, 0) + r.payment.amount
+    updated_rentals = 0
+
+    # Step 2: Get all rentals with valid payment amounts
+    rentals = Rental.objects.filter(payment_amount__gt=0)
+
+    for rental in rentals:
+        # ✅ Skip rentals with missing start date
+        if not rental.rental_start_date:
+            print(f"Skipping rental {rental.id} - No start date")
+            continue
+
+        # ✅ Determine the effective end date
+        end_date = rental.rental_end_date or today
+
+        # Don't calculate beyond today
+        if end_date > today:
+            end_date = today
+
+        # ✅ Skip if start date is after end date (invalid data)
+        if rental.rental_start_date > end_date:
+            print(f"Skipping rental {rental.id} - Start date after end date")
+            continue
+
+        total_rental_revenue = Decimal('0.00')
+        current_date = rental.rental_start_date
+
+        # Step 3: Loop through each month between start and end
+        while current_date <= end_date:
+            # Calculate days in current month
+            if current_date.month == 12:
+                next_month_start = date(current_date.year + 1, 1, 1)
+            else:
+                next_month_start = date(current_date.year, current_date.month + 1, 1)
+
+            days_in_month = (next_month_start - timedelta(days=1)).day
+
+            # Calculate end day for this segment
+            if current_date.month == end_date.month and current_date.year == end_date.year:
+                end_day = end_date.day
+            else:
+                end_day = days_in_month
+
+            # Number of active days in this month
+            days_to_count = end_day - current_date.day + 1
+
+            # Keep full precision for daily rate
+            daily_rate = rental.payment_amount / Decimal(days_in_month)
+
+            # Add precise total, round at the very end
+            total_rental_revenue += (daily_rate * Decimal(days_to_count))
+
+            # Move to the first day of next month
+            current_date = next_month_start
+
+        # Round the final result once
+        total_rental_revenue = total_rental_revenue.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+        # Step 4: Update the product's total revenue
+        if rental.asset:
+            before = rental.asset.revenue
+            rental.asset.revenue += total_rental_revenue
+            rental.asset.save(update_fields=['revenue'])
 
-#     top_assets = (
-#         ProductAsset.objects.annotate(total_income=Sum('rentals__payment__amount'))
-#         .filter(total_income__gt=0)
-#         .order_by('-total_income')[:5]  # Top 5 assets
-#     )
+            updated_rentals += 1
+            print(
+                f"[{rental.asset.asset_id}] Before: {before} | Added: {total_rental_revenue} | After: {rental.asset.revenue}"
+            )
 
+    # Step 5: Display success message
+    messages.success(
+        request,
+        f"Revenue successfully recalculated for {updated_rentals} rentals as of {today}."
+    )
 
-
-#     type_revenue = defaultdict(float)
-#     for asset in ProductAsset.objects.prefetch_related('rentals__payment'):
-#         asset_type = asset.type_of_asset
-#         total_income = sum(r.payment.amount for r in asset.rentals.all() if r.payment)
-#         type_revenue[asset_type] += float(total_income)
-
-#     type_data = rentals.filter(payment__isnull=False).values('asset__type_of_asset__name').annotate(
-#         total=Sum('payment__amount')
-#     ).order_by('-total')
-
-#     type_labels = [entry['asset__type_of_asset__name'] for entry in type_data]
-#     type_values = [float(entry['total']) for entry in type_data if entry['total']]
-
-
-
-#     customer_revenue = {}
-#     for customer in Customer.objects.all():
-#         total = Rental.objects.filter(customer=customer, payment__isnull=False).aggregate(total=Sum('payment__amount'))['total']
-#         if total:
-#             customer_revenue[customer.name] = float(total)
-
-#     sorted_customers = sorted(customer_revenue.items(), key=lambda x: x[1], reverse=True)
-#     customer_labels = [name for name, _ in sorted_customers]
-#     customer_values = [value for _, value in sorted_customers]
-
-#     context = {
-#         'customers': customers,
-#         'products': products,
-#         'rentals': rentals,
-#         'total_revenue': total_revenue,
-#         'total_rentals': total_rentals,
-#         'purchase_price': product_obj.purchase_price if product_obj else 0,
-#         'gross_profit': gross_profit,
-#         'sold_asset': sold_asset,
-#         'maintenance_cost': maintenance_cost,
-#         'total_days': total_days,
-#         'net_profit': net_profit,
-#         'product_obj': product_obj, 
-#         'product_id': product_id,
-#         'gross_profit': gross_profit,
-#         'maintenance_cost': maintenance_cost,
-#         'net_profit': net_profit,
-#         'monthly_labels': json.dumps(list(reversed(monthly.keys()))),
-#         'monthly_values': json.dumps([float(v) for v in reversed(monthly.values())]),
-#         'top_assets': top_assets,
-#         'customer_business': customer_business,
-#         'type_labels': json.dumps(type_labels),
-#         'type_values': json.dumps(type_values),
-#         'customer_labels': json.dumps(customer_labels),
-#         'customer_values': json.dumps(customer_values),
-
-#     }
-#     return render(request, 'rentals/report_dashboard.html', context)
-
+    return redirect('product_list')  # Update with your actual reports dashboard URL
 
 
 
@@ -1217,10 +1230,10 @@ def send_billing_reminder(request):
     return redirect('rental_list')
 
 @login_required
-def add_repair(request, pk=None):
-    product = None
-    if pk:
-        product = get_object_or_404(ProductAsset, pk=pk)
+def add_repair(request, pk):
+    
+    product = get_object_or_404(ProductAsset, pk=pk)
+    # nameing = get(ProductAsset)    
 
     if request.method == 'POST':
         form = RepairForm(request.POST)
@@ -1246,7 +1259,9 @@ def add_repair(request, pk=None):
                     product=cleaned_data.get('product') or product,
                     name=cleaned_data.get('name'),
                     cost=cleaned_data.get('cost'),
-                    repair_date=cleaned_data.get('repair_date'),
+                    date=cleaned_data.get('date'),
+                    warranty_period_months=cleaned_data.get('warranty_period_months'),
+
                     submitted_by=request.user,
                     is_edit=False,  # NEW REPAIR, not an edit
                 )
@@ -1294,6 +1309,7 @@ def edit_repair(request, pk):
 
                 if pending_repair:
                     # Update existing pending edit instead of creating duplicate
+                    pending_repair.product=form.product,
                     pending_repair.date = form.cleaned_data['date']
                     pending_repair.cost = form.cleaned_data['cost']
                     pending_repair.name = form.cleaned_data['name']

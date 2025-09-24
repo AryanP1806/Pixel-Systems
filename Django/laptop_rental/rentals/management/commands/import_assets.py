@@ -123,7 +123,7 @@ class Command(BaseCommand):
             # --------- Handle Serial No ----------
             serial_no_val = str(row.get('Serial No', "")).strip()
             if not serial_no_val or serial_no_val.lower() == "nan":
-                serial_no_val = f"NO-SERIAL-{uuid.uuid4()}"
+                serial_no_val = f"NA"
 
             # --------- Handle Company (Brand) ----------
             company_val = str(row.get('Company', "")).strip()

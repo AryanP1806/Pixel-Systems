@@ -90,7 +90,6 @@ nav {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-light);
-  /* border-bottom: 1px solid var(--border-; */
   padding: var(--space-lg) var(--space-xl);
   position: sticky;
   top: 0;
@@ -98,14 +97,13 @@ nav {
   box-shadow: var(--shadow-sm);
   width: 100%;
   min-width: 100vw;
-  /* margin-bottom: 10px; */
 }
 
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100;
+  width: 100%;
   max-width: none;
 }
 
@@ -871,4 +869,43 @@ form,
 }
 .mt-lg {
   margin-top: var(--space-lg);
+}
+
+.table-container:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Add to styles10.css */
+.table-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+}
+
+.scroll-btn:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.scroll-btn.left {
+  left: -20px;
+}
+.scroll-btn.right {
+  right: -20px;
 }

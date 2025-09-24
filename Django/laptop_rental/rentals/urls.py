@@ -29,6 +29,7 @@ urlpatterns = [
     path('products/clone/<int:pk>/', views.clone_product, name='clone_product'),
     path('products/sold/', views.sold_assets, name='sold_assets'),
     path('products/<int:pk>/repair/', views.add_repair, name='add_repair'),
+    path('run-revenue-calculator/', views.run_revenue_calculator, name='run_revenue_calculator'),
 
 
     path('customers/', views.customer_list, name='customer_list'),

@@ -7,13 +7,16 @@
 <h2><b>📦 Products</b></h2>
 {% if pending_products %}
 <table border="1" cellpadding="8">
-  <tr>
-    <th>Field</th>
-    <th>Old Value</th>
-    <th>New Value</th>
-    <th>Submitted By</th>
-    <th>Actions</th>
-  </tr>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+      <th>Submitted By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
   {% for item in pending_products %}
   <tr>
     <td colspan="5">
@@ -156,13 +159,16 @@
 <h2><b>👤 Customers</b></h2>
 {% if pending_customers %}
 <table border="1" cellpadding="8">
-  <tr>
-    <th>Field</th>
-    <th>Old Value</th>
-    <th>New Value</th>
-    <th>Submitted By</th>
-    <th>Actions</th>
-  </tr>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+      <th>Submitted By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
   {% for item in pending_customers %}
   <tr>
     <td colspan="5">
@@ -278,22 +284,22 @@
 <h2><b>🔄 Rentals</b></h2>
 {% if pending_rentals %}
 <table border="1" cellpadding="8">
-  <tr>
-    <th>Field</th>
-    <th>Old Value</th>
-    <th>New Value</th>
-    <th>Submitted By</th>
-    <th>Actions</th>
-  </tr>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+      <th>Submitted By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
   {% for item in pending_rentals %}
   <tr>
     <td colspan="5">
-      <b>
-        {% if item.old %}Editing Rental for
-        <p></p>
-        {{ item.pending.customer.name }}{% else %}New Rental for {{
-        item.pending.customer.name }}{% endif %}
-      </b>
+      <h3>
+        <b> {% if item.old %}Editing Rental {% else %}New Rental{% endif %} </b>
+      </h3>
     </td>
   </tr>
   <tr>
@@ -392,13 +398,16 @@
 <h2><b>🖥 Configurations</b></h2>
 {% if pending_configs %}
 <table border="1" cellpadding="8">
-  <tr>
-    <th>Field</th>
-    <th>Old Value</th>
-    <th>New Value</th>
-    <th>Submitted By</th>
-    <th>Actions</th>
-  </tr>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+      <th>Submitted By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
   {% for item in pending_configs %}
   <tr>
     <td colspan="5">
@@ -503,13 +512,16 @@
 <h2><b>🔨 Pending Repairs</b></h2>
 {% if pending_repairs %}
 <table border="1" cellpadding="8">
-  <tr>
-    <th>Field</th>
-    <th>Old Value</th>
-    <th>New Value</th>
-    <th>Submitted By</th>
-    <th>Actions</th>
-  </tr>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+      <th>Submitted By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
   {% for item in pending_repairs %}
   <tr>
     <td colspan="5">

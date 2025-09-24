@@ -76,7 +76,7 @@
   font-size: 36px;
   margin-bottom: 10px;
 }
-
+/* 
 .description {
   max-width: 600px;
   margin: auto;
@@ -84,8 +84,27 @@
   font-size: 16px;
   line-height: 1.6;
   color: white;
-}
+} */
 
+.description {
+  max-width: 800px;
+  margin: 0 auto 4rem auto;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: white;
+  /* color: orange; */
+  padding: 0 2rem;
+}
+.description p {
+  /* background: rgba(0, 0, 0, 0.5); */
+  /* text-shadow: black 0px 0px 0px; */
+  text-shadow: 0 0 0.5em white;
+  font-size: 1.1rem;
+  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  color: black;
+  padding: 1rem;
+  border-radius: var(--border-radius);
+}
 .counters {
   display: flex;
   flex-wrap: wrap;

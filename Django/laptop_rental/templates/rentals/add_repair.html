@@ -6,10 +6,15 @@
 <form method="post">
   {% csrf_token %}
 
-  <p>
-    <label for="id_product"><span style="color: red">*</span>Asset:</label>
+  <h3>Asset:</h3>
+  <h3>
+    {{ product.asset_id }} - {{ product.brand }}
+    <span></span> {{ product.model_no }}
+  </h3>
+  <span>
+    <label for="id_product"><span style="color: red"></span></label>
     {{ form.product }}
-  </p>
+  </span>
   <p>
     <label for="id_name"><span style="color: red">*</span>By Whom:</label>
     {{ form.name }}
@@ -19,12 +24,18 @@
     <label for="id_date"><span style="color: red">*</span>Date:</label>
     {{ form.date }}
   </p>
-
   <p>
     <label for="id_cost"><span style="color: red">*</span>Cost:</label>
     {{ form.cost }}
   </p>
-
+  <p>
+    <label for="id_repair_warranty_months">Warranty Period (in months):</label>
+    {{ form.repair_warranty_months }}
+  </p>
+  <p>
+    <label for="id_info">Additional Info:</label>
+    {{ form.info }}
+  </p>
   <button type="submit">Submit</button>
 </form>
 {% endblock %}

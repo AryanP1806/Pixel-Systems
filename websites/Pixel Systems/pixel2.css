@@ -159,7 +159,7 @@ header {
     var(--secondary-color),
     var(--secondary-light)
   );
-  padding: 1rem 2rem;
+  padding: 0.7vh 2rem;
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -454,6 +454,155 @@ section {
   transform: scale(1.05);
 }
 
+/* ===== IMAGE DISPLAY FIXES FOR SERVICE SECTIONS ===== */
+
+/* Fix for AMC Image */
+.amc-image {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  min-height: 300px; /* Ensure container has height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.amc-image img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+  display: block; /* Ensure image displays as block element */
+}
+
+/* Fix for Rental/RC Image Container */
+.rc-image {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  /* min-height: 300px; Ensure container has height */
+  /* min-height: fit-content; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CRITICAL FIX: Remove conflicting class selector */
+.rc-image img,
+img.rc-image {
+  /* Target both the img inside .rc-image and img with rc-image class */
+  width: 100% !important;
+  height: 300px !important;
+  object-fit: cover !important;
+  transition: transform var(--transition-slow);
+  display: block !important; /* Force display */
+  border-radius: var(--border-radius);
+}
+
+/* Fix for DSC Image */
+.dsc-image {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  min-height: 300px; /* Ensure container has height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dsc-image img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+  display: block; /* Ensure image displays */
+}
+
+/* Fix Grid Layout Issues */
+.amc-body,
+.rc-body,
+.dsc-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  min-height: 400px; /* Ensure grid has minimum height */
+}
+
+/* Specific fix for RC body layout */
+.rc-body {
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch; /* Make both columns same height */
+}
+
+/* Ensure images load properly */
+img[id="slider-img"],
+img[id="slider-img1"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 300px !important;
+}
+
+/* Fix for lazy loading issues */
+img[loading="lazy"] {
+  opacity: 1 !important; /* Override the lazy loading opacity */
+  transition: opacity 0.3s;
+}
+
+img[loading="lazy"].loaded {
+  opacity: 1;
+}
+
+/* Additional fixes for image visibility */
+.amc-image img:hover,
+.rc-image img:hover,
+.dsc-image img:hover {
+  transform: scale(1.05);
+}
+
+/* Debug styles - remove these after fixing */
+.amc-image,
+.rc-image1,
+.dsc-image {
+  border: 2px solid red;
+  background-color: #f0f0f0; /* Temporary background to see container */
+}
+
+/* Mobile responsiveness fixes */
+@media (max-width: 768px) {
+  .amc-body,
+  .rc-body,
+  .dsc-body {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 0 1rem;
+  }
+
+  .amc-image,
+  .rc-image,
+  .dsc-image {
+    min-height: 250px;
+  }
+
+  .amc-image img,
+  .rc-image img,
+  .dsc-image img,
+  img.rc-image {
+    height: 250px !important;
+  }
+}
+
 /* ===== BUTTONS ===== */
 button,
 .service-cta button {
@@ -633,7 +782,8 @@ button a,
   font-size: 1.1rem;
   line-height: 1.6;
   margin-bottom: 2rem;
-  color: #e2e8f0;
+  /* color: #e2e8f0; */
+  color: #0b1120;
 }
 
 .testimonial-author {
@@ -677,11 +827,21 @@ button a,
   max-width: 800px;
   margin: 0 auto 4rem auto;
   font-size: 1.1rem;
-  line-height: 1.8;
-  color: #e2e8f0;
+  /* line-height: 1.8; */
+  /* color: black; */
+  /* color: orange; */
   padding: 0 2rem;
 }
-
+.description p {
+  /* background: rgba(0, 0, 0, 0.5); */
+  /* text-shadow: black 0px 0px 0px; */
+  text-shadow: 0 0 0.5em white;
+  /* font-size: 1.1rem; */
+  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  color: black;
+  padding: 1rem;
+  border-radius: var(--border-radius);
+}
 .counters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -713,7 +873,8 @@ button a,
   display: block;
 }
 
-.counter {
+.counter,
+.c1 {
   font-size: 2.5rem;
   font-weight: 800;
   color: var(--primary-color);

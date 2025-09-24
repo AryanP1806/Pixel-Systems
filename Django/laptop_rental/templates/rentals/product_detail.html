@@ -69,6 +69,8 @@
       <th>Date</th>
       <th>Name</th>
       <th>Cost</th>
+      <th>Warrenty</th>
+      <th>Details</th>
       <th>Edited By</th>
       <th>Actions</th>
     </tr>
@@ -79,6 +81,23 @@
       <td>{{ repair.date }}</td>
       <td>{{ repair.name }}</td>
       <td>₹{{ repair.cost }}</td>
+      <td>
+        {% if repair.repair_warranty_status == "Active" %}
+        <span style="color: green"
+          >Active ({{ repair.repair_warranty_days_left }} days left)</span
+        >
+        {% elif repair.repair_warranty_status == "Expiring Soon" %}
+        <span style="color: orange"
+          >Expiring Soon ({{ repair.repair_warranty_days_left }} days
+          left)</span
+        >
+        {% elif repair.repair_warranty_status == "Expired" %}
+        <span style="color: red">Expired</span>
+        {% else %}
+        <span>No Warranty</span>
+        {% endif %}
+      </td>
+      <td>{{ repair.info }}</td>
       <td>{{ repair.edited_by }}</td>
       <td>
         <!-- ✅ Edit and Delete Buttons -->
@@ -103,6 +122,7 @@
 <p>No repairs logged for this product.</p>
 {% endif %}
 <hr />
+<!-- Configs -->
 <h3>Configuration History:</h3>
 <a
   href="{% url 'add_config' product.pk %}"
@@ -170,7 +190,10 @@
   </tbody>
 </table>
 
-<hr />
+<pre>
+
+  <hr />
+</pre>
 
 <!-- Current Rentals -->
 <h3>Current Rentals</h3>
@@ -202,8 +225,10 @@
 {% else %}
 <p>No ongoing rentals for this product.</p>
 {% endif %}
+<pre>
 
-<hr />
+  <hr />
+</pre>
 
 <!-- Rental History -->
 <h3>Rental History</h3>

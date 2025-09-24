@@ -6,13 +6,20 @@
 <h2>Product List</h2>
 
 <a href="{% url 'add_product' %}"><button>➕ Add Product</button></a>
+<a href="{% url 'run_revenue_calculator' %}"><button>💵 Revenue</button></a>
+<!-- <form method="post" action="{% url 'run_revenue_calculator' %}" style="display:inline;">
+  {% csrf_token %}
+  <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+    💰 Run Revenue Calculator
+  </button>
+</form> -->
 
 {% if messages %}
-<ul>
-  {% for message in messages %}
-  <li style="color: green">{{ message }}</li>
-  {% endfor %}
-</ul>
+<div class="messages">
+    {% for message in messages %}
+        <div class="alert alert-success" style="color: green;">{{ message }}</div>
+    {% endfor %}
+</div>
 {% endif %}
 <!-- <select name="type">
     <option value="">All Types</option>
@@ -38,7 +45,7 @@
               </div> -->
               <div class="filter-group">
                 <p>🔎Search</p>   
-                <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
+                <input type="text" name="q" placeholder="Search..." value="{{ query }}">
               </div>
               <div class="filter-group">
                 <p>⬆⬇Sort by:</p>
@@ -97,19 +104,32 @@
     <tbody>
     {% for p in products %}
     <tr>
-      <td>{{ p.edited_by.username }}{{product.edited_at|date:"Y-m-d H:i:s"}}</td>
+      <td>{{ p.edited_by.username }}{{p.edited_at|date:"Y-m-d H:i:s"}}</td>
       <td>{{ p.purchase_date }}</td>
       <td>{{ p.asset_id }} </td>
       <td>{{ p.type_of_asset }}</td>
       <td>{{ p.brand }}</td>
       <td>{{ p.model_no }}</td>
       <td>
-        {% if p.under_warranty %} {{ p.warranty_duration_months }} months
-        <p></p>
-        {% else %} No
-        <p></p>
-        {% endif %}
-      </td>
+  {% if p.warranty_status == "Active" %}
+    <span style="color: green;">
+      Active ({{ p.warranty_days_left }} days left)
+      <br>Expires on: {{ p.warranty_expiry_date }}
+    </span>
+  {% elif p.warranty_status == "Expiring Soon" %}
+    <span style="color: orange;">
+      Expiring Soon ({{ p.warranty_days_left }} days left)
+      <br>Expires on: {{ p.warranty_expiry_date }}
+    </span>
+  {% elif p.warranty_status == "Expired" %}
+    <span style="color: red;">
+      Expired (Expired on: {{ p.warranty_expiry_date }})
+    </span>
+  {% else %}
+    <span>No Warranty</span>
+  {% endif %}
+</td>
+
     <td>
     {% if p.condition_status == 'sold' %}
         <span style="color: purple;">Sold</span>

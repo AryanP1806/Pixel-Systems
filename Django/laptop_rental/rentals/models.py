@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta, date
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from dateutil.relativedelta import relativedelta
 
 # -----------------------------
 # Product 
@@ -109,7 +110,7 @@ class ProductAsset(models.Model):
     purchase_date = models.DateField()
 
     under_warranty = models.BooleanField(default=False)
-    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
+    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True, default=0)
 
     purchased_from = models.ForeignKey(
         'Supplier',
@@ -133,7 +134,58 @@ class ProductAsset(models.Model):
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     edited_at = models.DateTimeField(null=True, blank=True) 
 
+
+    # Calculate warranty expiry date dynamically
+    # @property
+    # def warranty_expiry_date(self):
+    #     """
+    #     Warranty ends after purchase_date + warranty_duration_months
+    #     """
+    #     if self.purchase_date and self.warranty_duration_months > 0:
+    #         return self.purchase_date + relativedelta(months=self.warranty_duration_months)
+    #     return None
+    @property
+    def warranty_expiry_date(self):
+        """
+        Calculates the warranty expiry date based on purchase_date and warranty_duration_months.
+        """
+        if self.purchase_date and self.warranty_duration_months is not None and self.warranty_duration_months > 0:
+            return self.purchase_date + relativedelta(months=self.warranty_duration_months)
+        return None
+
+    # Calculate remaining days until warranty ends
+    @property
+    def warranty_days_left(self):
+        expiry = self.warranty_expiry_date
+        if expiry:
+            remaining_days = (expiry - timezone.now().date()).days
+            return remaining_days if remaining_days > 0 else 0
+        return 0
+
+    # Determine warranty status
+    @property
+    def warranty_status(self):
+        expiry = self.warranty_expiry_date
+        if not expiry:
+            return "No Warranty"
+
+        today = timezone.now().date()
+        remaining_days = (expiry - today).days
+
+        if remaining_days < 0:
+            return "Expired"
+        elif remaining_days <= 30:
+            return "Expiring Soon"
+        return "Active"
+    
+
     def save(self, *args, **kwargs):
+        expiry = self.warranty_expiry_date
+        if expiry:
+            self.under_warranty = timezone.now().date() <= expiry
+        else:
+            self.under_warranty = False
+
         if not self.asset_id:
             year = self.purchase_date.year if self.purchase_date else timezone.now().year
 
@@ -183,10 +235,17 @@ class ProductAsset(models.Model):
     
     @property
     def is_available(self):
-        # return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing', 'overdue']).exists())
-        return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing']).exists())
+        """
+        An asset is available if:
+        1. It is marked as 'working'.
+        2. It has NO ongoing rentals.
+        3. It has NO pending rentals awaiting approval.
+        """
+        has_ongoing_rental = self.rentals.filter(status='ongoing').exists()
+        has_pending_rental = PendingRental.objects.filter(asset=self).exists()
+        
+        return self.condition_status == 'working' and not has_ongoing_rental and not has_pending_rental
 
-    
     # @property
     # def total_rent_earned(self):
     #     return sum(r.payment.amount for r in self.rentals.all() if r.payment)
@@ -207,6 +266,7 @@ class ProductAsset(models.Model):
     #     if self.is_sold and self.sale_price:
     #         base_profit += self.sale_price
     #     return base_profit
+
 
 
 
@@ -415,6 +475,9 @@ class Rental(models.Model):
 
     def is_active(self):
         return self.status == 'active'
+    
+    def __str__(self):
+        return f'''Rental of '{self.asset}' to "{self.customer}" starting from {self.rental_start_date}'''
 
 
 class PendingRental(models.Model):
@@ -445,13 +508,57 @@ class Repair(models.Model):
     name = models.CharField(max_length=100)
     date = models.DateField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
+    info = models.TextField(blank=True, null=True)
+    repair_warranty_months = models.PositiveIntegerField(null=True, blank=True, default=0)
+    under_repair_warranty = models.BooleanField(default=False)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     edited_at = models.DateTimeField(auto_now=True)
-    def save(self, *args, **kwargs):
-        if self.edited_by:
-            self.edited_at = timezone.now()
-        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"{self.product.asset_id} Repair - {self.date}"
 
+    # -------------------------
+    # Warranty Logic
+    # -------------------------
+    @property
+    def repair_warranty_expiry_date(self):
+        """Calculate when the repair warranty expires."""
+        if self.date and self.repair_warranty_months and self.repair_warranty_months > 0:
+            return self.date + relativedelta(months=self.repair_warranty_months)
+        return None
+
+    @property
+    def repair_warranty_days_left(self):
+        """Calculate how many days are left until the repair warranty expires."""
+        expiry = self.repair_warranty_expiry_date
+        if expiry:
+            remaining_days = (expiry - timezone.now().date()).days
+            return remaining_days if remaining_days > 0 else 0
+        return None
+
+    @property
+    def repair_warranty_status(self):
+        """Return repair warranty status: Active, Expiring Soon, Expired, or No Warranty."""
+        expiry = self.repair_warranty_expiry_date
+        today = timezone.now().date()
+
+        if not self.date or not self.repair_warranty_months or self.repair_warranty_months <= 0:
+            return "No Warranty"
+
+        if today > expiry:
+            return "Expired"
+        elif (expiry - today).days <= 30:
+            return "Expiring Soon"
+        else:
+            return "Active"
+
+    def save(self, *args, **kwargs):
+        """Auto update the under_repair_warranty field when saving."""
+        expiry = self.repair_warranty_expiry_date
+        if expiry:
+            self.under_repair_warranty = timezone.now().date() <= expiry
+        else:
+            self.under_repair_warranty = False
+        super().save(*args, **kwargs)
 
 class PendingProductConfiguration(models.Model):
     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
@@ -505,6 +612,9 @@ class PendingRepair(models.Model):
     date = models.DateField(null=True, blank=True)
     cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     name = models.CharField(max_length=255, blank=True, null=True)
+    info = models.TextField(blank=True, null=True)
+    repair_warranty_months = models.PositiveIntegerField(null=True, blank=True, default=0)
+    under_repair_warranty = models.BooleanField(default=False)
     is_edit = models.BooleanField(default=False)  # True = edit or delete pending
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)

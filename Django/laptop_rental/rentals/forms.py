@@ -383,73 +383,93 @@ class RentalForm(forms.ModelForm):
         current_instance = kwargs.get('instance', None)
         super().__init__(*args, **kwargs)
 
-        # Filter available assets for rental
+        # Step 1: Get IDs of assets already rented (ongoing or overdue)
         rented_ids = Rental.objects.filter(
             status__in=['ongoing', 'overdue'],
             asset__isnull=False
         ).values_list('asset_id', flat=True)
 
+        # Step 2: Get IDs of assets pending approval
+        pending_ids = PendingRental.objects.filter(
+            asset__isnull=False
+        ).values_list('asset_id', flat=True)
+
+        # Combine both into one set of excluded IDs
+        excluded_ids = set(rented_ids) | set(pending_ids)
+
+        # Step 3: Filter available assets
         if current_instance and current_instance.asset:
             # Allow the already selected asset to remain in the dropdown
             available_assets = ProductAsset.objects.filter(
                 Q(id=current_instance.asset.id) | (
-                    Q(condition_status='working') & ~Q(id__in=rented_ids)
+                    Q(condition_status='working') & ~Q(id__in=excluded_ids)
                 )
             )
         else:
             available_assets = ProductAsset.objects.filter(
                 condition_status='working'
-            ).exclude(id__in=rented_ids)
+            ).exclude(id__in=excluded_ids)
 
-        # Set the queryset for the autocomplete widget
+        # Finalize queryset for form dropdown
         self.fields['asset'].queryset = available_assets
         self.fields['customer'].queryset = Customer.objects.all()
 
 
 
 class PendingRentalForm(forms.ModelForm):
-    payment_amount = forms.DecimalField(max_digits=10, decimal_places=2, required=True)
-    payment_status = forms.ChoiceField(choices=[('pending', 'Pending'), ('paid', 'Paid')])
-    payment_method = forms.ChoiceField(
-        choices=[('cash', 'Cash'), ('upi', 'UPI'), ('bank', 'Bank Transfer'), ('card', 'Card')],
-        required=True
-    )
 
     class Meta:
         model = PendingRental
         include = ['customer', 'asset', 'rental_start_date', 'contract_number', 'status', 'billing_day', 'rental_end_date']
         exclude = ['submitted_by', 'submitted_at']
         widgets = {
-            'customer': forms.Select(attrs={'class': 'autocomplete'}),
-            'asset': forms.Select(attrs={'class': 'autocomplete'}),
+            'customer': autocomplete.ModelSelect2(
+                url='customer-autocomplete',
+                attrs={
+                    'data-placeholder': 'Search for a customer...',
+                    'data-minimum-input-length': 1,
+                }
+            ),
+            'asset': autocomplete.ModelSelect2(
+                url='asset-autocomplete',
+                attrs={
+                    'data-placeholder': 'Search for an asset...',
+                    'data-minimum-input-length': 1,
+                }
+            ),
             'rental_start_date': forms.DateInput(attrs={'type': 'date'}),
             'rental_end_date': forms.DateInput(attrs={'type': 'date'}),
             'contract_validity': forms.DateInput(attrs={'type': 'date'}),
-        
         }
-    
+
     def __init__(self, *args, **kwargs):
         current_instance = kwargs.get('instance', None)
         super().__init__(*args, **kwargs)
 
+        # Step 1: Get IDs of assets already rented
         rented_ids = Rental.objects.filter(
             status__in=['ongoing', 'overdue'],
             asset__isnull=False
         ).values_list('asset_id', flat=True)
 
-        
+        # Step 2: Get IDs of assets pending approval
+        pending_ids = PendingRental.objects.filter(
+            asset__isnull=False
+        ).values_list('asset_id', flat=True)
+
+        excluded_ids = set(rented_ids) | set(pending_ids)
+
+        # Step 3: Filter available assets
         if current_instance and current_instance.asset:
-            # Allow the already selected asset to remain in the dropdown
             self.fields['asset'].queryset = ProductAsset.objects.filter(
                 Q(id=current_instance.asset.id) | (
-                    Q(condition_status='working') & ~Q(id__in=rented_ids)
+                    Q(condition_status='working') & ~Q(id__in=excluded_ids)
                 )
             )
         else:
             self.fields['asset'].queryset = ProductAsset.objects.filter(
                 condition_status='working'
-            ).exclude(id__in=rented_ids)
-
+            ).exclude(id__in=excluded_ids)
 
 
 
@@ -470,13 +490,16 @@ class SupplierForm(forms.ModelForm):
 class RepairForm(forms.ModelForm):
     class Meta:
         model = Repair
-        fields = ['product', 'name', 'date', 'cost']
+        fields = ['product', 'name', 'date', 'cost', 'info', 'repair_warranty_months']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 1}),
+            'product': forms.HiddenInput(),
+            # 'info': forms.Textarea(attrs={'rows': 1}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Optional: Only show assets that are not sold or missing
         self.fields['product'].queryset = ProductAsset.objects.exclude(condition_status='missing').order_by('asset_id')
+
+# For editing purpose
