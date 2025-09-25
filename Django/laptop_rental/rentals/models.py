@@ -180,54 +180,62 @@ class ProductAsset(models.Model):
     
 
     def save(self, *args, **kwargs):
+        # ... (keep your existing warranty logic here) ...
         expiry = self.warranty_expiry_date
         if expiry:
             self.under_warranty = timezone.now().date() <= expiry
         else:
             self.under_warranty = False
 
+        # --- START: REPLACEMENT LOGIC FOR ASSET ID ---
         if not self.asset_id:
             year = self.purchase_date.year if self.purchase_date else timezone.now().year
+            prefix = f"Pixel/{year}/"
 
-            if self.asset_number:  # Asset number manually given
+            # ✅ CORRECT: Query BOTH tables for existing IDs
+            existing_ids = list(ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)) + \
+                           list(PendingProduct.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True))
+
+            # --- (The rest of the logic is for generating the next number) ---
+            if self.asset_number:  # Use manually provided asset_number
                 number_str = str(self.asset_number).zfill(3)
                 suffix = f" {self.asset_suffix}" if self.asset_suffix else ""
-                generated_id = f"Pixel/{year}/{number_str}{suffix}"
-            else:
-                # Generate next available number automatically
-                existing_ids = ProductAsset.objects.filter(purchase_date__year=year).values_list('asset_id', flat=True)
+                generated_id = f"{prefix}{number_str}{suffix}"
 
+                if generated_id in existing_ids:
+                    raise ValueError(f"Asset Number '{self.asset_number}' is already in use for year {year}.")
+
+            else:  # Auto-generate the next available number
                 used_numbers = set()
                 for aid in existing_ids:
                     try:
-                        parts = aid.split("/")[-1].split()
-                        num = int(parts[0])
-                        used_numbers.add(num)
-                    except:
+                        # Extract the numeric part of the asset ID
+                        num_part = aid.split('/')[-1].split()[0]
+                        used_numbers.add(int(num_part))
+                    except (ValueError, IndexError):
                         continue
-
+                
                 next_number = 1
                 while next_number in used_numbers:
                     next_number += 1
-
-                generated_id = f"Pixel/{year}/{str(next_number).zfill(3)}"
-
-            # Check for duplication
-            if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=generated_id).exists():
-                raise ValueError(f"Asset ID '{generated_id}' already exists. Please use a unique one.")
+                
+                self.asset_number = next_number # Also set the asset_number field
+                generated_id = f"{prefix}{str(next_number).zfill(3)}"
 
             self.asset_id = generated_id
+        # --- END: REPLACEMENT LOGIC FOR ASSET ID ---
 
-            if self.edited_by:  # Only update when there's an editor
-                self.edited_at = timezone.now()  
+        # Final check against both tables is good practice
+        if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or \
+           PendingProduct.objects.filter(asset_id=self.asset_id).exists():
+             raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
 
-        else:
-            # Asset ID manually entered → check uniqueness
-            if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists():
-                raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+        if self.edited_by:
+            self.edited_at = timezone.now()
 
         super().save(*args, **kwargs)
 
+    # ... rest of your model ...
 
 
     def __str__(self):
@@ -306,46 +314,41 @@ class PendingProduct(models.Model):
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
-
-
     def save(self, *args, **kwargs):
-        # year = self.purchase_date.year if self.purchase_date else now().year
-        # prefix = f"Pixel/{year}/"
-
         if not self.asset_id:
             year = self.purchase_date.year if self.purchase_date else timezone.now().year
+            prefix = f"Pixel/{year}/"
 
-            if self.asset_number:  # Asset number manually given
+            # ✅ CORRECT: Query BOTH tables
+            existing_ids = list(ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)) + \
+                           list(PendingProduct.objects.filter(asset_id__startswith=prefix).exclude(pk=self.pk).values_list('asset_id', flat=True))
+
+            if self.asset_number:
                 number_str = str(self.asset_number).zfill(3)
                 suffix = f" {self.asset_suffix}" if self.asset_suffix else ""
-                generated_id = f"Pixel/{year}/{number_str}{suffix}"
+                generated_id = f"{prefix}{number_str}{suffix}"
+                if generated_id in existing_ids:
+                    raise ValueError(f"Asset Number '{self.asset_number}' is already in use for year {year}.")
             else:
-                # Generate next available number automatically
-                existing_ids = ProductAsset.objects.filter(purchase_date__year=year).values_list('asset_id', flat=True)
-
                 used_numbers = set()
                 for aid in existing_ids:
                     try:
-                        parts = aid.split("/")[-1].split()
-                        num = int(parts[0])
-                        used_numbers.add(num)
-                    except:
+                        num_part = aid.split('/')[-1].split()[0]
+                        used_numbers.add(int(num_part))
+                    except (ValueError, IndexError):
                         continue
-
+                
                 next_number = 1
                 while next_number in used_numbers:
                     next_number += 1
+                
+                self.asset_number = next_number
+                generated_id = f"{prefix}{str(next_number).zfill(3)}"
 
-                generated_id = f"Pixel/{year}/{str(next_number).zfill(3)}"
-
-        # If full asset_id already provided, use it after validation
-        
-        # Check uniqueness across both ProductAsset and PendingProduct (except self)
-        # if ProductAsset.objects.filter(asset_id=self.asset_id).exists() or \
-        # PendingProduct.objects.filter(asset_id=self.asset_id).exclude(pk=self.pk).exists():
-        #     raise ValidationError({'asset_id': 'Asset ID already exists. Please choose a unique one.'})
+            self.asset_id = generated_id
 
         super().save(*args, **kwargs)
+    # ... rest of your model ...
 
 
     def get_next_available_number(self, year):

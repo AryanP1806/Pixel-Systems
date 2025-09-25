@@ -3,8 +3,9 @@
 {% block content %}
 <h2>
   Product Details: {{ product.asset_id }}
+  <!-- href="{% url 'product_list' %}" -->
   <a
-    href="{% url 'product_list' %}"
+    href="{{ redirect_url }}"
     style="
       font-size: medium;
       padding: 5px 5px;

@@ -5,8 +5,8 @@
 {% block content %}
 <h2>Product List</h2>
 
-<a href="{% url 'add_product' %}"><button>➕ Add Product</button></a>
-<a href="{% url 'run_revenue_calculator' %}"><button>💵 Revenue</button></a>
+<a href="{% url 'add_product' %}?{{ request.GET.urlencode }}"><button>➕ Add Product</button></a>
+<a href="{% url 'run_revenue_calculator' %}?{{ request.GET.urlencode }}"><button>💵 Revenue</button></a>
 <!-- <form method="post" action="{% url 'run_revenue_calculator' %}" style="display:inline;">
   {% csrf_token %}
   <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
@@ -150,11 +150,14 @@
 
     <!-- <td>₹ {{ p.net_profit }}</td> -->
       <td>
-        <a href="{% url 'product_detail' p.pk %}"><button>View</button></a> |
-        <a href="{% url 'edit_product' p.pk %}"><button>Edit</button></a> |
+        <a href="{% url 'product_detail' p.pk %}?{{ request.GET.urlencode }}"><button>View</button></a> |
+        <a href="{% url 'edit_product' p.pk %}?{{ request.GET.urlencode }}"><button>Edit</button></a>
         <!-- <a href="{% url 'add_repair' p.pk %}"><button>Repair</button></a> |
         <a href="{% url 'add_config' p.pk %}"><button>Config</button></a> | -->
-        <a href="{% url 'clone_product' p.pk %}"><button>Clone</button></a>
+        {% if user.is_superuser %} | 
+        <a href="{% url 'clone_product' p.pk %}?{{ request.GET.urlencode }}"><button>Clone</button></a>
+        {% endif %}
+      
       </td>
     </tr>
     {% endfor %}

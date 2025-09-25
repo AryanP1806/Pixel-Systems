@@ -326,55 +326,52 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import ProductAssetForm, PendingProductForm
 from .models import ProductAsset, PendingProduct
-
 @login_required
 def add_product(request):
-    if request.method == 'POST':
-        form = ProductAssetForm(request.POST)
-        if form.is_valid():
-            if request.user.is_superuser:
-                product = form.save(commit=False)
-                product.edited_by = request.user
-                product.save()
-                messages.success(request, f"✅ Product '{product.asset_id}' was successfully created.") 
-                return redirect('product_list')
-            
-                
-            else:
-                # Create a PendingProduct instance from cleaned_data
-                pending = PendingProduct(
-                    type_of_asset=form.cleaned_data['type_of_asset'],
-                    brand=form.cleaned_data['brand'],
-                    model_no=form.cleaned_data['model_no'],
-                    serial_no=form.cleaned_data['serial_no'],
-                    purchase_price=form.cleaned_data['purchase_price'],
-                    current_value=form.cleaned_data['current_value'],
-                    purchase_date=form.cleaned_data['purchase_date'],
-                    under_warranty=form.cleaned_data['under_warranty'],
-                    warranty_duration_months=form.cleaned_data['warranty_duration_months'],
-                    purchased_from=form.cleaned_data['purchased_from'],
-                    condition_status=form.cleaned_data['condition_status'],
-                    # hsn_code=form.cleaned_data.get('hsn_code'),
-                    asset_number=form.cleaned_data.get('asset_number'),
-                    asset_id=form.cleaned_data.get('asset_id'),
-                    sold_to=form.cleaned_data.get('sold_to'),
-                    sale_price=form.cleaned_data.get('sale_price'),
-                    sale_date=form.cleaned_data.get('sale_date'),
-                    date_marked_dead=form.cleaned_data.get('date_marked_dead'),
-                    damage_narration=form.cleaned_data.get('damage_narration'),
-                    submitted_by=request.user  # ✅ Automatically assign
-                )
-                try:
-                    pending.save()
-                except Exception as e:
-                    print("Pending product save error:", e)
+    form = ProductAssetForm(request.POST or None)
 
-                return redirect('product_list')
-    
+    if request.method == 'POST' and form.is_valid():
+        query_string = request.GET.urlencode()
+        redirect_url = reverse('product_list')
+        if query_string:
+            redirect_url += f'?{query_string}'
+
+        if request.user.is_superuser:
+            # Directly save product for superuser
+            product = form.save(commit=False)
+            product.edited_by = request.user
+            product.save()
+
+            messages.success(request, f"✅ Product '{product.asset_id}' was successfully created.")
+            return redirect(redirect_url)
+
         else:
-            return render(request, 'rentals/add_product.html', {'form': form})  
-    else:
-        form = ProductAssetForm()
+            # Non-superuser → create a PendingProduct
+            pending = PendingProduct(
+                type_of_asset=form.cleaned_data['type_of_asset'],
+                brand=form.cleaned_data['brand'],
+                model_no=form.cleaned_data['model_no'],
+                serial_no=form.cleaned_data['serial_no'],
+                purchase_price=form.cleaned_data['purchase_price'],
+                current_value=form.cleaned_data['current_value'],
+                purchase_date=form.cleaned_data['purchase_date'],
+                under_warranty=form.cleaned_data['under_warranty'],
+                warranty_duration_months=form.cleaned_data['warranty_duration_months'],
+                purchased_from=form.cleaned_data['purchased_from'],
+                condition_status=form.cleaned_data['condition_status'],
+                asset_number=form.cleaned_data.get('asset_number'),
+                asset_id=form.cleaned_data.get('asset_id'),
+                sold_to=form.cleaned_data.get('sold_to'),
+                sale_price=form.cleaned_data.get('sale_price'),
+                sale_date=form.cleaned_data.get('sale_date'),
+                date_marked_dead=form.cleaned_data.get('date_marked_dead'),
+                damage_narration=form.cleaned_data.get('damage_narration'),
+                submitted_by=request.user
+            )
+            pending.save()
+
+            messages.success(request, "Product submitted for approval and pending review.")
+            return redirect(redirect_url)
 
     return render(request, 'rentals/add_product.html', {'form': form})
 
@@ -591,51 +588,58 @@ def edit_customer(request, pk):
 @login_required
 def edit_product(request, pk):
     product = get_object_or_404(ProductAsset, pk=pk)
-    if request.user.is_superuser:
-        form = ProductAssetForm(request.POST or None, instance=product)
-        if request.method == 'POST' and form.is_valid():
+    form = ProductAssetForm(request.POST or None, instance=product)
+
+    # Preserve filters
+    query_string = request.GET.urlencode()
+    redirect_url = reverse('product_list')
+    if query_string:
+        redirect_url += f'?{query_string}'
+
+    if request.method == 'POST' and form.is_valid():
+        if request.user.is_superuser:
+            # Direct edit by superuser
             product = form.save(commit=False)
             product.edited_by = request.user
             product.save()
+
             messages.success(request, f"✏️ Product '{product.asset_id}' was successfully updated.")
-            
-            return redirect(f"{reverse('product_list')}?q={request.GET.get('q', '')}&type={request.GET.get('type', '')}")
-    else:
-        if request.method == 'POST':
-            form = ProductAssetForm(request.POST, instance=product)
-            if form.is_valid():
-                cleaned = form.cleaned_data
-                pending = PendingProduct(
-                    original_product=product,
-                    pending_type='edit',
-                    submitted_by=request.user,
-                    type_of_asset=cleaned['type_of_asset'],
-                    brand=cleaned['brand'],
-                    model_no=cleaned['model_no'],
-                    serial_no=cleaned['serial_no'],
-                    purchase_price=cleaned['purchase_price'],
-                    current_value=cleaned['current_value'],
-                    purchase_date=cleaned['purchase_date'],
-                    under_warranty=cleaned['under_warranty'],
-                    warranty_duration_months=cleaned['warranty_duration_months'],
-                    purchased_from=cleaned['purchased_from'],
-                    condition_status=cleaned['condition_status'],
-                    asset_number=cleaned.get('asset_number'),
-                    asset_id=cleaned.get('asset_id'),
-                    # hsn_code=cleaned.get('hsn_code'),
-                    sold_to=cleaned.get('sold_to'),
-                    sale_price=cleaned.get('sale_price'),
-                    sale_date=cleaned.get('sale_date'),
-                    date_marked_dead=cleaned.get('date_marked_dead'),
-                    damage_narration=cleaned.get('damage_narration'),
-                )
-                pending.save()
-                messages.success(request, "Changes submitted for approval.")
-                return redirect(f"{reverse('product_list')}?q={request.GET.get('q', '')}&type={request.GET.get('type', '')}")
+            return redirect(redirect_url)
 
         else:
-            form = ProductAssetForm(instance=product)
-    return render(request, 'rentals/edit_product.html', {'form': form, 'product': product})
+            # Save as pending edit for approval
+            cleaned = form.cleaned_data
+            PendingProduct.objects.create(
+                original_product=product,
+                pending_type='edit',
+                submitted_by=request.user,
+                type_of_asset=cleaned['type_of_asset'],
+                brand=cleaned['brand'],
+                model_no=cleaned['model_no'],
+                serial_no=cleaned['serial_no'],
+                purchase_price=cleaned['purchase_price'],
+                current_value=cleaned['current_value'],
+                purchase_date=cleaned['purchase_date'],
+                under_warranty=cleaned['under_warranty'],
+                warranty_duration_months=cleaned['warranty_duration_months'],
+                purchased_from=cleaned['purchased_from'],
+                condition_status=cleaned['condition_status'],
+                asset_number=cleaned.get('asset_number'),
+                asset_id=cleaned.get('asset_id'),
+                sold_to=cleaned.get('sold_to'),
+                sale_price=cleaned.get('sale_price'),
+                sale_date=cleaned.get('sale_date'),
+                date_marked_dead=cleaned.get('date_marked_dead'),
+                damage_narration=cleaned.get('damage_narration'),
+            )
+            messages.success(request, "Changes submitted for approval.")
+            return redirect(redirect_url)
+
+    return render(request, 'rentals/edit_product.html', {
+        'form': form,
+        'product': product,
+        'redirect_url': redirect_url
+    })
 
 
 
@@ -706,12 +710,17 @@ def product_detail(request, pk):
     current_rentals = Rental.objects.filter(asset=product, status='ongoing').select_related('customer')
     rental_history = Rental.objects.filter(asset=product, status='completed').select_related('customer')
 
+    query_string = request.GET.urlencode()
+    redirect_url = reverse('product_list')
+    if query_string:
+        redirect_url += f'?{query_string}'
     return render(request, 'rentals/product_detail.html', {
         'product': product,
         'configs': configs,
         'repairs': repairs,
         'current_rentals': current_rentals,
         'rental_history': rental_history,
+        'redirect_url': redirect_url,
         })
 
 @login_required
@@ -768,20 +777,23 @@ def delete_config(request, config_id):
     config.delete()
     return redirect('product_detail', pk=asset_id)
 
-
 @login_required
 def clone_product(request, pk):
     original = get_object_or_404(ProductAsset, pk=pk)
 
-    # if request.method == 'POST':
+    # Preserve filters
+    query_string = request.GET.urlencode()
+    redirect_url = reverse('product_list')
+    if query_string:
+        redirect_url += f'?{query_string}'
 
     if request.user.is_superuser:
-    # Create and save immediately
+        # Clone directly for superuser
         new_product = ProductAsset(
             type_of_asset=original.type_of_asset,
             brand=original.brand,
             model_no=original.model_no,
-            serial_no=f"Clone-{timezone.now().year}-{ProductAsset.objects.count()+1}",
+            serial_no=original.serial_no,
             purchase_price=original.purchase_price,
             current_value=original.current_value,
             purchase_date=original.purchase_date,
@@ -791,16 +803,32 @@ def clone_product(request, pk):
             condition_status=original.condition_status,
             edited_by=request.user
         )
-        new_product.save()  # This will auto-generate asset_id
-        messages.success(request, "Product cloned successfully. Please update serial number and save.")
-        return redirect('edit_product', pk=new_product.pk)
+        new_product.save()
+
+        messages.success(request, f"Product cloned successfully {new_product.asset_id}. Please update details as per need.")
+        return redirect(redirect_url)
+
     else:
-        # Save to pending approval
+        # Non-superuser → save to PendingProduct
+        # PendingProduct.objects.create(
+        #     type_of_asset=original.type_of_asset,
+        #     brand=original.brand,
+        #     model_no=original.model_no,
+        #     serial_no=original.serial_no,
+        #     purchase_price=original.purchase_price,
+        #     current_value=original.current_value,
+        #     purchase_date=original.purchase_date,
+        #     under_warranty=original.under_warranty,
+        #     warranty_duration_months=original.warranty_duration_months,
+        #     purchased_from=original.purchased_from,
+        #     condition_status=original.condition_status,
+        #     submitted_by=request.user
+        # )
         new_product = PendingProduct(
             type_of_asset=original.type_of_asset,
             brand=original.brand,
             model_no=original.model_no,
-            serial_no=f"Clone-{timezone.now().year}",
+            serial_no=original.serial_no,
             purchase_price=original.purchase_price,
             current_value=original.current_value,
             purchase_date=original.purchase_date,
@@ -808,12 +836,11 @@ def clone_product(request, pk):
             warranty_duration_months=original.warranty_duration_months,
             purchased_from=original.purchased_from,
             condition_status=original.condition_status,
-            submitted_by=request.user
+            edited_by=request.user
         )
-        new_product.save()  # This will auto-generate asset_id
-        messages.success(request, "Product cloned successfully. Please update serial number and save.")
-        return redirect('edit_product', pk=new_product.pk)
-   
+        new_product.save()
+        messages.success(request, f"Product clone {new_product.asset_id} submitted for approval.")
+        return redirect(redirect_url)
 
     
 
@@ -1144,8 +1171,12 @@ def run_revenue_calculator(request):
         request,
         f"Revenue successfully recalculated for {updated_rentals} rentals as of {today}."
     )
-
-    return redirect('product_list')  # Update with your actual reports dashboard URL
+    # query_string = request.GET.urlencode()
+    # redirect_url = reverse('product_list')
+    # if query_string:
+    #     redirect_url += f'?{query_string}'
+    return redirect('product_list')
+      # Update with your actual reports dashboard URL
 
 
 
