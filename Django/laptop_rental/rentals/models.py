@@ -238,6 +238,7 @@ class ProductAsset(models.Model):
     # ... rest of your model ...
 
 
+
     def __str__(self):
         return f"{self.type_of_asset} | {self.brand} {self.model_no} [{self.asset_id}]"
     
@@ -295,7 +296,7 @@ class PendingProduct(models.Model):
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
     model_no = models.CharField(max_length=100)
-    serial_no = models.CharField(max_length=100)
+    serial_no = models.CharField(max_length=100,null=True,blank=True)
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
     current_value = models.DecimalField(max_digits=10, decimal_places=2)
     purchase_date = models.DateField()
