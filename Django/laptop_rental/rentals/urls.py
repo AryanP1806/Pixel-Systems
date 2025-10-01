@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
+from django.urls import path
+from .views import AssetAutocomplete, CustomerAutocomplete
 
 
 urlpatterns = [
@@ -21,12 +23,13 @@ urlpatterns = [
 
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.add_product, name='add_product'),
-    path('products/edit/<int:pk>/', views.edit_product, name='edit_product'),
+    path('products/<int:pk>/edit/', views.edit_product, name='edit_product'),
     path('products/<int:pk>/add_config/', views.add_config, name='add_config'),
     path('products/<int:pk>/', views.product_detail, name='product_detail'),
     path('products/clone/<int:pk>/', views.clone_product, name='clone_product'),
     path('products/sold/', views.sold_assets, name='sold_assets'),
     path('products/<int:pk>/repair/', views.add_repair, name='add_repair'),
+    path('run-revenue-calculator/', views.run_revenue_calculator, name='run_revenue_calculator'),
 
 
     path('customers/', views.customer_list, name='customer_list'),
@@ -39,11 +42,14 @@ urlpatterns = [
     path('rentals/edit/<int:rental_id>/', views.edit_rental, name='edit_rental'),
     # path('rentals/check_overdue/', views.check_overdue_view, name='check_overdue'),
     path('send-billing-reminder/', views.send_billing_reminder, name='send_billing_reminder'),
+    path("check-contracts/", views.check_contracts, name="check_contracts"),
     
     path('history/', views.rental_history, name='rental_history'),    
 
     path('config/edit/<int:config_id>/', views.edit_config, name='edit_config'),
     path('config/delete/<int:config_id>/', views.delete_config, name='delete_config'),
+    path('repair/<int:pk>/edit/', views.edit_repair, name='edit_repair'),
+    path('repair/<int:pk>/delete/', views.delete_repair, name='delete_repair'),
 
     # path('products/submit/', views.submit_product, name='submit_product'),
     path('approvals/', views.approval_dashboard, name='approval_dashboard'),
@@ -55,10 +61,23 @@ urlpatterns = [
     path('approvals/rental/reject/<int:pk>/', views.reject_rental, name='reject_rental'),
     path('approvals/config/approve/<int:pk>/', views.approve_config, name='approve_config'),
     path('approvals/config/reject/<int:pk>/', views.reject_config, name='reject_config'),
+    
+    path('approvals/config/edit/approve/<int:pk>/', views.approve_edited_config, name='approve_edited_config'),
+    path('approvals/config/edit/reject/<int:pk>/', views.reject_edited_config, name='reject_edited_config'),
+    path('approvals/repair/edit/approve/<int:pk>/', views.approve_repair_edit, name='approve_edited_repair'),
+    path('approvals/repair/edit/reject/<int:pk>/', views.reject_edited_repair, name='reject_edited_repair'),
 
     path('suppliers/', views.supplier_list, name='supplier_list'),
     path('suppliers/add/', views.add_supplier, name='add_supplier'),
     path('suppliers/edit/<int:pk>/', views.edit_supplier, name='edit_supplier'),
     
     path('reports/', views.report_dashboard, name='report_dashboard'),
+    path('reports/', views.report_dashboard, name='report_dashboard'),
+    path('reports/export/csv/', views.export_reports_csv, name='export_reports_csv'),
+    path('reports/export/excel/', views.export_reports_excel, name='export_reports_excel'),
+    path('reports/export/pdf/', views.export_reports_pdf, name='export_reports_pdf'),
+
+
+    path('customer-autocomplete/', CustomerAutocomplete.as_view(), name='customer-autocomplete'),
+    path('asset-autocomplete/', AssetAutocomplete.as_view(), name='asset-autocomplete'),
 ]

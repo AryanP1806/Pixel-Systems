@@ -1,0 +1,119 @@
+.community-container {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+}
+
+.community-container h2 {
+  text-align: center;
+  color: #007bff;
+}
+
+.new-post-button {
+  display: block;
+  margin: 20px auto;
+  background-color: #ffc107;
+  color: #333;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  text-decoration: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.3s ease;
+}
+
+.new-post-button:hover {
+  background-color: #e0a800;
+}
+
+.community-post {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  overflow-wrap: break-word;
+}
+
+.community-post h3 {
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.community-post .author {
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 10px;
+}
+
+.community-post img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  margin: 10px 0;
+  border-radius: 6px;
+}
+
+.community-post form {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.community-post input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.community-post button {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.community-post button:hover {
+  background-color: #0056b3;
+}
+
+.community-post a {
+  display: inline-block;
+  font-weight: bold;
+  background-color: #28a745;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.community-post a:hover {
+  background-color: #1e7e34;
+}
+
+.comment-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.comment {
+  font-size: 14px;
+  padding: 6px 0;
+  border-bottom: 1px dotted #ccc;
+  color: #444;
+}

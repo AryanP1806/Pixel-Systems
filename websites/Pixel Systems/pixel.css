@@ -11,6 +11,9 @@ body {
 }
 
 header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -59,7 +62,8 @@ header {
 .hero {
   position: relative;
   text-align: center;
-  height: 78vh;
+  height: 80vh;
+  min-height: 600px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -79,7 +83,7 @@ header {
 }
 
 .hero h1 {
-  font-size: 50px;
+  font-size: clamp(1.5rem, 5vw, 3rem);
   font-weight: bold;
   color: white;
 

@@ -3,13 +3,6 @@
 {% block content %}
 <h2>Ongoing Rentals</h2>
 
-<a href="{% url 'add_rental' %}"><button>➕ Add Rental</button></a>
-
-<form method="post" action="{% url 'send_billing_reminder' %}">
-  {% csrf_token %}
-  <button type="submit">📧 Send Billing Reminder</button>
-</form>
-
 {% if messages %}
 <ul>
   {% for message in messages %}
@@ -17,6 +10,15 @@
   {% endfor %}
 </ul>
 {% endif %}
+
+<a href="{% url 'add_rental' %}"><button>➕ Add Rental</button></a>
+
+<a href="{% url 'check_contracts' %}" class="btn btn-warning"
+  ><button>🔄 Check Contract Expiry</button></a
+>
+<a href="{% url 'send_billing_reminder' %}" class="btn btn-info"
+  ><button>📧 Send Billing Reminder</button></a
+>
 
 <form method="get">
   <input
@@ -41,46 +43,54 @@
     <button {% if not filter_type %}class="active"{% endif %}>🟡 All (Ongoing + Overdue)</button>
   </a>
 </div> -->
-
-<table border="1" cellpadding="8">
-  <tr>
-    <th>Customer</th>
-    <th>Asset ID</th>
-    <th>asset_type/Model</th>
-    <th>Payment amount</th>
-    <th>Payment status</th>
-    <th>Payment Method</th>
-    <th>Rental start</th>
-    <th>Billing Date</th>
-    <th>Contract No.</th>
-    <th>Phone No.</th>
-    <th>Address</th>
-    <th>Edited By</th>
-    <th>Actions</th>
-  </tr>
-  {% for rental in rentals %}
-  <tr>
-    <td>{{ rental.customer.name }}</td>
-    <td>{{ rental.asset.asset_id }}</td>
-    <td>{{ rental.asset.asset_type }} {{ rental.asset.model_no }}</td>
-    <td>{{ rental.payment.amount }}</td>
-    <td>{{ rental.payment.status }}</td>
-    <td>{{ rental.payment.payment_method }}</td>
-    <td>{{ rental.rental_start_date }}</td>
-    <td>{{ rental.billing_day }}</td>
-    <td>{{ rental.contract_number }}</td>
-    <td>{{ rental.customer.phone_number_primary }}</td>
-    <td>{{ rental.customer.address_primary }}</td>
-    <td>{{ rental.edited_by.username }}</td>
-    <td>
-      <a href="{% url 'edit_rental' rental.id %}"><button>✏️ Edit</button></a>
-      {% if rental.status != 'completed' %} {% endif %}
-    </td>
-  </tr>
-  {% empty %}
-  <tr>
-    <td colspan="4">No ongoing rentals found.</td>
-  </tr>
-  {% endfor %}
-</table>
+<div class="table-container">
+  <table border="1" cellpadding="8">
+    <thead>
+      <tr>
+        <th>Asset ID</th>
+        <th>Customer</th>
+        <th>asset_type/Model</th>
+        <th>Payment amount</th>
+        <!-- <t h>Payment status</t> -->
+        <th>Rental start</th>
+        <th>Billing Date</th>
+        <th>Contract No.</th>
+        <th>Contract Validity</th>
+        <th>Phone No.</th>
+        <th>Address</th>
+        <th>Made By</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rental in rentals %}
+      <tr>
+        <td>{{ rental.asset.asset_id }}</td>
+        <td>{{ rental.customer.name }}</td>
+        <td>{{ rental.asset.asset_type }} {{ rental.asset.model_no }}</td>
+        <td>{{ rental.payment_amount }}</td>
+        <!-- <td><span class="status-pending">{{ rental.payment.status }}</span></td> -->
+        <td>{{ rental.rental_start_date }}</td>
+        <td>{{ rental.billing_day }}</td>
+        <td>{{ rental.contract_number }}</td>
+        <td>{{ rental.contract_validity }}</td>
+        <!-- |date:"F j, Y" -->
+        <td>{{ rental.customer.phone_number_primary }}</td>
+        <td>{{ rental.customer.address_primary }}</td>
+        <td>{{ rental.edited_by.username }}</td>
+        <td>
+          <a href="{% url 'edit_rental' rental.id %}"
+            ><button class="action-btn">✏️ Edit</button></a
+          >
+          {% if rental.status != 'completed' %} {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">No ongoing rentals found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

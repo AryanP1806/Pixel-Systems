@@ -1,0 +1,21 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+<link rel="stylesheet" href="{% static 'vets/style.css' %}" />
+
+<h2>Available Vets</h2>
+
+<div class="vet-list">
+  {% for vet in vets %}
+  <div class="vet-card">
+    {% if vet.profile_image %}
+    <img src="{{ vet.profile_image.url }}" alt="{{ vet.name }}" />
+    {% endif %}
+    <h3>{{ vet.name }}</h3>
+    <p><strong>Specialization:</strong> {{ vet.specialization }}</p>
+    <p><strong>Experience:</strong> {{ vet.years_of_experience }} years</p>
+    <p><strong>Clinic:</strong> {{ vet.clinic_location }}</p>
+    <a href="/consultation/request/">Consultation</a> |
+    <a href="/appointments/book/">Appointment</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

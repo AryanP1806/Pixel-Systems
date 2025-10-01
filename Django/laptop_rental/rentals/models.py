@@ -1,8 +1,10 @@
 from django.db import models
 from django.utils.timezone import now
-from datetime import timedelta, date, timezone
+from django.utils import timezone
+from datetime import timedelta, date
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from dateutil.relativedelta import relativedelta
 
 # -----------------------------
 # Product 
@@ -96,11 +98,11 @@ class ProductAsset(models.Model):
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
     model_no = models.CharField(max_length=100)
-    serial_no = models.CharField(max_length=100, unique=True)
-    hsn_code = models.CharField(max_length=15, blank=True)
+    serial_no = models.CharField(max_length=100,null=True,blank=True)
+    # hsn_code = models.CharField(max_length=15, blank=True)
     asset_number = models.PositiveIntegerField(null=True, blank=True)
     asset_suffix = models.CharField(max_length=1, null=True, blank=True)  # optional
-
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # Total accumulated revenue
 
 
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -108,7 +110,7 @@ class ProductAsset(models.Model):
     purchase_date = models.DateField()
 
     under_warranty = models.BooleanField(default=False)
-    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
+    warranty_duration_months = models.PositiveIntegerField(null=True, blank=True, default=0)
 
     purchased_from = models.ForeignKey(
         'Supplier',
@@ -130,47 +132,115 @@ class ProductAsset(models.Model):
 
 
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(null=True, blank=True) 
 
+
+    # Calculate warranty expiry date dynamically
+    # @property
+    # def warranty_expiry_date(self):
+    #     """
+    #     Warranty ends after purchase_date + warranty_duration_months
+    #     """
+    #     if self.purchase_date and self.warranty_duration_months > 0:
+    #         return self.purchase_date + relativedelta(months=self.warranty_duration_months)
+    #     return None
+    @property
+    def warranty_expiry_date(self):
+        """
+        Calculates the warranty expiry date based on purchase_date and warranty_duration_months.
+        """
+        if self.purchase_date and self.warranty_duration_months is not None and self.warranty_duration_months > 0:
+            return self.purchase_date + relativedelta(months=self.warranty_duration_months)
+        return None
+
+    # Calculate remaining days until warranty ends
+    @property
+    def warranty_days_left(self):
+        expiry = self.warranty_expiry_date
+        if expiry:
+            remaining_days = (expiry - timezone.now().date()).days
+            return remaining_days if remaining_days > 0 else 0
+        return 0
+
+    # Determine warranty status
+    @property
+    def warranty_status(self):
+        expiry = self.warranty_expiry_date
+        if not expiry:
+            return "No Warranty"
+
+        today = timezone.now().date()
+        remaining_days = (expiry - today).days
+
+        if remaining_days < 0:
+            return "Expired"
+        elif remaining_days <= 30:
+            return "Expiring Soon"
+        return "Active"
+    
 
     def save(self, *args, **kwargs):
-        if not self.asset_id:
-            year = self.purchase_date.year if self.purchase_date else now().year
+        # ... (keep your existing warranty logic here) ...
+        expiry = self.warranty_expiry_date
+        if expiry:
+            self.under_warranty = timezone.now().date() <= expiry
+        else:
+            self.under_warranty = False
 
-            if self.asset_number:  # Asset number manually given
+        # --- START: REPLACEMENT LOGIC FOR ASSET ID ---
+        if not self.asset_id:
+            year = self.purchase_date.year if self.purchase_date else timezone.now().year
+            prefix = f"Pixel/{year}/"
+
+            # ✅ CORRECT: Query BOTH tables for existing IDs
+            existing_ids = list(ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)) + \
+                           list(PendingProduct.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True))
+
+            # --- (The rest of the logic is for generating the next number) ---
+            if self.asset_number:  # Use manually provided asset_number
                 number_str = str(self.asset_number).zfill(3)
                 suffix = f" {self.asset_suffix}" if self.asset_suffix else ""
-                generated_id = f"Pixel/{year}/{number_str}{suffix}"
-            else:
-                # Generate next available number automatically
-                existing_ids = ProductAsset.objects.filter(purchase_date__year=year).values_list('asset_id', flat=True)
+                generated_id = f"{prefix}{number_str}{suffix}"
 
+                if generated_id in existing_ids:
+                    raise ValueError(f"Asset Number '{self.asset_number}' is already in use for year {year}.")
+
+            else:  # Auto-generate the next available number
                 used_numbers = set()
                 for aid in existing_ids:
                     try:
-                        parts = aid.split("/")[-1].split()
-                        num = int(parts[0])
-                        used_numbers.add(num)
-                    except:
+                        # Extract the numeric part of the asset ID
+                        num_part = aid.split('/')[-1].split()[0]
+                        used_numbers.add(int(num_part))
+                    except (ValueError, IndexError):
                         continue
-
+                
                 next_number = 1
                 while next_number in used_numbers:
                     next_number += 1
-
-                generated_id = f"Pixel/{year}/{str(next_number).zfill(3)}"
-
-            # Check for duplication
-            if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=generated_id).exists():
-                raise ValueError(f"Asset ID '{generated_id}' already exists. Please use a unique one.")
+                
+                self.asset_number = next_number # Also set the asset_number field
+                generated_id = f"{prefix}{str(next_number).zfill(3)}"
 
             self.asset_id = generated_id
+        # --- END: REPLACEMENT LOGIC FOR ASSET ID ---
 
-        else:
-            # Asset ID manually entered → check uniqueness
-            if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists():
-                raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+        # Final check against both tables is good practice
+        # Exclude the pending being approved (if set) to avoid false positive during approval
+        pending_pk_to_exclude = getattr(self, '_pending_pk', None)
+        pending_conflict_qs = PendingProduct.objects.filter(asset_id=self.asset_id)
+        if pending_pk_to_exclude:
+            pending_conflict_qs = pending_conflict_qs.exclude(pk=pending_pk_to_exclude)
+
+        if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or pending_conflict_qs.exists():
+            raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+
+        if self.edited_by:
+            self.edited_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+    # ... rest of your model ...
 
 
 
@@ -179,10 +249,17 @@ class ProductAsset(models.Model):
     
     @property
     def is_available(self):
-        # return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing', 'overdue']).exists())
-        return (self.condition_status == 'working' and not self.rentals.filter(status__in=['ongoing']).exists())
+        """
+        An asset is available if:
+        1. It is marked as 'working'.
+        2. It has NO ongoing rentals.
+        3. It has NO pending rentals awaiting approval.
+        """
+        has_ongoing_rental = self.rentals.filter(status='ongoing').exists()
+        has_pending_rental = PendingRental.objects.filter(asset=self).exists()
+        
+        return self.condition_status == 'working' and not has_ongoing_rental and not has_pending_rental
 
-    
     # @property
     # def total_rent_earned(self):
     #     return sum(r.payment.amount for r in self.rentals.all() if r.payment)
@@ -209,6 +286,7 @@ class ProductAsset(models.Model):
 
 
 
+
 class PendingProduct(models.Model):
     CONDITION_CHOICES = [
         ('working', 'Working'),
@@ -223,7 +301,7 @@ class PendingProduct(models.Model):
     type_of_asset = models.ForeignKey(AssetType, on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
     model_no = models.CharField(max_length=100)
-    serial_no = models.CharField(max_length=100, unique=True)
+    serial_no = models.CharField(max_length=100,null=True,blank=True)
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
     current_value = models.DecimalField(max_digits=10, decimal_places=2)
     purchase_date = models.DateField()
@@ -231,7 +309,7 @@ class PendingProduct(models.Model):
     warranty_duration_months = models.PositiveIntegerField(null=True, blank=True)
     purchased_from = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
     condition_status = models.CharField(max_length=20, choices=CONDITION_CHOICES)  # same choices
-    hsn_code = models.CharField(max_length=15, blank=True, null=True)
+    # hsn_code = models.CharField(max_length=15, blank=True, null=True)
     asset_number = models.PositiveIntegerField(null=True, blank=True)
     asset_id = models.CharField(max_length=50, blank=True, null=True)
     sold_to = models.CharField(max_length=255, blank=True, null=True)
@@ -242,46 +320,41 @@ class PendingProduct(models.Model):
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
-
-
     def save(self, *args, **kwargs):
-        # year = self.purchase_date.year if self.purchase_date else now().year
-        # prefix = f"Pixel/{year}/"
-
         if not self.asset_id:
-            year = self.purchase_date.year if self.purchase_date else now().year
+            year = self.purchase_date.year if self.purchase_date else timezone.now().year
+            prefix = f"Pixel/{year}/"
 
-            if self.asset_number:  # Asset number manually given
+            # ✅ CORRECT: Query BOTH tables
+            existing_ids = list(ProductAsset.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)) + \
+                           list(PendingProduct.objects.filter(asset_id__startswith=prefix).exclude(pk=self.pk).values_list('asset_id', flat=True))
+
+            if self.asset_number:
                 number_str = str(self.asset_number).zfill(3)
                 suffix = f" {self.asset_suffix}" if self.asset_suffix else ""
-                generated_id = f"Pixel/{year}/{number_str}{suffix}"
+                generated_id = f"{prefix}{number_str}{suffix}"
+                if generated_id in existing_ids:
+                    raise ValueError(f"Asset Number '{self.asset_number}' is already in use for year {year}.")
             else:
-                # Generate next available number automatically
-                existing_ids = ProductAsset.objects.filter(purchase_date__year=year).values_list('asset_id', flat=True)
-
                 used_numbers = set()
                 for aid in existing_ids:
                     try:
-                        parts = aid.split("/")[-1].split()
-                        num = int(parts[0])
-                        used_numbers.add(num)
-                    except:
+                        num_part = aid.split('/')[-1].split()[0]
+                        used_numbers.add(int(num_part))
+                    except (ValueError, IndexError):
                         continue
-
+                
                 next_number = 1
                 while next_number in used_numbers:
                     next_number += 1
+                
+                self.asset_number = next_number
+                generated_id = f"{prefix}{str(next_number).zfill(3)}"
 
-                generated_id = f"Pixel/{year}/{str(next_number).zfill(3)}"
-
-        # If full asset_id already provided, use it after validation
-        
-        # Check uniqueness across both ProductAsset and PendingProduct (except self)
-        # if ProductAsset.objects.filter(asset_id=self.asset_id).exists() or \
-        # PendingProduct.objects.filter(asset_id=self.asset_id).exclude(pk=self.pk).exists():
-        #     raise ValidationError({'asset_id': 'Asset ID already exists. Please choose a unique one.'})
+            self.asset_id = generated_id
 
         super().save(*args, **kwargs)
+    # ... rest of your model ...
 
 
     def get_next_available_number(self, year):
@@ -319,8 +392,14 @@ class ProductConfiguration(models.Model):
     display_size = models.ForeignKey(DisplaySizeOption, on_delete=models.SET_NULL, null=True, blank=True)
     power_supply = models.CharField(max_length=100, blank=True, null=True)
     detailed_config = models.TextField(blank=True, null=True)
-
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Config on {self.date_of_config} for {self.asset}"
@@ -345,18 +424,22 @@ class Customer(models.Model):
 
     reference_name = models.CharField(max_length=100, blank=True, null=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
+    edited_at = models.DateTimeField(auto_now=True)
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['name', 'phone_number_primary'], name='unique_customer_by_name_and_phone'),
         ]
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
     
 
-
 class PendingCustomer(models.Model):
+    original_customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL)  # ✅ Add this
     name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     phone_number_primary = models.CharField(max_length=15)
@@ -365,9 +448,8 @@ class PendingCustomer(models.Model):
     address_secondary = models.TextField(blank=True, null=True)
     is_permanent = models.BooleanField(default=False)
     is_bni_member = models.BooleanField(default=False)
-    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     reference_name = models.CharField(max_length=100, blank=True, null=True)
-
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
 # -----------------------------
@@ -388,30 +470,34 @@ class Rental(models.Model):
     )
     rental_end_date = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
+    contract_validity = models.DateField(blank=True, null=True)
 
 
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     contract_number = models.CharField(max_length=50, blank=True)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(auto_now=True)
+    def save(self, *args, **kwargs):
+        if self.edited_by:
+            self.edited_at = timezone.now()
+        super().save(*args, **kwargs)
 
+    def is_active(self):
+        return self.status == 'active'
+    
+    def __str__(self):
+        return f'''Rental of '{self.asset}' to "{self.customer}" starting from {self.rental_start_date}'''
 
 
 class PendingRental(models.Model):
-    STATUS_CHOICES = (
-        ('ongoing', 'Ongoing'),
-        ('completed', 'Completed'),
-    )
-
+    original_rental = models.ForeignKey(Rental, null=True, blank=True, on_delete=models.SET_NULL)  # ✅ Add this
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE,blank=True, null=True)
+    asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, blank=True, null=True)
     rental_start_date = models.DateField()
-    billing_day = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text="Day of the month for billing"
-    )
+    billing_day = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Day of the month for billing")
     rental_end_date = models.DateField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ongoing')
-
+    status = models.CharField(max_length=20, choices=[('ongoing', 'Ongoing'), ('completed', 'Completed')], default='ongoing')
+    contract_validity = models.DateField(blank=True, null=True)
 
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     contract_number = models.CharField(max_length=50, blank=True)
@@ -419,44 +505,69 @@ class PendingRental(models.Model):
 
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='pending_rentals')
     submitted_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-
+    def is_active(self):
+        return self.status == 'active'
 
 # -----------------------------
 # Payment
 # -----------------------------
-class Payment(models.Model):
-   
-    
-    METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('card', 'Card'),
-        ('upi', 'UPI'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('paid', 'Paid'),
-        ('partial', 'Partial'),
-        ('unpaid', 'Unpaid'),
-    ]
-
-    rental = models.OneToOneField(Rental, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_date = models.DateField(auto_now_add=True)
-    payment_method = models.CharField(max_length=20, choices=METHOD_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unpaid')
-    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
-    def __str__(self):
-        return f"Payment #{self.id} - {self.rental} - {self.amount}"
 
 class Repair(models.Model):
     product = models.ForeignKey(ProductAsset, on_delete=models.CASCADE, related_name='repairs')
     name = models.CharField(max_length=100)
     date = models.DateField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
+    info = models.TextField(blank=True, null=True)
+    repair_warranty_months = models.PositiveIntegerField(null=True, blank=True, default=0)
+    under_repair_warranty = models.BooleanField(default=False)
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    edited_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f"{self.product.asset_id} Repair - {self.date}"
 
+    # -------------------------
+    # Warranty Logic
+    # -------------------------
+    @property
+    def repair_warranty_expiry_date(self):
+        """Calculate when the repair warranty expires."""
+        if self.date and self.repair_warranty_months and self.repair_warranty_months > 0:
+            return self.date + relativedelta(months=self.repair_warranty_months)
+        return None
 
+    @property
+    def repair_warranty_days_left(self):
+        """Calculate how many days are left until the repair warranty expires."""
+        expiry = self.repair_warranty_expiry_date
+        if expiry:
+            remaining_days = (expiry - timezone.now().date()).days
+            return remaining_days if remaining_days > 0 else 0
+        return None
+
+    @property
+    def repair_warranty_status(self):
+        """Return repair warranty status: Active, Expiring Soon, Expired, or No Warranty."""
+        expiry = self.repair_warranty_expiry_date
+        today = timezone.now().date()
+
+        if not self.date or not self.repair_warranty_months or self.repair_warranty_months <= 0:
+            return "No Warranty"
+
+        if today > expiry:
+            return "Expired"
+        elif (expiry - today).days <= 30:
+            return "Expiring Soon"
+        else:
+            return "Active"
+
+    def save(self, *args, **kwargs):
+        """Auto update the under_repair_warranty field when saving."""
+        expiry = self.repair_warranty_expiry_date
+        if expiry:
+            self.under_repair_warranty = timezone.now().date() <= expiry
+        else:
+            self.under_repair_warranty = False
+        super().save(*args, **kwargs)
 
 class PendingProductConfiguration(models.Model):
     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
@@ -470,9 +581,15 @@ class PendingProductConfiguration(models.Model):
     display_size = models.ForeignKey(DisplaySizeOption, on_delete=models.SET_NULL, null=True, blank=True)
     power_supply = models.CharField(max_length=100, blank=True, null=True)
     detailed_config = models.TextField(blank=True, null=True)
-
+    
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+
+    is_edit = models.BooleanField(default=False)
+    original_config = models.ForeignKey(ProductConfiguration, on_delete=models.SET_NULL, null=True, blank=True)
+
+
 
 
 
@@ -481,18 +598,35 @@ class PendingProductConfiguration(models.Model):
 
 class Supplier(models.Model):
     name = models.CharField(max_length=100)
-    gstin = models.CharField(max_length=20, verbose_name="GSTIN Number")
+    gstin = models.CharField(max_length=20, verbose_name="GSTIN Number", blank=True, null=True)
 
-    address_primary = models.TextField()
+    address_primary = models.TextField(blank=True, null=True)
     address_secondary = models.TextField(blank=True, null=True)
 
-    phone_primary = models.CharField(max_length=15)
+    phone_primary = models.CharField(max_length=15,blank=True, null=True)
     phone_secondary = models.CharField(max_length=15, blank=True, null=True)
 
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     reference_name = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.name} ({self.gstin})"
+        return self.name
+    
 
+    
 
+class PendingRepair(models.Model):
+    original_repair = models.ForeignKey('Repair', on_delete=models.CASCADE, null=True, blank=True)
+    product = models.ForeignKey('ProductAsset', on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    info = models.TextField(blank=True, null=True)
+    repair_warranty_months = models.PositiveIntegerField(null=True, blank=True, default=0)
+    under_repair_warranty = models.BooleanField(default=False)
+    is_edit = models.BooleanField(default=False)  # True = edit or delete pending
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Pending Repair for {self.product.asset_id}"

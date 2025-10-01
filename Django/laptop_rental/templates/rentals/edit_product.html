@@ -13,25 +13,18 @@
       {% endfor %} {% endfor %}
     </ul>
   </div>
-  {% endif %} {% if user.is_superuser %}
-  <span>
-    <label for="id_asset_number">Asset id(eg.007):</label>
-    {{ form.asset_number }}
-  </span>
-
-  <p>
-    <label for="id_asset_suffix">Asset id suffix (optional):</label>
-    {{ form.asset_suffix }}
-  </p>
-  <p>_______________________________________________________</p>
   {% endif %}
+  <h1>{{ product.asset_id }}</h1>
   <p>
-    <label for="id_asset_id">Asset id full(eg.Pixel/2025/007):</label>
+    <label for="id_type_of_asset"
+      ><span style="color: red">*</span>Asset Id:</label
+    >
     {{ form.asset_id }}
   </p>
-
   <p>
-    <label for="id_type_of_asset">Asset Type:</label>
+    <label for="id_type_of_asset"
+      ><span style="color: red">*</span>Asset Type:</label
+    >
     {{ form.type_of_asset }}
   </p>
   <p>
@@ -43,13 +36,10 @@
     {{ form.model_no }}
   </p>
   <p>
-    <label for="id_serial_no">Serial No:</label>
+    <label for="id_serial_no"
+      ></span>Serial No:</label
+    >
     {{ form.serial_no }}
-  </p>
-
-  <p>
-    <label for="id_hsn_code">HSN Code:</label>
-    {{ form.hsn_code }}
   </p>
 
   <p>

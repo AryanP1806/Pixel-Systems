@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+      integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+      integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+      integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+      crossorigin="anonymous"
+    ></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Caveat:wght@400;700&family=Lobster&family=Monoton&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Playfair+Display+SC:ital,wght@0,400;0,700;1,700&family=Playfair+Display:ital,wght@0,400;0,700;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Source+Sans+Pro:ital,wght@0,400;0,700;1,700&family=Work+Sans:ital,wght@0,400;0,700;1,700&display=swap");
+      .main-container {
+        background-color: #232324;
+        width: 100vh;
+        height: 100vh;
+        padding: 30px;
+      }
+      .heading {
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        font-family: Roboto;
+      }
+      .para {
+        color: white;
+        font-size: 16px;
+      }
+      .buttoun {
+        background-color: #5f6063;
+        color: white;
+        height: 36px;
+        width: 138px;
+        border-radius: 20px;
+        border-width: 0px;
+        font-family: roboto;
+      }
+      .img {
+        height: 100px;
+        width: 80px;
+        margin: 15px;
+        margin-top: 45px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container d-flex flex-row">
+      <img class="img" src="{{ profile.profile_image.url }} " width="100" />
+      <div>
+        <h2 class="heading">Your Profile</h2>
+        <p class="para">Username: {{profile.user}}</p>
+        <p class="para">
+          Pet: {{ profile.pet_name }} ({{ profile.pet_breed }})
+        </p>
+        <p class="para">Bio: {{ profile.bio }}</p>
+        <button class="buttoun" href="{% url 'users:edit' %}">
+          Edit Profile
+        </button>
+      </div>
+    </div>
+    <script
+      type="text/javascript"
+      src="https://new-assets.ccbp.in/frontend/content/static-ccbp-ui-kit/static-ccbp-ui-kit.js"
+    ></script>
+  </body>
+</html>

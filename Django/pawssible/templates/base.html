@@ -1,0 +1,324 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pet Care</title>
+  </head>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #fefdf9;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+    }
+
+    /* Floating Chat Container */
+    .chatbox {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      z-index: 999;
+      border: 1px solid #d4e4e2;
+    }
+
+    /* Header */
+    .chatbox-header {
+      background-color: #d4e4e2;
+      color: #0d4037;
+      padding: 12px 16px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chatbox-header .title {
+      font-size: 15px;
+    }
+
+    .chatbox-header .close {
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+    }
+
+    /* Chat Body */
+    .chatbox-body {
+      padding: 15px;
+      flex: 1;
+      background-color: #fdfdfd;
+      overflow-y: auto;
+      max-height: 250px;
+    }
+
+    .chat-message {
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-message.bot {
+      align-items: flex-start;
+    }
+
+    .chat-message.user {
+      align-items: flex-end;
+    }
+
+    .chat-bubble {
+      background-color: #f5f5f5;
+      color: #333;
+      padding: 10px 14px;
+      border-radius: 10px;
+      max-width: 90%;
+      font-size: 14px;
+    }
+
+    .chat-bubble.user {
+      background-color: #ff7750;
+      color: white;
+    }
+
+    .chat-time {
+      font-size: 11px;
+      margin-top: 4px;
+      color: #888;
+    }
+
+    /* Chat Input */
+    .chatbox-input {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      background: #fff;
+    }
+
+    .chatbox-input input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .chatbox-input button {
+      background-color: #ff7750;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 20px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+
+    .chatbox-input button:hover {
+      background-color: #e85d36;
+    }
+  </style>
+  <link rel="stylesheet" href="{% static 'base/base.css' %}" />
+  <link rel="stylesheet" href="{% static 'chatbot/style.css' %}" />
+
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/vet/">Book Appointment</a>
+        <a href="/community/">Community</a>
+        <a href="/adoption/">Adoption</a>
+        <a href="/shop/">Shop</a>
+        <a href="/users/profile/">Profile</a>
+        {% if user.is_authenticated %}
+        <span>
+          Welcome, {{ user.username }} |
+          <form
+            id="logout-form"
+            action="{% url 'logout' %}"
+            method="post"
+            style="display: inline"
+          >
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+          </form>
+        </span>
+        {% else %}
+        <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </nav>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+
+    <footer>
+      <p>&copy; 2025 PetCare Inc.</p>
+    </footer>
+
+    <script>
+      function requestNotificationPermission() {
+        if ("Notification" in window && Notification.permission !== "granted") {
+          Notification.requestPermission();
+        }
+      }
+
+      function checkSchedule() {
+        fetch("/users/schedule/api/")
+          .then((res) => res.json())
+          .then((data) => {
+            const now = new Date();
+            const currentTime = `${now.getHours()}:${String(
+              now.getMinutes()
+            ).padStart(2, "0")}`;
+
+            console.log("⏰ Current Time:", currentTime);
+            console.log("📋 Loaded Events:", data);
+
+            data.forEach((event) => {
+              if (event.time) {
+                const eventTime = event.time.slice(0, 5); // 'HH:MM' from 'HH:MM:SS'
+                console.log("🗓️ Schedule Time:", eventTime, "->", event.title);
+
+                if (
+                  eventTime === currentTime &&
+                  Notification.permission === "granted"
+                ) {
+                  new Notification("🐾 Pet Schedule Reminder", {
+                    body: `${event.title} - ${
+                      event.description || "Time for your pet!"
+                    }`,
+                    icon: "/static/images/petbell.png",
+                  });
+                }
+              } else {
+                console.log("⚠️ Skipping null time for:", event.title);
+              }
+            });
+          });
+      }
+
+      requestNotificationPermission();
+      setInterval(checkSchedule, 60000); // every 1 minute
+    </script>
+
+    <!-- Chatbot Icon (minimized state) -->
+    <div
+      id="chat-icon"
+      onclick="toggleChatbox(true)"
+      style="
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #ff7750;
+        color: white;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        font-size: 24px;
+        z-index: 1000;
+      "
+    >
+      💬
+    </div>
+
+    <!-- Full Chatbox -->
+    <div class="chatbox" id="chatbox">
+      <div class="chatbox-header">
+        <span class="title">🐾 Pawsie AI</span>
+        <span class="close" onclick="toggleChatbox(false)">✖</span>
+      </div>
+
+      <div class="chatbox-body" id="chat-log">
+        <!-- Messages will go here -->
+      </div>
+
+      <div class="chatbox-input">
+        <input
+          type="text"
+          id="chat-input"
+          placeholder="Type your question..."
+        />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <script>
+      function toggleChatbox(show) {
+        const chatbox = document.getElementById("chatbox");
+        const icon = document.getElementById("chat-icon");
+
+        if (show) {
+          chatbox.style.display = "flex";
+          icon.style.display = "none";
+
+          // Show welcome message only if chat log is empty
+          const log = document.getElementById("chat-log");
+          if (log.children.length === 0) {
+            const welcomeMsg = `
+          <div class="chat-message bot">
+            <div class="chat-bubble">Hi there! 🐾 I'm Pawsie, your AI pet care assistant. How can I help you  and your furry friend today?</div>
+            <div class="chat-time">Bot</div>
+          </div>
+        `;
+            log.innerHTML += welcomeMsg;
+          }
+        } else {
+          chatbox.style.display = "none";
+          icon.style.display = "flex";
+        }
+      }
+
+      function sendMessage() {
+        const input = document.getElementById("chat-input");
+        const message = input.value.trim();
+        if (!message) return;
+
+        const log = document.getElementById("chat-log");
+        const userMsg = `
+      <div class="chat-message user">
+        <div class="chat-bubble user">${message}</div>
+        <div class="chat-time">You</div>
+      </div>
+    `;
+        log.innerHTML += userMsg;
+        log.scrollTop = log.scrollHeight;
+
+        fetch("{% url 'chatbot:chat_response' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+          },
+          body: JSON.stringify({ message: message }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            const botReply = `
+        <div class="chat-message bot">
+          <div class="chat-bubble">${data.reply}</div>
+          <div class="chat-time">Bot</div>
+        </div>
+      `;
+            log.innerHTML += botReply;
+            input.value = "";
+            log.scrollTop = log.scrollHeight;
+          });
+      }
+
+      // Optional: Automatically open chat on first load
+      document.addEventListener("DOMContentLoaded", () => {
+        toggleChatbox(true); // Set to false if you want it minimized by default
+      });
+    </script>
+  </body>
+</html>

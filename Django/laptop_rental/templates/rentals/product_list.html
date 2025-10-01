@@ -1,82 +1,167 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
+
 <h2>{% block title %}Product List{% endblock %}</h2>
 {% block content %}
 <h2>Product List</h2>
-<a href="{% url 'add_product' %}"><button>➕ Add Product</button></a>
 
-<pre>
-<form method="get" style="margin-bottom: 20px;">
-  <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
-  
-  <select name="type">
+<a href="{% url 'add_product' %}?{{ request.GET.urlencode }}"><button>➕ Add Product</button></a>
+<a href="{% url 'run_revenue_calculator' %}?{{ request.GET.urlencode }}"><button>💵 Revenue</button></a>
+<!-- <form method="post" action="{% url 'run_revenue_calculator' %}" style="display:inline;">
+  {% csrf_token %}
+  <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+    💰 Run Revenue Calculator
+  </button>
+</form> -->
+
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+        <div class="alert alert-success" style="color: green;">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+<!-- <select name="type">
     <option value="">All Types</option>
     {% for t in asset_types %}
       <option value="{{ t }}" {% if asset_type == t %}selected{% endif %}>{{ t }}</option>
     {% endfor %}
-  </select>
+  </select> -->
 
-  <select name="sort">
-    <option value="-purchase_date" {% if sort_by == "-purchase_date" %}selected{% endif %}>Newest First</option>
-    <option value="purchase_date" {% if sort_by == "purchase_date" %}selected{% endif %}>Oldest First</option>
-  </select>
+  <div class="filters-section">
+    <form method="get" id="filterForm">
+        <div class="filters-grid">
+            <!-- Asset Type Filter -->
+            <!-- <div class="filter-group">
+                <label for="type">🏷️ Asset Type</label>
+                <select name="type" id="type">
+                  <option value="">All Types</option>
+                  {% for asset_type in asset_types %}
+                  <option value="{{ asset_type.id }}" {% if selected_type == asset_type.id|stringformat:"s" %}selected{% endif %}>
+                    {{ asset_type.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div> -->
+              <div class="filter-group">
+                <p>🔎Search</p>   
+                <input type="text" name="q" placeholder="Search..." value="{{ query }}">
+              </div>
+              <div class="filter-group">
+                <p>⬆⬇Sort by:</p>
+                          <select name="sort">
+                  <option value='-asset_id' {% if sort_by == '-asset_id' %}selected{% endif %}>Newest First</option>
+                  <option value='asset_id' {% if sort_by == 'asset_id' %}selected{% endif %}>Oldest First</option>
+                </select>
+              </div>
+              <!-- Start Date -->
+            <div class="filter-group">
+                <label for="start_date">📅 Start Date</label>
+                <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
+            </div>
 
-  <button type="submit">Search</button>
-</form>
+            <!-- End Date -->
+            <div class="filter-group">
+                <label for="end_date">📅 End Date</label>
+                <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
+            </div>
+            <!-- Submit Button -->
+            <div class="filter-group">
+                <button type="submit" class="btn-primary">🔍 Filter</button>
+            </div>
 
-</pre>
+  
+  <!-- <select name="year" id="year-select">
+      {% for y in year_list %}
+          <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+  </select> -->
+  
+        </div>
 
-<table border="1" cellpadding="8">
-  <tr>
-    <th>Type</th>
-    <th>Brand</th>
-    <th>Model No</th>
-    <th>Serial No</th>
-    <th>Asset Id</th>
-    <th>Purchase Date</th>
-    <th>Warranty</th>
-    <th>Status</th>
-    <th>Checked By</th>
-    <th>Actions</th>
-  </tr>
-  {% for p in products %}
-  <tr>
-    <td>{{ p.type_of_asset }}</td>
-    <td>{{ p.brand }}</td>
-    <td>{{ p.model_no }}</td>
-    <td>{{ p.serial_no }}</td>
-    <td>{{ p.asset_id }}</td>
-    <td>{{ p.purchase_date }}</td>
-    <td>
-      {% if p.under_warranty %} {{ p.warranty_duration_months }} months
-      <p></p>
-      {% else %} No
-      <p></p>
-      {% endif %}
-    </td>
-  <td>
-  {% if p.condition_status == 'sold' %}
-    <span style="color: purple;">Sold</span>
-  {% elif p.condition_status == 'missing' %}
-    <span style="color: red;">Missing</span>
-  {% elif p.condition_status == 'damaged' %}
-    <span style="color: orange;">Damaged</span>
-  {% elif p.is_available %}
-    <span style="color: green;">Available</span>
+    </form>
+</div>
+
+
+
+
+
+<div class="table-container" tabindex="0">
+  <table border="1" cellpadding="8">
+    <thead>
+    <tr>
+      <th>Checked By</th>
+      <th>Purchase Date</th>
+      <th>Asset Id</th>
+      <th>Type</th>
+      <th>Brand</th>
+      <th>Model No</th>
+      <th>Warranty</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.edited_by.username }}{{p.edited_at|date:"Y-m-d H:i:s"}}</td>
+      <td>{{ p.purchase_date }}</td>
+      <td>{{ p.asset_id }} </td>
+      <td>{{ p.type_of_asset }}</td>
+      <td>{{ p.brand }}</td>
+      <td>{{ p.model_no }}</td>
+      <td>
+  {% if p.warranty_status == "Active" %}
+    <span style="color: green;">
+      Active ({{ p.warranty_days_left }} days left)
+      <br>Expires on: {{ p.warranty_expiry_date }}
+    </span>
+  {% elif p.warranty_status == "Expiring Soon" %}
+    <span style="color: orange;">
+      Expiring Soon ({{ p.warranty_days_left }} days left)
+      <br>Expires on: {{ p.warranty_expiry_date }}
+    </span>
+  {% elif p.warranty_status == "Expired" %}
+    <span style="color: red;">
+      Expired (Expired on: {{ p.warranty_expiry_date }})
+    </span>
   {% else %}
-    <span style="color: gray;">Rented</span>
+    <span>No Warranty</span>
   {% endif %}
-  </td>
+</td>
 
-  <!-- <td>₹ {{ p.net_profit }}</td> -->
-    <td>{{ p.edited_by.username }}</td>
     <td>
-      <a href="{% url 'add_repair' p.pk %}"><button>Repair</button></a> |
-      <a href="{% url 'product_detail' p.pk %}"><button>View</button></a> |
-      <a href="{% url 'edit_product' p.pk %}"><button>Edit</button></a> |
-      <a href="{% url 'add_config' p.pk %}"><button>Config</button></a> |
-      <a href="{% url 'clone_product' p.pk %}"><button>Clone</button></a>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
+    {% if p.condition_status == 'sold' %}
+        <span style="color: purple;">Sold</span>
+    {% elif p.condition_status == 'missing' %}
+        <span style="color: red;">Missing</span>
+    {% elif p.condition_status == 'damaged' %}
+        <span style="color: orange;">Damaged</span>
+    {% elif p.is_available %}
+        <span style="color: green;">Available</span>
+    {% else %}
+        {% if p.id in active_rentals %}
+            <span style="color: grey;">{{ p|rented_by }}</span>
+        {% else %}
+            <span style="color: green;">{{ p|rented_by }}</span>
+        {% endif %}
+    {% endif %}
+</td>
+
+    <!-- <td>₹ {{ p.net_profit }}</td> -->
+      <td>
+        <a href="{% url 'product_detail' p.pk %}?{{ request.GET.urlencode }}"><button>View</button></a> |
+        <a href="{% url 'edit_product' p.pk %}?{{ request.GET.urlencode }}"><button>Edit</button></a>
+        <!-- <a href="{% url 'add_repair' p.pk %}"><button>Repair</button></a> |
+        <a href="{% url 'add_config' p.pk %}"><button>Config</button></a> | -->
+        {% if user.is_superuser %} | 
+        <a href="{% url 'clone_product' p.pk %}?{{ request.GET.urlencode }}"><button>Clone</button></a>
+        {% endif %}
+      
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

@@ -1,0 +1,42 @@
+body {
+  background-color: rgb(143, 246, 246);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+    url("food.jpeg");
+}
+
+h1 {
+  text-align: center;
+  color: aliceblue;
+  font-weight: 900;
+  font-size: 3rem;
+}
+.cont {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.sche {
+  justify-content: center;
+  background-color: rgb(119, 203, 201);
+  height: 440px;
+  width: 50%;
+  border-radius: 5%;
+  border: 2px solid black;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+tr:nth-child(even) {
+  background-color: #64949c;
+}
+
+tr:hover {
+  background-color: #e0f7e9;
+}
