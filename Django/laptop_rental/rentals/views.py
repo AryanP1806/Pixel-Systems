@@ -219,44 +219,67 @@ def reject_config(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def approve_product(request, pk):
     pending = get_object_or_404(PendingProduct, pk=pk)
-    if pending.pending_type == 'edit' and pending.original_product:
-        product = pending.original_product
-        # copy fields
-        for field in [
-            'type_of_asset', 'brand', 'model_no', 'serial_no', 'purchase_price', 'current_value',
-            'purchase_date', 'under_warranty', 'warranty_duration_months', 'purchased_from',
-            'condition_status', 'asset_number', 'asset_id', 'sold_to', 'sale_price',
-            'sale_date', 'date_marked_dead', 'damage_narration']:
-            setattr(product, field, getattr(pending, field))
-        product.edited_by = pending.submitted_by
-        product.edited_at = pending.submitted_at
-        product.save()
-    else:
-        ProductAsset.objects.create(
-            type_of_asset=pending.type_of_asset,
-            brand=pending.brand,
-            model_no=pending.model_no,
-            serial_no=pending.serial_no,
-            purchase_price=pending.purchase_price,
-            current_value=pending.current_value,
-            purchase_date=pending.purchase_date,
-            under_warranty=pending.under_warranty,
-            warranty_duration_months=pending.warranty_duration_months,
-            purchased_from=pending.purchased_from,
-            condition_status=pending.condition_status,
-            asset_number=pending.asset_number,
-            asset_id=pending.asset_id,
-            # hsn_code=pending.hsn_code,
-            sold_to=pending.sold_to,
-            sale_price=pending.sale_price,
-            sale_date=pending.sale_date,
-            date_marked_dead=pending.date_marked_dead,
-            damage_narration=pending.damage_narration,
-            edited_by=pending.submitted_by
-        )
-    pending.delete()
-    messages.success(request, "Approved successfully.")
-    return redirect('approval_dashboard')
+
+    try:
+        if pending.pending_type == "edit" and pending.original_product:
+            product = pending.original_product
+
+            # tell product.save() to ignore this pending record when checking PendingProduct table
+            product._pending_pk = pending.pk
+
+            # copy fields (do NOT overwrite asset_id here)
+            for field in [
+                "type_of_asset", "brand", "model_no", "serial_no",
+                "purchase_price", "current_value", "purchase_date",
+                "under_warranty", "warranty_duration_months",
+                "purchased_from", "condition_status", "asset_number",
+                "sold_to", "sale_price", "sale_date",
+                "date_marked_dead", "damage_narration"
+            ]:
+                setattr(product, field, getattr(pending, field))
+
+            product.edited_by = pending.submitted_by
+            product.edited_at = pending.submitted_at
+            product.save()
+
+        else:
+            # New product (add/clone) — instantiate so we can set _pending_pk
+            new_product = ProductAsset(
+                type_of_asset=pending.type_of_asset,
+                brand=pending.brand,
+                model_no=pending.model_no,
+                serial_no=pending.serial_no,
+                purchase_price=pending.purchase_price,
+                current_value=pending.current_value,
+                purchase_date=pending.purchase_date,
+                under_warranty=pending.under_warranty,
+                warranty_duration_months=pending.warranty_duration_months,
+                purchased_from=pending.purchased_from,
+                condition_status=pending.condition_status,
+                asset_number=pending.asset_number,
+                asset_id=pending.asset_id,   # allowed for new products
+                sold_to=pending.sold_to,
+                sale_price=pending.sale_price,
+                sale_date=pending.sale_date,
+                date_marked_dead=pending.date_marked_dead,
+                damage_narration=pending.damage_narration,
+                edited_by=pending.submitted_by
+            )
+
+            # tell new_product.save() to ignore this pending record when checking PendingProduct table
+            new_product._pending_pk = pending.pk
+            new_product.save()
+
+        # only delete pending after successful save
+        pending.delete()
+        messages.success(request, "✅ Product approved successfully.")
+    except ValueError as e:
+        # give a meaningful message and do not delete pending
+        messages.error(request, f"Approval failed: {e}")
+    except Exception as e:
+        messages.error(request, f"Unexpected error during approval: {e}")
+
+    return redirect("approval_dashboard")
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -370,7 +393,7 @@ def add_product(request):
             )
             pending.save()
 
-            messages.success(request, "Product submitted for approval and pending review.")
+            messages.success(request, f"Product {form.cleaned_data.get('asset_id')} submitted for approval and pending review.")
             return redirect(redirect_url)
 
     return render(request, 'rentals/add_product.html', {'form': form})

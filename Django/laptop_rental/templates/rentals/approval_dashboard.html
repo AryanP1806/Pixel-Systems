@@ -23,7 +23,9 @@
       <b
         >{% if item.pending.pending_type == 'edit' %}Editing Product
         <p></p>
-        {{item.old.asset_id }}{% else %}New Product{% endif %}</b
+        {{item.old.asset_id }}{% else %}New Product
+        <p></p>
+        {{ item.pending.asset_id }} {% endif %}</b
       >
     </td>
   </tr>
