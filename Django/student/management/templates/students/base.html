@@ -1,0 +1,20 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Student Management</title>
+    <link rel="stylesheet" href="{% static 'students/style.css' %}" />
+  </head>
+  <body>
+    <header>
+      <h2>Student Database System</h2>
+      {% if user.is_authenticated %}
+      <p>
+        Welcome, {{ user.username }} | <a href="{% url 'logout' %}">Logout</a>
+      </p>
+      {% endif %}
+    </header>
+    <div class="container">{% block content %}{% endblock %}</div>
+  </body>
+</html>
