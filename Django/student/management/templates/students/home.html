@@ -1,0 +1,11 @@
+{% extends 'students/base.html' %} {% block content %}
+<h2>Dashboard</h2>
+
+{% if user.is_authenticated %} {% if user.is_staff %}
+<a href="{% url 'add_student' %}">➕ Add Student</a> |
+<a href="{% url 'view_students' %}">📄 View All Students</a>
+{% else %}
+<a href="{% url 'view_students' %}">📄 View My Details</a>
+{% endif %} {% else %}
+<a href="{% url 'login' %}">Login</a>
+{% endif %} {% endblock %}
