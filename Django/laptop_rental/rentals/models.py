@@ -144,15 +144,30 @@ class ProductAsset(models.Model):
     #     if self.purchase_date and self.warranty_duration_months > 0:
     #         return self.purchase_date + relativedelta(months=self.warranty_duration_months)
     #     return None
+    # @property
+    # def warranty_expiry_date(self):
+    #     """
+    #     Calculates the warranty expiry date based on purchase_date and warranty_duration_months.
+    #     """
+    #     if self.purchase_date and self.warranty_duration_months is not None and self.warranty_duration_months > 0:
+    #         return self.purchase_date + relativedelta(months=self.warranty_duration_months)
+    #     return None
     @property
     def warranty_expiry_date(self):
-        """
-        Calculates the warranty expiry date based on purchase_date and warranty_duration_months.
-        """
-        if self.purchase_date and self.warranty_duration_months is not None and self.warranty_duration_months > 0:
-            return self.purchase_date + relativedelta(months=self.warranty_duration_months)
-        return None
+        """Return expiry date based on purchase_date and duration."""
+        if not self.purchase_date:
+            return None
+        
+        # Convert purchase_date if it's a string (from import)
+        if isinstance(self.purchase_date, str):
+            try:
+                from datetime import datetime
+                self.purchase_date = datetime.strptime(self.purchase_date, "%Y-%m-%d").date()
+            except Exception:
+                return None
 
+        months = self.warranty_duration_months or 0
+        return self.purchase_date + relativedelta(months=months)
     # Calculate remaining days until warranty ends
     @property
     def warranty_days_left(self):

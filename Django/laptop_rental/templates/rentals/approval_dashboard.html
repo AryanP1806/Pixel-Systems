@@ -328,6 +328,16 @@
     </td>
   </tr>
   <tr>
+    <td>Customer</td>
+    <td>{{ item.old.customer|default:"-" }}</td>
+    <td
+      style="{% if item.old and item.old.customer != item.pending.customer %}background-color:#ffe0e0;{% endif %}"
+    >
+      {{ item.pending.customer }}
+    </td>
+  </tr>
+
+  <tr>
     <td>Asset Type</td>
     <td>{{ item.old.asset.type_of_asset.name|default:"-" }}</td>
     <td
@@ -416,7 +426,13 @@
       <b>
         {% if item.old %}Editing Configuration for
         <p></p>
-        {{ item.pending.asset.asset_id }} {% else %}New Configuration{% endif %}
+        {{ item.pending.asset.asset_id }} ({{ item.pending.asset.brand }})
+        <p></p>
+        {% else %}New Configuration
+        <p></p>
+        {{ item.pending.asset.asset_id }} ({{ item.pending.asset.brand }})
+        <p></p>
+        {% endif %}
       </b>
     </td>
   </tr>
@@ -537,11 +553,11 @@
 
   <tr>
     <td>Asset</td>
-    <td>{{ item.old.product.asset_id|default:"-" }}</td>
+    <td><b>{{ item.old.product.asset_id|default:"-" }}</b></td>
     <td
       style="{% if item.old and item.old.product.asset_id != item.pending.product.asset_id %}background-color:#ffe0e0;{% endif %}"
     >
-      {{ item.pending.product.asset_id }}
+      <b>{{ item.pending.product.asset_id }}</b>
     </td>
     <td rowspan="4">{{ item.pending.submitted_by.username }}</td>
     <td rowspan="4">

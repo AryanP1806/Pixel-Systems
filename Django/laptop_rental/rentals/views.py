@@ -1730,188 +1730,6 @@ def check_contracts(request):
     return redirect("rental_list")
 
 
-import csv
-import pandas as pd
-from django.http import HttpResponse
-from reportlab.pdfgen import canvas
-from io import BytesIO, StringIO
-from zipfile import ZipFile
-
-def export_reports_csv(request):
-    """Export multiple CSV files zipped together"""
-    output = BytesIO()
-
-    with ZipFile(output, 'w') as zip_file:
-
-        def write_csv_to_zip(filename, queryset):
-            if not queryset.exists():
-                return
-            
-            # Use StringIO for CSV writing
-            csv_buffer = StringIO()
-            fieldnames = list(queryset[0].keys())
-            writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
-            writer.writeheader()
-            for record in queryset:
-                writer.writerow(record)
-            
-            # Encode to bytes before writing to zip
-            zip_file.writestr(filename, csv_buffer.getvalue().encode('utf-8'))
-
-        # --- Customers CSV ---
-        write_csv_to_zip("customers.csv", Customer.objects.all().values())
-
-        # --- Products CSV ---
-        write_csv_to_zip("products.csv", ProductAsset.objects.all().values())
-
-        # --- Rentals CSV ---
-        write_csv_to_zip("rentals.csv", Rental.objects.all().values())
-
-        # --- Repairs CSV ---
-        write_csv_to_zip("repairs.csv", Repair.objects.all().values())
-
-    response = HttpResponse(output.getvalue(), content_type='application/zip')
-    response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
-    return response
-
-import pandas as pd
-from django.http import HttpResponse
-from io import BytesIO
-from zipfile import ZipFile
-import csv
-
-from .models import Customer, ProductAsset, Rental, Repair
-
-def export_reports_excel(request):
-    """Export Customers, Products, Rentals, Repairs to Excel with multiple sheets"""
-    output = BytesIO()
-
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # --- Customers ---
-        customers = Customer.objects.all().values(
-            'id', 'name', 'phone_number_primary', 'email',
-            'address_primary', 'is_permanent', 'is_bni_member'
-        )
-        df_customers = pd.DataFrame(list(customers))
-        df_customers.to_excel(writer, sheet_name='Customers', index=False)
-
-        # --- Products ---
-        products = ProductAsset.objects.all().values(
-            'id', 'asset_id', 'type_of_asset__name', 'brand', 'model_no',
-            'serial_no', 'purchase_date', 'purchase_price',
-            'under_warranty', 'warranty_duration_months'
-        )
-        df_products = pd.DataFrame(list(products))
-        df_products.rename(columns={'type_of_asset__name': 'Type of Asset'}, inplace=True)
-        df_products.to_excel(writer, sheet_name='Products', index=False)
-
-        # --- Rentals ---
-        rentals = Rental.objects.all().values(
-            'id', 'customer__name', 'asset__asset_id', 'rental_start_date',
-            'billing_day', 'status', 'contract_number'
-        )
-        df_rentals = pd.DataFrame(list(rentals))
-        df_rentals.rename(columns={
-            'customer__name': 'Customer',
-            'asset__asset_id': 'Asset'
-        }, inplace=True)
-        df_rentals.to_excel(writer, sheet_name='Rentals', index=False)
-
-        # --- Repairs ---
-        repairs = Repair.objects.all().values(
-            'id', 'product__asset_id', 'name', 'date', 'cost'
-        )
-        df_repairs = pd.DataFrame(list(repairs))
-        df_repairs.rename(columns={
-            'product__asset_id': 'Asset ID',
-            'name': 'Repair Name',
-            'date': 'Repair Date',
-            'cost': 'Repair Cost'
-        }, inplace=True)
-        df_repairs.to_excel(writer, sheet_name='Repairs', index=False)
-
-    # Return as downloadable Excel
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
-    response.write(output.getvalue())
-
-    return response
-
-
-
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-def export_reports_pdf(request):
-    """Export all data into a structured PDF"""
-    output = BytesIO()
-    doc = SimpleDocTemplate(output, pagesize=A4)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    # Helper function to add a section
-    def add_section(title, queryset, fields):
-        elements.append(Paragraph(title, styles['Heading2']))
-        elements.append(Spacer(1, 12))
-
-        if not queryset:
-            elements.append(Paragraph("No data available", styles['Normal']))
-            elements.append(Spacer(1, 12))
-            return
-
-        # Prepare table data
-        table_data = [fields]
-        for item in queryset:
-            table_data.append([str(item.get(field, "")) for field in fields])
-
-        table = Table(table_data)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ]))
-        elements.append(table)
-        elements.append(Spacer(1, 24))
-
-    # Customers Section
-    customers = Customer.objects.all().values(
-        'id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'
-    )
-    add_section("Customers", customers,
-                ['id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'])
-
-    # Products Section
-    products = ProductAsset.objects.all().values(
-        'id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'
-    )
-    add_section("Products", products,
-                ['id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'])
-
-    # Rentals Section
-    rentals = Rental.objects.all().values(
-        'id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'
-    )
-    add_section("Rentals", rentals,
-                ['id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'])
-
-    # Repairs Section (Fixed fields)
-    repairs = Repair.objects.all().values(
-        'id', 'product__asset_id', 'name', 'date', 'cost'
-    )
-    add_section("Repairs", repairs,
-                ['id', 'product__asset_id', 'name', 'date', 'cost'])
-
-    # Build PDF
-    doc.build(elements)
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
-    response.write(output.getvalue())
-
-    return response
-
 from dal import autocomplete
 from .models import Customer, ProductAsset, Rental
 from django.db.models import Q
@@ -1955,3 +1773,558 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
     
     def get_result_label(self, item):
         return f"{item.name} - {item.phone_number_primary}"
+    
+
+
+
+
+# import csv
+# import pandas as pd
+# from django.http import HttpResponse
+# from reportlab.pdfgen import canvas
+# from io import BytesIO, StringIO
+# from zipfile import ZipFile
+
+# def export_reports_csv(request):
+#     """Export multiple CSV files zipped together"""
+#     output = BytesIO()
+
+#     with ZipFile(output, 'w') as zip_file:
+
+#         def write_csv_to_zip(filename, queryset):
+#             if not queryset.exists():
+#                 return
+            
+#             # Use StringIO for CSV writing
+#             csv_buffer = StringIO()
+#             fieldnames = list(queryset[0].keys())
+#             writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
+#             writer.writeheader()
+#             for record in queryset:
+#                 writer.writerow(record)
+            
+#             # Encode to bytes before writing to zip
+#             zip_file.writestr(filename, csv_buffer.getvalue().encode('utf-8'))
+
+#         # --- Customers CSV ---
+#         write_csv_to_zip("customers.csv", Customer.objects.all().values())
+
+#         # --- Products CSV ---
+#         write_csv_to_zip("products.csv", ProductAsset.objects.all().values())
+
+#         # --- Rentals CSV ---
+#         write_csv_to_zip("rentals.csv", Rental.objects.all().values())
+
+#         # --- Repairs CSV ---
+#         write_csv_to_zip("repairs.csv", Repair.objects.all().values())
+
+#     response = HttpResponse(output.getvalue(), content_type='application/zip')
+#     response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
+#     return response
+
+# import pandas as pd
+# from django.http import HttpResponse
+# from io import BytesIO
+# from zipfile import ZipFile
+# import csv
+
+# from .models import Customer, ProductAsset, Rental, Repair
+
+# def export_reports_excel(request):
+#     """Export Customers, Products, Rentals, Repairs to Excel with multiple sheets"""
+#     output = BytesIO()
+
+#     with pd.ExcelWriter(output, engine='openpyxl') as writer:
+#         # --- Customers ---
+#         customers = Customer.objects.all().values(
+#             'id', 'name', 'phone_number_primary', 'email',
+#             'address_primary', 'is_permanent', 'is_bni_member'
+#         )
+#         df_customers = pd.DataFrame(list(customers))
+#         df_customers.to_excel(writer, sheet_name='Customers', index=False)
+
+#         # --- Products ---
+#         products = ProductAsset.objects.all().values(
+#             'id', 'asset_id', 'type_of_asset__name', 'brand', 'model_no',
+#             'serial_no', 'purchase_date', 'purchase_price',
+#             'under_warranty', 'warranty_duration_months'
+#         )
+#         df_products = pd.DataFrame(list(products))
+#         df_products.rename(columns={'type_of_asset__name': 'Type of Asset'}, inplace=True)
+#         df_products.to_excel(writer, sheet_name='Products', index=False)
+
+#         # --- Rentals ---
+#         rentals = Rental.objects.all().values(
+#             'id', 'customer__name', 'asset__asset_id', 'rental_start_date',
+#             'billing_day', 'status', 'contract_number'
+#         )
+#         df_rentals = pd.DataFrame(list(rentals))
+#         df_rentals.rename(columns={
+#             'customer__name': 'Customer',
+#             'asset__asset_id': 'Asset'
+#         }, inplace=True)
+#         df_rentals.to_excel(writer, sheet_name='Rentals', index=False)
+
+#         # --- Repairs ---
+#         repairs = Repair.objects.all().values(
+#             'id', 'product__asset_id', 'name', 'date', 'cost'
+#         )
+#         df_repairs = pd.DataFrame(list(repairs))
+#         df_repairs.rename(columns={
+#             'product__asset_id': 'Asset ID',
+#             'name': 'Repair Name',
+#             'date': 'Repair Date',
+#             'cost': 'Repair Cost'
+#         }, inplace=True)
+#         df_repairs.to_excel(writer, sheet_name='Repairs', index=False)
+
+#     # Return as downloadable Excel
+#     response = HttpResponse(
+#         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#     )
+#     response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
+#     response.write(output.getvalue())
+
+#     return response
+
+
+
+# from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+# from reportlab.lib.pagesizes import A4
+# from reportlab.lib import colors
+# from reportlab.lib.styles import getSampleStyleSheet
+# def export_reports_pdf(request):
+#     """Export all data into a structured PDF"""
+#     output = BytesIO()
+#     doc = SimpleDocTemplate(output, pagesize=A4)
+#     elements = []
+#     styles = getSampleStyleSheet()
+
+#     # Helper function to add a section
+#     def add_section(title, queryset, fields):
+#         elements.append(Paragraph(title, styles['Heading2']))
+#         elements.append(Spacer(1, 12))
+
+#         if not queryset:
+#             elements.append(Paragraph("No data available", styles['Normal']))
+#             elements.append(Spacer(1, 12))
+#             return
+
+#         # Prepare table data
+#         table_data = [fields]
+#         for item in queryset:
+#             table_data.append([str(item.get(field, "")) for field in fields])
+
+#         table = Table(table_data)
+#         table.setStyle(TableStyle([
+#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+#             ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#         ]))
+#         elements.append(table)
+#         elements.append(Spacer(1, 24))
+
+#     # Customers Section
+#     customers = Customer.objects.all().values(
+#         'id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'
+#     )
+#     add_section("Customers", customers,
+#                 ['id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'])
+
+#     # Products Section
+#     products = ProductAsset.objects.all().values(
+#         'id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'
+#     )
+#     add_section("Products", products,
+#                 ['id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'])
+
+#     # Rentals Section
+#     rentals = Rental.objects.all().values(
+#         'id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'
+#     )
+#     add_section("Rentals", rentals,
+#                 ['id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'])
+
+#     # Repairs Section (Fixed fields)
+#     repairs = Repair.objects.all().values(
+#         'id', 'product__asset_id', 'name', 'date', 'cost'
+#     )
+#     add_section("Repairs", repairs,
+#                 ['id', 'product__asset_id', 'name', 'date', 'cost'])
+
+#     # Build PDF
+#     doc.build(elements)
+#     response = HttpResponse(content_type='application/pdf')
+#     response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
+#     response.write(output.getvalue())
+
+#     return response
+
+
+
+# Required imports (place at top of views.py)
+import csv
+from io import StringIO, BytesIO
+from zipfile import ZipFile
+import pandas as pd
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+
+# models (already in your file)
+from .models import (
+    Customer, PendingCustomer, ProductAsset, PendingProduct, ProductConfiguration,
+    PendingProductConfiguration, Rental, PendingRental, Repair, PendingRepair,
+    Supplier, AssetType, CPUOption, HDDOption, RAMOption, GraphicsOption, DisplaySizeOption
+)
+
+
+# ----------------------------
+# Helper: serialize querysets
+# ----------------------------
+
+def safe_serialize(obj):
+    """Return dict of all public model fields safely"""
+    data = {}
+    for field in obj._meta.get_fields():
+        if not hasattr(field, 'attname'):
+            continue
+        name = field.name
+        value = getattr(obj, name, None)
+
+        # Handle related objects (show readable name)
+        if hasattr(value, "name"):
+            value = value.name
+        elif hasattr(value, "asset_id"):
+            value = value.asset_id
+        elif hasattr(value, "username"):
+            value = value.username
+
+        # Convert decimals, datetimes, etc.
+        if value is None:
+            data[name] = None
+        elif hasattr(value, "isoformat"):
+            try:
+                data[name] = value.isoformat()
+            except Exception:
+                data[name] = str(value)
+        else:
+            data[name] = str(value)
+    return data
+def serialize_product(asset):
+    """Return dict with full product details (flattened)."""
+    return {
+        'id': asset.id,
+        'asset_id': asset.asset_id,
+        'type_of_asset': asset.type_of_asset.name if asset.type_of_asset else None,
+        'brand': asset.brand,
+        'model_no': asset.model_no,
+        'serial_no': asset.serial_no,
+        'asset_number': asset.asset_number,
+        'asset_suffix': asset.asset_suffix,
+        'purchase_date': asset.purchase_date,
+        'purchase_price': float(asset.purchase_price) if asset.purchase_price is not None else None,
+        'current_value': float(asset.current_value) if asset.current_value is not None else None,
+        'under_warranty': asset.under_warranty,
+        'warranty_duration_months': asset.warranty_duration_months,
+        'warranty_expiry_date': asset.warranty_expiry_date,
+        'purchased_from': asset.purchased_from.name if asset.purchased_from else None,
+        'condition_status': asset.condition_status,
+        'sold_to': asset.sold_to,
+        'sale_price': float(asset.sale_price) if asset.sale_price is not None else None,
+        'sale_date': asset.sale_date,
+        'date_marked_dead': asset.date_marked_dead,
+        'damage_narration': asset.damage_narration,
+        'revenue': float(asset.revenue) if asset.revenue is not None else 0.0,
+        'edited_by': asset.edited_by.username if asset.edited_by else None,
+        'edited_at': asset.edited_at,
+        'total_repairs': float(asset.total_repairs) if hasattr(asset, 'total_repairs') else None,
+        'total_rent_earned': float(asset.total_rent_earned) if hasattr(asset, 'total_rent_earned') else None,
+    }
+
+def serialize_pending_product(p):
+    return {
+        'id': p.id,
+        'pending_type': p.pending_type,
+        'original_product_id': p.original_product.id if p.original_product else None,
+        'asset_id': p.asset_id,
+        'type_of_asset': p.type_of_asset.name if p.type_of_asset else None,
+        'brand': p.brand,
+        'model_no': p.model_no,
+        'serial_no': p.serial_no,
+        'asset_number': p.asset_number,
+        'purchase_date': p.purchase_date,
+        'purchase_price': float(p.purchase_price) if p.purchase_price is not None else None,
+        'current_value': float(p.current_value) if p.current_value is not None else None,
+        'under_warranty': p.under_warranty,
+        'warranty_duration_months': p.warranty_duration_months,
+        'purchased_from': p.purchased_from.name if p.purchased_from else None,
+        'condition_status': p.condition_status,
+        'submitted_by': p.submitted_by.username if p.submitted_by else None,
+        'submitted_at': p.submitted_at,
+        'sold_to': p.sold_to,
+        'sale_price': float(p.sale_price) if p.sale_price is not None else None,
+        'sale_date': p.sale_date,
+    }
+
+def serialize_configuration(cfg):
+    return {
+        'id': cfg.id,
+        'asset_id': cfg.asset.asset_id if cfg.asset else None,
+        'date_of_config': cfg.date_of_config,
+        'cpu': cfg.cpu.name if cfg.cpu else None,
+        'ram': cfg.ram.name if cfg.ram else None,
+        'hdd': cfg.hdd.name if cfg.hdd else None,
+        'ssd': cfg.ssd,
+        'graphics': cfg.graphics.name if cfg.graphics else None,
+        'display_size': cfg.display_size.name if cfg.display_size else None,
+        'power_supply': cfg.power_supply,
+        'cost': float(cfg.cost) if cfg.cost is not None else None,
+        'edited_by': cfg.edited_by.username if cfg.edited_by else None,
+        'edited_at': cfg.edited_at,
+    }
+
+def serialize_customer(c):
+    return {
+        'id': c.id,
+        'name': c.name,
+        'email': c.email,
+        'phone_number_primary': c.phone_number_primary,
+        'phone_number_secondary': c.phone_number_secondary,
+        'address_primary': c.address_primary,
+        'address_secondary': c.address_secondary,
+        'is_permanent': c.is_permanent,
+        'is_bni_member': c.is_bni_member,
+        'reference_name': c.reference_name,
+        'edited_by': c.edited_by.username if c.edited_by else None,
+        'edited_at': c.edited_at,
+    }
+
+def serialize_rental(r):
+    return {
+        'id': r.id,
+        'customer': r.customer.name if r.customer else None,
+        'asset_id': r.asset.asset_id if r.asset else None,
+        'rental_start_date': r.rental_start_date,
+        'rental_end_date': r.rental_end_date,
+        'billing_day': r.billing_day,
+        'status': r.status,
+        'payment_amount': float(r.payment_amount) if r.payment_amount is not None else None,
+        'contract_number': r.contract_number,
+        'contract_validity': r.contract_validity,
+        'edited_by': r.edited_by.username if r.edited_by else None,
+        'edited_at': r.edited_at,
+    }
+
+def serialize_repair(rep):
+    return {
+        'id': rep.id,
+        'product_asset_id': rep.product.asset_id if rep.product else None,
+        'name': rep.name,
+        'date': rep.date,
+        'cost': float(rep.cost) if rep.cost is not None else None,
+        'info': rep.info,
+        'repair_warranty_months': rep.repair_warranty_months,
+        'under_repair_warranty': rep.under_repair_warranty,
+        'edited_by': rep.edited_by.username if rep.edited_by else None,
+        'edited_at': rep.edited_at,
+    }
+
+def serialize_supplier(s):
+    return {
+        'id': s.id,
+        'name': s.name,
+        'gstin': s.gstin,
+        'address_primary': s.address_primary,
+        'address_secondary': s.address_secondary,
+        'phone_primary': s.phone_primary,
+        'phone_secondary': s.phone_secondary,
+        'email': s.email,
+        'reference_name': s.reference_name,
+    }
+
+# ----------------------------
+# CSV -> ZIP
+# ----------------------------
+@login_required
+def export_reports_csv(request):
+    """Export all data models to a ZIP of CSVs"""
+    output = BytesIO()
+
+    def write_csv_to_zip(zip_file, filename, queryset):
+        if not queryset.exists():
+            return
+        rows = [safe_serialize(obj) for obj in queryset]
+        csv_buffer = StringIO()
+        writer = csv.DictWriter(csv_buffer, fieldnames=rows[0].keys())
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+        zip_file.writestr(filename, csv_buffer.getvalue().encode('utf-8'))
+
+    with ZipFile(output, 'w') as zip_file:
+        write_csv_to_zip(zip_file, "customers.csv", Customer.objects.all())
+        write_csv_to_zip(zip_file, "pending_customers.csv", PendingCustomer.objects.all())
+        write_csv_to_zip(zip_file, "suppliers.csv", Supplier.objects.all())
+        write_csv_to_zip(zip_file, "asset_types.csv", AssetType.objects.all())
+        write_csv_to_zip(zip_file, "cpu_options.csv", CPUOption.objects.all())
+        write_csv_to_zip(zip_file, "ram_options.csv", RAMOption.objects.all())
+        write_csv_to_zip(zip_file, "hdd_options.csv", HDDOption.objects.all())
+        write_csv_to_zip(zip_file, "graphics_options.csv", GraphicsOption.objects.all())
+        write_csv_to_zip(zip_file, "display_size_options.csv", DisplaySizeOption.objects.all())
+        write_csv_to_zip(zip_file, "products.csv", ProductAsset.objects.select_related('type_of_asset', 'purchased_from', 'edited_by'))
+        write_csv_to_zip(zip_file, "pending_products.csv", PendingProduct.objects.select_related('type_of_asset', 'purchased_from', 'submitted_by'))
+        write_csv_to_zip(zip_file, "configurations.csv", ProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'edited_by'))
+        write_csv_to_zip(zip_file, "pending_configurations.csv", PendingProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'submitted_by'))
+        write_csv_to_zip(zip_file, "rentals.csv", Rental.objects.select_related('customer', 'asset', 'edited_by'))
+        write_csv_to_zip(zip_file, "pending_rentals.csv", PendingRental.objects.select_related('customer', 'asset', 'submitted_by'))
+        write_csv_to_zip(zip_file, "repairs.csv", Repair.objects.select_related('product', 'edited_by'))
+        write_csv_to_zip(zip_file, "pending_repairs.csv", PendingRepair.objects.select_related('product', 'submitted_by'))
+
+    response = HttpResponse(output.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
+    return response
+
+# -------------------------------------------
+# Excel Export (Multi-sheet)
+# -------------------------------------------
+@login_required
+def export_reports_excel(request):
+    """Export all data models to a single Excel workbook"""
+    output = BytesIO()
+
+    def write_df(writer, sheet_name, queryset):
+        if not queryset.exists():
+            return
+        data = [safe_serialize(obj) for obj in queryset]
+        df = pd.DataFrame(data)
+        df.to_excel(writer, sheet_name=sheet_name[:30], index=False)
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        write_df(writer, 'Customers', Customer.objects.all())
+        write_df(writer, 'PendingCustomers', PendingCustomer.objects.all())
+        write_df(writer, 'Suppliers', Supplier.objects.all())
+        write_df(writer, 'AssetTypes', AssetType.objects.all())
+        write_df(writer, 'CPUOptions', CPUOption.objects.all())
+        write_df(writer, 'RAMOptions', RAMOption.objects.all())
+        write_df(writer, 'HDDOptions', HDDOption.objects.all())
+        write_df(writer, 'GraphicsOptions', GraphicsOption.objects.all())
+        write_df(writer, 'DisplaySizeOptions', DisplaySizeOption.objects.all())
+        write_df(writer, 'Products', ProductAsset.objects.select_related('type_of_asset', 'purchased_from', 'edited_by'))
+        write_df(writer, 'PendingProducts', PendingProduct.objects.select_related('type_of_asset', 'purchased_from', 'submitted_by'))
+        write_df(writer, 'Configurations', ProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'edited_by'))
+        write_df(writer, 'PendingConfigurations', PendingProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'submitted_by'))
+        write_df(writer, 'Rentals', Rental.objects.select_related('customer', 'asset', 'edited_by'))
+        write_df(writer, 'PendingRentals', PendingRental.objects.select_related('customer', 'asset', 'submitted_by'))
+        write_df(writer, 'Repairs', Repair.objects.select_related('product', 'edited_by'))
+        write_df(writer, 'PendingRepairs', PendingRepair.objects.select_related('product', 'submitted_by'))
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
+    response.write(output.getvalue())
+    return response
+# ----------------------------
+# PDF export
+# ----------------------------
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+
+@login_required
+def export_reports_pdf(request):
+    """
+    Create a structured, unclipped PDF containing all key datasets.
+    """
+    output = BytesIO()
+    # Use landscape orientation for more horizontal space
+    doc = SimpleDocTemplate(output, pagesize=landscape(A4),
+                            leftMargin=20, rightMargin=20,
+                            topMargin=30, bottomMargin=30)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        spaceAfter=10,
+        textColor=colors.HexColor("#2E3A59")
+    )
+
+    normal_style = ParagraphStyle(
+        'NormalSmall',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+    )
+
+    def add_section(title, queryset):
+        """Adds a formatted table for a queryset to the PDF"""
+        elements.append(Paragraph(title, title_style))
+        elements.append(Spacer(1, 4))
+
+        if not queryset.exists():
+            elements.append(Paragraph("No data available", normal_style))
+            elements.append(Spacer(1, 12))
+            return
+
+        # Serialize objects safely
+        data = [safe_serialize(obj) for obj in queryset]
+
+        # Prepare headers + rows
+        headers = list(data[0].keys())
+        table_data = [headers]
+        for row in data:
+            row_values = [Paragraph(str(row.get(h, "")), normal_style) for h in headers]
+            table_data.append(row_values)
+
+        # Adjust column widths dynamically
+        col_count = len(headers)
+        max_table_width = 10.5 * inch  # roughly landscape A4 usable width
+        col_width = max_table_width / max(1, col_count)
+        col_widths = [col_width] * col_count
+
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E0E0E0")),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('WORDWRAP', (0, 0), (-1, -1), True),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 16))
+
+    # ---- Sections ----
+    add_section("Customers", Customer.objects.all())
+    add_section("Pending Customers", PendingCustomer.objects.all())
+    add_section("Suppliers", Supplier.objects.all())
+    add_section("Asset Types", AssetType.objects.all())
+    add_section("CPU Options", CPUOption.objects.all())
+    add_section("RAM Options", RAMOption.objects.all())
+    add_section("HDD Options", HDDOption.objects.all())
+    add_section("Graphics Options", GraphicsOption.objects.all())
+    add_section("Display Size Options", DisplaySizeOption.objects.all())
+    add_section("Products", ProductAsset.objects.select_related('type_of_asset', 'purchased_from', 'edited_by'))
+    add_section("Pending Products", PendingProduct.objects.select_related('type_of_asset', 'purchased_from', 'submitted_by'))
+    add_section("Configurations", ProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'edited_by'))
+    add_section("Pending Configurations", PendingProductConfiguration.objects.select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size', 'submitted_by'))
+    add_section("Rentals", Rental.objects.select_related('customer', 'asset', 'edited_by'))
+    add_section("Pending Rentals", PendingRental.objects.select_related('customer', 'asset', 'submitted_by'))
+    add_section("Repairs", Repair.objects.select_related('product', 'edited_by'))
+    add_section("Pending Repairs", PendingRepair.objects.select_related('product', 'submitted_by'))
+
+    # Build PDF
+    doc.build(elements)
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
+    response.write(output.getvalue())
+    return response
