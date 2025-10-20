@@ -104,7 +104,7 @@
     <tbody>
     {% for p in products %}
     <tr>
-      <td>{{ p.edited_by.username }}{{p.edited_at|date:"Y-m-d H:i:s"}}</td>
+      <td>{{ p.edited_by.username }} | {{p.edited_at|date:"Y-m-d H:i:s"}}</td>
       <td>{{ p.purchase_date }}</td>
       <td>{{ p.asset_id }} </td>
       <td>{{ p.type_of_asset }}</td>
