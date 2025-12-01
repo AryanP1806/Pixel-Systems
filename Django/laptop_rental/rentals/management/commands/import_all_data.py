@@ -15,6 +15,9 @@ from rentals.models import (
 
 User = get_user_model()
 
+# python manage.py import_all_data "data/my_asset_data.xlsx"
+
+
 # ------------------------------
 # Helpers
 # ------------------------------
@@ -91,10 +94,24 @@ def parse_decimal(raw):
         return None
 
 def get_user_by_username(username):
+    """
+    Find user by username. If not found, create a new active user 
+    with a default password.
+    """
     if not username:
         return None
     username = str(username).strip()
-    return User.objects.filter(username=username).first()
+    
+    # UPDATED LOGIC HERE:
+    user, created = User.objects.get_or_create(username=username)
+    if created:
+        # Set a default password for imported users
+        # They should change this immediately
+        user.set_password('12345678') 
+        user.save()
+        print(f"   > [INFO] Created new user: {username}")
+        
+    return user
 
 def create_or_update_option(model, name, order=None):
     """Create or update option (CPU/RAM/HDD/Graphics/Display) and set order if provided."""
@@ -482,7 +499,7 @@ class Command(BaseCommand):
                 payment_amount = parse_decimal(try_get(row, 'payment_amount'))
                 billing_day = try_get(row, 'billing_day') or 1
                 status = try_get(row, 'status') or 'ongoing'
-                contract = try_get(row, 'contract_number') or try_get(row, 'contract', 'contract_no')
+                contract = try_get(row, 'contract_number') or try_get(row, 'contract', 'contract_no') or "N/A"
 
                 edited_by_user = get_user_by_username(try_get(row, 'edited_by', 'edited_by__username'))
                 edited_at_dt = parse_datetime(try_get(row, 'edited_at')) or (parse_date(try_get(row, 'edited_at')) and datetime.combine(parse_date(try_get(row, 'edited_at')), datetime.min.time()))
@@ -528,7 +545,7 @@ class Command(BaseCommand):
                 payment_amount = parse_decimal(try_get(row, 'payment_amount'))
                 billing_day = try_get(row, 'billing_day') or 1
                 status = try_get(row, 'status') or 'ongoing'
-                contract = try_get(row, 'contract_number') or try_get(row, 'contract')
+                contract = try_get(row, 'contract_number') or try_get(row, 'contract') or "N/A"
 
                 submitted_by_user = get_user_by_username(try_get(row, 'submitted_by', 'submitted_by__username'))
                 defaults = {

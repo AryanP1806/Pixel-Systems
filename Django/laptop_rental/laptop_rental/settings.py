@@ -160,3 +160,9 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'  
 LOGOUT_REDIRECT_URL = '/login/'  
 
+
+
+
+TEMPLATES[0]['OPTIONS']['context_processors'] += [
+    'rentals.context_processors.global_year'
+]

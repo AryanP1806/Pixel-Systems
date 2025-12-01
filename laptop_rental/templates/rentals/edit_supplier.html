@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+<h1>{% block title %}{{ supplier|default:'Add' }} Supplier{% endblock %}</h1>
+{% block content %}
+<h2>{% if supplier %}Edit{% else %}Add{% endif %} Supplier</h2>
+
+<form method="post">
+  {% csrf_token %} {{ form.as_p }}
+  <button type="submit">
+    {% if supplier %}Update{% else %}Add{% endif %} Supplier
+  </button>
+</form>
+{% endblock %}

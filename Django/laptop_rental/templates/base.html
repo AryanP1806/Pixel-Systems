@@ -7,14 +7,26 @@
       max-width: 200px;
       height: auto;
       position: fixed;
-      left: 2vh;
-      top: 12vh;
+      left: 2px;
+      top: 100px;
       z-index: 100;
       opacity: 0.2;
     }
 
     .form-row {
       margin-bottom: 15px;
+    }
+    .navbar-year {
+      position: fixed;
+      top: 100px;
+      right: 0px;
+      width: 100px;
+        margin: 0px 0px; /* Center the form */
+        padding: 0px;
+        /* border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
+        font-family: sans-serif;
     }
   </style>
   <head>
@@ -57,6 +69,15 @@
         <a href="{% url 'approval_dashboard' %}"> Approvals</a>
         <a href="{% url 'report_dashboard' %}"> Reports</a>
         {% endif %}
+        <form class="navbar-year" method="get" action="{% url 'product_list' %}">
+        <select name="year" onchange="this.form.submit()">
+            {% for y in year_list %}
+                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
+                    {{ y }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
       </div>
       <div class="nav-right">
         <button
@@ -83,6 +104,10 @@
     <div class="login-image">
       <img src="{% static 'images/pslogo.png' %}" alt="Login Banner" />
     </div>
+    
+    
+
+
 
     <!-- <img src="pslogo.png" alt="" width="100px" height="100px" /> -->
     <div class="container">{% block content %}{% endblock %}</div>

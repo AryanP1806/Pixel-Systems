@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+<h1></h1>
+{% block title %}Edit Repair{% endblock %} {% block content %}
+<h2>Edit Repair</h2>
+
+{% if form.errors %}
+<ul class="errorlist">
+  {% for field in form %} {% for error in field.errors %}
+  <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+  {% endfor %} {% endfor %} {% for error in form.non_field_errors %}
+  <li>{{ error }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<form method="post">
+  {% csrf_token %} {{form.product}}
+  <h3>Asset:</h3>
+  <h3>
+    {{ form.instance.product.asset_id }} - {{ form.instance.product.brand }}
+    <span></span> {{ form.instance.product.model_no }}
+  </h3>
+  <p>
+    <label for="id_name"><span style="color: red">*</span>By Whom:</label>
+    {{ form.name }}
+  </p>
+
+  <p>
+    <label for="id_date"><span style="color: red">*</span>Date:</label>
+    {{ form.date }}
+  </p>
+
+  <p>
+    <label for="id_cost"><span style="color: red">*</span>Cost:</label>
+    {{ form.cost }}
+  </p>
+  <p>
+    <label for="id_repair_warranty_months">Warranty Period (in months):</label>
+    {{ form.repair_warranty_months }}
+  </p>
+  <p>
+    <label for="id_info">Additional Info:</label>
+    {{ form.info }}
+  </p>
+
+  <button type="submit" class="btn btn-primary">Save Changes</button>
+  <p style="color: white">if you want to cancel</p>
+  <a
+    href="{% url 'product_detail' repair.product.pk %}"
+    class="btn btn-secondary"
+    style="
+      font-size: medium;
+      padding: 5px 5px;
+      background-color: #6366f1;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+    "
+    >Cancel</a
+  >
+</form>
+{% endblock %}

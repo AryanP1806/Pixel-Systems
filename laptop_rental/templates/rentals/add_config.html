@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+<h2>{% block content %}</h2>
+<h2>Add Configuration for {{ asset.asset_id }}</h2>
+{% if asset.configurations.count > 0 %}
+<p style="color: gray; font-style: italic">
+  Note: This configuration is pre-filled based on the last saved config for this
+  asset.
+</p>
+{% endif %}
+<form method="post">
+  {% csrf_token %} {{ form.as_p }}
+  <button type="submit">Save Configuration</button>
+</form>
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Add Product{% endblock %}</h1>
+{% block content %}
+<h2>Add New Product</h2>
+{% if form.errors %}
+<ul class="errorlist">
+  {% for field in form %} {% for error in field.errors %}
+  <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+  {% endfor %} {% endfor %} {% for error in form.non_field_errors %}
+  <li>{{ error }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<form method="post">
+  {% csrf_token %} {% if user.is_superuser %}
+  <span>
+    <label for="id_asset_number"
+      ><span style="color: red">*</span>Asset id(eg.007):</label
+    >
+    {{ form.asset_number }}
+  </span>
+
+  <p>
+    <label for="id_asset_suffix">Asset id suffix (optional):</label>
+    {{ form.asset_suffix }}
+  </p>
+  <hr
+    style="
+      border: none; /* Remove default border */
+      border-top: 3px solid #ccc; /* Add a custom top border for the line */
+      height: 0; /* Set height to 0 if using border for the line */
+      width: 75%; /* Set width */
+      margin: 20px auto;
+    "
+  />
+  {% endif %}
+  <p>
+    <label for="id_asset_id"
+      ><span style="color: red">*</span>Asset id full(eg.Pixel/2025/007):</label
+    >
+    {{ form.asset_id }}
+  </p>
+
+  <p>
+    <label for="id_type_of_asset"
+      ><span style="color: red">*</span>Asset Type:</label
+    >
+    {{ form.type_of_asset }}
+  </p>
+  <p>
+    <label for="id_brand"><span style="color: red">*</span>Brand:</label>
+    {{ form.brand }}
+  </p>
+  <p>
+    <label for="id_model_no"><span style="color: red">*</span>Model No:</label>
+    {{ form.model_no }}
+  </p>
+  <p>
+    <label for="id_serial_no">Serial No:</label>
+    {{ form.serial_no }}
+  </p>
+
+  <p>
+    <label for="id_purchase_price"
+      ><span style="color: red">*</span>Purchase Price:</label
+    >
+    {{ form.purchase_price }}
+  </p>
+
+  <p>
+    <label for="id_current_value"
+      ><span style="color: red">*</span>Current Value:</label
+    >
+    {{ form.current_value }}
+  </p>
+
+  <p>
+    <label for="id_purchase_date"
+      ><span style="color: red">*</span>Purchase Date:</label
+    >
+    {{ form.purchase_date }}
+  </p>
+  <p>
+    <label for="id_under_warranty">Under Warranty:</label>
+    {{ form.under_warranty }}
+  </p>
+  <p>
+    <label for="id_warranty_duration_months">Warranty Duration (months):</label>
+    {{ form.warranty_duration_months }}
+  </p>
+
+  <p>
+    <label for="id_purchased_from">Purchased from:</label>
+    {{ form.purchased_from }}
+  </p>
+  <p>
+    <label for="id_condition_status">Condition Status:</label>
+    {{ form.condition_status }}
+  </p>
+
+  <p class="sold-only" style="display: none">
+    <label for="id_sold_to"><span style="color: red">*</span>Sold To:</label>
+    {{ form.sold_to }}
+  </p>
+  <p class="sold-only" style="display: none">
+    <label for="id_sale_price"
+      ><span style="color: red">*</span>Sale Price:</label
+    >
+    {{ form.sale_price }}
+  </p>
+  <p class="sold-only" style="display: none">
+    <label for="id_sale_date"
+      ><span style="color: red">*</span>Sale Date:</label
+    >
+    {{ form.sale_date }}
+  </p>
+
+  <p class="damaged-only" style="display: none">
+    <label for="id_date_marked_dead"
+      ><span style="color: red">*</span>Date Marked Dead:</label
+    >
+    {{ form.date_marked_dead }}
+  </p>
+  <p class="damaged-only" style="display: none">
+    <label for="id_damage_narration">Damage Narration:</label>
+    {{ form.damage_narration }}
+  </p>
+
+  <button type="submit">Add</button>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const warrantyCheckbox = document.getElementById("id_under_warranty");
+    const durationField = document
+      .getElementById("id_warranty_duration_months")
+      .closest("p");
+
+    function toggleWarranty() {
+      durationField.style.display = warrantyCheckbox.checked ? "block" : "none";
+    }
+
+    warrantyCheckbox.addEventListener("change", toggleWarranty);
+    toggleWarranty();
+    const conditionField = document.getElementById("id_condition_status");
+
+    function toggleFields() {
+      const selected = conditionField.value;
+
+      document.querySelectorAll(".sold-only").forEach((el) => {
+        el.style.display = selected === "sold" ? "block" : "none";
+      });
+
+      document.querySelectorAll(".damaged-only").forEach((el) => {
+        el.style.display = selected === "damaged" ? "block" : "none";
+      });
+    }
+
+    conditionField.addEventListener("change", toggleFields);
+    toggleFields(); // Initial state
+  });
+</script>
+{% endblock %}

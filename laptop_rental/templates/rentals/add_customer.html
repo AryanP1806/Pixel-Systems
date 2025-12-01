@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Add Customer{% endblock %}</h1>
+{% block content %}
+<h2>Add New Customer</h2>
+<form method="post">
+  {% csrf_token %} {% if form.errors %}
+  <div style="color: red">
+    <strong>There were errors with your submission:</strong>
+    <ul>
+      {% for field in form %} {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+      {% endfor %} {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <p>
+    <label for="id_name"><span style="color: red">*</span>Name: </label>
+    {{ form.name }}
+  </p>
+
+  <p>
+    <label for="id_email">Email:</label>
+    {{ form.email }}
+  </p>
+
+  <p>
+    <label for="id_phone_number_primary"
+      ><span style="color: red">*</span>Phone 1:</label
+    >
+    {{ form.phone_number_primary }}
+  </p>
+  <p>
+    <label for="id_phone_number_secondary">Phone 2:</label>
+    {{ form.phone_number_secondary }}
+  </p>
+  <p>Address 1:</label
+    >
+    {{ form.address_primary }}
+  </p>
+  <p>
+    <label for="id_address_secondary">Address 2:</label>
+    {{ form.address_secondary }}
+  </p>
+
+  <p>
+    <label for="id_reference_name">Reference Name:</label>
+    {{ form.reference_name }}
+  </p>
+  <p>
+    <label for="id_is_permanent">Permanent Member:</label>
+    {{ form.is_permanent }}
+  </p>
+  <p>
+    <label for="id_is_bni_member">BNI Memeber:</label>
+    {{ form.is_bni_member }}
+  </p>
+
+  <p>
+    <button type="submit">Save Customer</button>
+  </p>
+</form>
+
+{% endblock %}
