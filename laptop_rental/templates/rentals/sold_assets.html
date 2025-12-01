@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Sold Assets{% endblock %}</h1>
+{% block content %}
+<h2>📦 Sold Products</h2>
+<table border="1" cellpadding="8">
+  <thead>
+    <tr>
+      <th>Asset ID</th>
+      <th>Brand</th>
+      <th>Model</th>
+      <th>Serial No</th>
+      <th>Sold To</th>
+      <th>Sale Price</th>
+      <th>Sale Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.asset_id }}</td>
+      <td>{{ p.brand }}</td>
+      <td>{{ p.model_no }}</td>
+      <td>{{ p.serial_no }}</td>
+      <td>{{ p.sold_to }}</td>
+      <td>₹ {{ p.sale_price }}</td>
+      <td>{{ p.sale_date }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -47,6 +47,7 @@
   <table border="1" cellpadding="8">
     <thead>
       <tr>
+        <th>Actions</th>
         <th>Asset ID</th>
         <th>Customer</th>
         <th>asset_type/Model</th>
@@ -57,14 +58,18 @@
         <th>Contract No.</th>
         <th>Contract Validity</th>
         <th>Phone No.</th>
-        <th>Address</th>
         <th>Made By</th>
-        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for rental in rentals %}
       <tr>
+        <td>
+          <a href="{% url 'edit_rental' rental.id %}"
+            ><button class="action-btn">✏️ Edit</button></a
+          >
+          {% if rental.status != 'completed' %} {% endif %}
+        </td>
         <td>{{ rental.asset.asset_id }}</td>
         <td>{{ rental.customer.name }}</td>
         <td>{{ rental.asset.asset_type }} {{ rental.asset.model_no }}</td>
@@ -76,14 +81,8 @@
         <td>{{ rental.contract_validity }}</td>
         <!-- |date:"F j, Y" -->
         <td>{{ rental.customer.phone_number_primary }}</td>
-        <td>{{ rental.customer.address_primary }}</td>
+        <!-- <td>{{ rental.customer.address_primary }}</td> -->
         <td>{{ rental.edited_by.username }}</td>
-        <td>
-          <a href="{% url 'edit_rental' rental.id %}"
-            ><button class="action-btn">✏️ Edit</button></a
-          >
-          {% if rental.status != 'completed' %} {% endif %}
-        </td>
       </tr>
       {% empty %}
       <tr>

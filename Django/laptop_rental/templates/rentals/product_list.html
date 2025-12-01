@@ -7,6 +7,9 @@
 
 <a href="{% url 'add_product' %}?{{ request.GET.urlencode }}"><button>➕ Add Product</button></a>
 <a href="{% url 'run_revenue_calculator' %}?{{ request.GET.urlencode }}"><button>💵 Revenue</button></a>
+
+<h4 >Showing Products for Year: {{ selected_year }}</h4>
+
 <!-- <form method="post" action="{% url 'run_revenue_calculator' %}" style="display:inline;">
   {% csrf_token %}
   <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">

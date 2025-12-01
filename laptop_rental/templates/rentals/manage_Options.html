@@ -1,0 +1,39 @@
+{% extends "base.html" %} {% block title %}{{ title }} Preferences{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: auto">
+  <h2 class="text-xl font-bold mb-4">{{ title }} Preferences</h2>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %} {{ form.as_p }}
+    <button
+      type="submit"
+      class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+    >
+      {% if editing %}Update{% else %}Add{% endif %} {{ field_name }}
+    </button>
+    {% if editing %}
+    <a href="{% url current_view %}" class="ml-2 text-sm text-gray-600"
+      >Cancel Edit</a
+    >
+    {% endif %}
+  </form>
+
+  <hr class="my-6" />
+
+  <h3 class="text-lg font-semibold">Current {{ field_name }} List</h3>
+  <ul class="divide-y divide-gray-200 mt-4">
+    {% for item in items %}
+    <li class="py-2 flex justify-between items-center">
+      <span>{{ item.name }} (Order: {{ item.order }})</span>
+      <a
+        href="{% url current_view %}?edit={{ item.id }}"
+        class="text-blue-600 hover:underline text-sm"
+        ><button>Edit</button></a
+      >
+    </li>
+    {% empty %}
+    <li class="py-2 text-gray-500">No {{ field_name }} entries yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

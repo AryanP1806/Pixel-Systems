@@ -372,6 +372,7 @@ class RentalForm(forms.ModelForm):
                 attrs={
                     'data-placeholder': 'Search for an asset...',
                     'data-minimum-input-length': 1,
+                    'style': 'width: 10%'
                 }
             ),
             'rental_start_date': forms.DateInput(attrs={'type': 'date'}),

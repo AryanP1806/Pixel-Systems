@@ -1,0 +1,40 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Asset Types</h2>
+<a
+  href="{% url 'add_asset_type' %}"
+  style="
+    padding: 8px 14px;
+    background-color: #6366f1;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+  "
+  >Add Asset Type</a
+>
+<table>
+  <tr>
+    <th>Name</th>
+    <th>Order</th>
+    <th>Actions</th>
+  </tr>
+  {% for type in asset_types %}
+  <tr>
+    <td>{{ type.name }}</td>
+    <td>{{ type.display_order }}</td>
+    <td>
+      <a
+        href="{% url 'edit_asset_type' type.id %}"
+        style="
+          padding: 8px 14px;
+          background-color: #6366f1;
+          color: white;
+          border-radius: 6px;
+          text-decoration: none;
+        "
+        >Edit</a
+      >
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

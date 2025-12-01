@@ -181,7 +181,9 @@ class ProductAsset(models.Model):
     @property
     def warranty_status(self):
         expiry = self.warranty_expiry_date
-        if not expiry:
+        warrenty = self.under_warranty
+
+        if not warrenty:
             return "No Warranty"
 
         today = timezone.now().date()
@@ -196,12 +198,12 @@ class ProductAsset(models.Model):
 
     def save(self, *args, **kwargs):
         # ... (keep your existing warranty logic here) ...
-        expiry = self.warranty_expiry_date
-        if expiry:
-            self.under_warranty = timezone.now().date() <= expiry
-        else:
-            self.under_warranty = False
-
+        if self._state.adding:
+                if self.purchase_date and (self.warranty_duration_months or 0) > 0:
+                    expiry = self.purchase_date + relativedelta(
+                        months=int(self.warranty_duration_months or 0)
+                    )
+                    self.under_warranty = timezone.now().date() <= expiry
         # --- START: REPLACEMENT LOGIC FOR ASSET ID ---
         if not self.asset_id:
             year = self.purchase_date.year if self.purchase_date else timezone.now().year
@@ -577,12 +579,15 @@ class Repair(models.Model):
 
     def save(self, *args, **kwargs):
         """Auto update the under_repair_warranty field when saving."""
-        expiry = self.repair_warranty_expiry_date
-        if expiry:
-            self.under_repair_warranty = timezone.now().date() <= expiry
-        else:
-            self.under_repair_warranty = False
+        
+        if self._state.adding:
+            if self.purchase_date and (self.warranty_duration_months or 0) > 0:
+                expiry = self.purchase_date + relativedelta(
+                    months=int(self.warranty_duration_months or 0)
+                )
+                self.under_warranty = timezone.now().date() <= expiry
         super().save(*args, **kwargs)
+
 
 class PendingProductConfiguration(models.Model):
     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)

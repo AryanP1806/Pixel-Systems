@@ -1,0 +1,133 @@
+<!-- templates/base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <style>
+    .login-image img {
+      max-width: 200px;
+      height: auto;
+      position: fixed;
+      left: 2vh;
+      top: 12vh;
+      z-index: 100;
+      opacity: 0.2;
+    }
+
+    .form-row {
+      margin-bottom: 15px;
+    }
+  </style>
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Laptop Rental{% endblock %}</title>
+    <!-- <link rel="stylesheet" type="text/css" href="{% static 'styles10.css' %}" /> -->
+    <!-- <link rel="stylesheet" type="text/css" href="{% static 'aryan.css' %}" /> -->
+
+    <!-- <link id="theme-style" rel="stylesheet" href="{% static 'aryan.css' %}" /> -->
+    <script>
+      // Select theme before page loads (prevents flicker)
+      const savedTheme = localStorage.getItem("theme") || "light";
+      const cssFile =
+        savedTheme === "dark"
+          ? "{% static 'aryan2.css' %}"
+          : "{% static 'aryan.css' %}";
+      document.write(
+        `<link id="theme-style" rel="stylesheet" href="${cssFile}">`
+      );
+    </script>
+    <!-- jQuery (must be loaded first) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Django Autocomplete Light CSS/JS -->
+    {{ form.media.css }}
+
+    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-left">
+        <a href="/">Home</a>
+        <a href="/rentals/">Ongoing Rentals</a>
+        <a href="/customers/">Customers</a>
+        <a href="/products/">Product List</a>
+        <a href="/history/">Rental History</a>
+        <a href="{% url 'sold_assets' %}">Sold Items</a>
+        <a href="{% url 'settings_home' %}">Settings</a>
+        {% if user.is_superuser %}
+        <a href="{% url 'approval_dashboard' %}"> Approvals</a>
+        <a href="{% url 'report_dashboard' %}"> Reports</a>
+        {% endif %}
+      </div>
+      <div class="nav-right">
+        <button
+          id="theme-toggle"
+          style="
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #444;
+            color: white;
+            cursor: pointer;
+          "
+        >
+          🌙
+        </button>
+        {% if user.is_authenticated %}
+        <span>Logged in as {{ user.username }} |</span>
+        <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+        <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </nav>
+    <div class="login-image">
+      <img src="{% static 'images/pslogo.png' %}" alt="Login Banner" />
+    </div>
+
+    <!-- <img src="pslogo.png" alt="" width="100px" height="100px" /> -->
+    <div class="container">{% block content %}{% endblock %}</div>
+
+    <!-- Django Autocomplete Light JS -->
+    {{ form.media.js }}
+
+    <script>
+      document
+        .getElementById("year-select")
+        ?.addEventListener("change", function () {
+          document.getElementById("year-filter-form")?.submit();
+        });
+    </script>
+    <script>
+      (function () {
+        const themeLink = document.getElementById("theme-style");
+        const toggleBtn = document.getElementById("theme-toggle");
+
+        // Load theme preference from localStorage
+        const savedTheme = localStorage.getItem("theme") || "light";
+        applyTheme(savedTheme);
+
+        toggleBtn.addEventListener("click", function () {
+          const current = localStorage.getItem("theme") || "light";
+          const newTheme = current === "light" ? "dark" : "light";
+          applyTheme(newTheme);
+        });
+
+        function applyTheme(theme) {
+          if (theme === "dark") {
+            themeLink.href = "{% static 'aryan2.css' %}";
+            toggleBtn.textContent = "☀️";
+            toggleBtn.style.background = "#ddd";
+            toggleBtn.style.color = "#000";
+          } else {
+            themeLink.href = "{% static 'aryan.css' %}";
+            toggleBtn.textContent = "🌙";
+            toggleBtn.style.background = "#444";
+            toggleBtn.style.color = "#fff";
+          }
+          localStorage.setItem("theme", theme);
+        }
+      })();
+    </script>
+  </body>
+  <footer style="z-index: 1000">Made By AP</footer>
+</html>

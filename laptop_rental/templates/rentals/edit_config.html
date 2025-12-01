@@ -1,0 +1,67 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Edit Configuration</h2>
+<form method="post">
+  {% csrf_token %} {% if form.errors %}
+  <div style="color: red">
+    <strong>There were errors with your submission:</strong>
+    <ul>
+      {% for field in form %} {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+      {% endfor %} {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <h1>{{ config.asset.asset_id }}</h1>
+  <p>
+    <label for="id_date_of_config"
+      ><span style="color: red">*</span>Date of Configuration:</label
+    >
+    {{ form.date_of_config }}
+  </p>
+  <p>
+    <label for="id_cpu">CPU:</label>
+    {{ form.cpu }}
+  </p>
+
+  <p>
+    <label for="id_ram">RAM:</label>
+    {{ form.ram }}
+  </p>
+  <p>
+    <label for="id_hdd">HDD:</label>
+    {{ form.hdd }}
+  </p>
+
+  <p>
+    <label for="id_ssd">SSD:</label>
+    {{ form.ssd }}
+  </p>
+
+  <p>
+    <label for="id_display_size">Display Size:</label>
+    {{ form.display_size }}
+  </p>
+  <p>
+    <label for="id_graphics">Graphics:</label>
+    {{ form.graphics }}
+  </p>
+  <p>
+    <label for="id_power_supply">Power Supply:</label>
+    {{ form.power_supply }}
+  </p>
+
+  <p>
+    <label for="id_detailed_config">Detailed Configuration:</label>
+    {{ form.detailed_config }}
+  </p>
+
+  <p>
+    <label for="id_cost">Cost:</label>
+    {{ form.cost }}
+  </p>
+  <p>
+    <button type="submit">Update</button>
+  </p>
+</form>
+
+{% endblock %}

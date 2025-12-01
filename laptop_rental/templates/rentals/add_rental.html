@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Add Rental{% endblock %}</h1>
+{% block content %}
+<h2>Add New Rental</h2>
+
+<form method="post">
+  {% csrf_token %}
+
+  <!-- Include form media for autocomplete -->
+  {{ form.media }} {% if form.errors %}
+  <div style="color: red">
+    <strong>There were errors with your submission:</strong>
+    <ul>
+      {% for field in form %} {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+      {% endfor %} {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <p>
+    <label for="id_asset">
+      <span style="color: red">*</span> Product (Asset):
+    </label>
+    {{ form.asset }}
+  </p>
+
+  {% if form.asset.field.queryset.count == 0 %}
+  <p style="color: red">⚠️ No assets are available for rental at the moment.</p>
+  {% endif %}
+
+  <p>
+    <label for="id_customer">
+      <span style="color: red">*</span> Customer:
+    </label>
+    {{ form.customer }}
+  </p>
+
+  <p>
+    <label for="id_rental_start_date">
+      <span style="color: red">*</span> Start Date:
+    </label>
+    {{ form.rental_start_date }}
+  </p>
+
+  <p>
+    <label for="id_billing_day">Billing Date:</label>
+    {{ form.billing_day }}
+  </p>
+
+  <p>
+    <label for="id_contract_number">Contract Number:</label>
+    {{ form.contract_number }}
+  </p>
+
+  <p>
+    <label for="id_contract_validity">Contract Validity:</label>
+    {{ form.contract_validity }}
+  </p>
+
+  <p>
+    <label for="id_payment_amount">
+      <span style="color: red">*</span> Payment Amount:
+    </label>
+    {{ form.payment_amount }}
+  </p>
+
+  <p>
+    <label for="id_status"> <span style="color: red">*</span> Status: </label>
+    {{ form.status }}
+  </p>
+
+  <div id="end-date-field" style="display: none">
+    <label for="id_rental_end_date">Rental End Date:</label>
+    {{ form.rental_end_date }}
+  </div>
+
+  <p>
+    <button type="submit">Add Rental</button>
+  </p>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const statusField = document.getElementById("id_status");
+    const endDateField = document.getElementById("end-date-field");
+
+    function toggleEndDateField() {
+      if (statusField.value === "completed") {
+        endDateField.style.display = "block";
+      } else {
+        endDateField.style.display = "none";
+      }
+    }
+
+    statusField.addEventListener("change", toggleEndDateField);
+    toggleEndDateField(); // Initial check
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}📊 Report Dashboard{% endblock %}
+{% block content %}
+<h2>Rental Reports</h2>
+
+<div style="margin-bottom: 15px;">
+  <button onclick="toggleReport('revenueSection')" class="btn">💰 Revenue Generated</button>
+  <button onclick="toggleReport('typeSection')" class="btn">🧩 Revenue by Type</button> <!-- Added this button -->
+  <button onclick="toggleReport('topAssetsSection')" class="btn">🏆 Top Performing Assets</button>
+  <button onclick="toggleReport('topCustomersSection')" class="btn">👤 Top Customers</button>
+  <button onclick="toggleReport('warrantySection')" class="btn">🛡️ In-Warranty Assets</button>
+  <!-- <button onclick="toggleReport('repairWarrantySection')" class="btn">🛡️ In-Warranty Assets</button> -->
+  <button onclick="toggleReport('repairsSection')" class="btn">🛠️ Top Repaired Assets</button>
+</div>
+
+<!-- ###################################################### -->
+<!-- 1. REVENUE SECTION                                     -->
+<!-- This section is now visible by default (removed display:none) -->
+<!-- ###################################################### -->
+<div id="revenueSection" class="report-section">
+  <hr>
+  <div>
+    <a
+      href="{% url 'export_reports_csv' %}"
+      class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+      style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none; margin-right: 10px;"
+    >
+      Export CSV
+    </a>
+    <a
+      href="{% url 'export_reports_excel' %}"
+      class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+      style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none; margin-right: 10px;"
+    >
+      Export Excel
+    </a>
+    <a
+      href="{% url 'export_reports_pdf' %}"
+      class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+      style="padding: 8px 14px; background-color: #6366f1; color: white; border-radius: 6px; text-decoration: none;"
+    >
+      Export PDF
+    </a>
+  </div>
+  <div class="filters-section">
+    <form method="get" id="filterForm">
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label for="customer">👤 Customer</label>
+          <select name="customer" id="customer">
+            <option value="">All Customers</option>
+            {% for c in customers %}
+              <option value="{{ c.id }}" {% if request.GET.customer == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="product">🏷️ Asset</label>
+          <select name="product" id="product">
+            <option value="">All Assets</option>
+            {% for p in products %}
+              <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.asset_id }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="start_date">📅 Start Date</label>
+          <input type="date" name="start_date" id="start_date" value="{{ request.GET.start_date }}">
+        </div>
+        <div class="filter-group">
+          <label for="end_date">📅 End Date</label>
+          <input type="date" name="end_date" id="end_date" value="{{ request.GET.end_date }}">
+        </div>
+        <div class="filter-group">
+          <button type="submit" class="btn-primary">🔍 Generate Report</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <hr>
+  <h2>Results</h2>
+  <ul>
+    <li><strong>Total Rentals:</strong> {{ total_rentals }}</li>
+    <li><strong>Total Days Rented:</strong> {{ total_days }}</li>
+    {% if product_id %}
+      <h3>💰 Financial Summary for {{ product_obj.asset_id }}</h3>
+      <li><strong>Purchase Price:</strong> ₹ {{ purchase_price }}</li>
+      <li><strong>Gross Profit:</strong> ₹ {{ gross_profit }}</li>
+      <li><strong>Maintenance Cost:</strong> ₹ {{ maintenance_cost }}</li>
+      {% if sold_asset %}
+        <li><strong>Sold Asset:</strong> ₹ {{ sold_asset }}</li>
+      {% endif %}
+      <li><strong>Net Profit:</strong> ₹ {{ net_profit }}</li>
+    {% else %}
+      <li><strong>Total Revenue:</strong> ₹ {{ total_revenue }}</li>
+    {% endif %}
+  </ul>
+  <div style="max-width: 800px; margin: auto;">
+    <canvas id="revenueChart"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      const revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: {{ monthly_labels|safe }},
+          datasets: [{
+            label: 'Monthly Revenue (₹)',
+            data: {{ monthly_values|safe }},
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    </script>
+  </div>
+</div>
+<!-- Correctly closed the previous section -->
+
+<!-- ###################################################### -->
+<!-- 2. REVENUE BY TYPE SECTION                             -->
+<!-- ###################################################### -->
+<div id="typeSection" class="report-section" style="display:none;">
+  <hr>
+  <h3 id="type-pie">🧩 Revenue by Asset Type</h3>
+  <div style="max-width: 600px; margin: auto;">
+    <canvas id="typePieChart" width="400" height="150"></canvas>
+    <script>
+      new Chart(document.getElementById('typePieChart'), {
+        type: 'pie',
+        data: {
+          labels: {{ type_labels|safe }},
+          datasets: [{
+            label: 'Revenue',
+            data: {{ type_values|safe }},
+            backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545', '#6c757d', '#6610f2', '#e83e8c'],
+          }]
+        }
+      });
+    </script>
+  </div>
+</div>
+<!-- Correctly closed the previous section -->
+
+
+<!-- ###################################################### -->
+<!-- 3. TOP ASSETS SECTION                                  -->
+<!-- ###################################################### -->
+<div id="topAssetsSection" class="report-section" style="display:none;">
+  <hr>
+  <h3 id="top-assets">📊 Top Performing Assets</h3>
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr><th>Asset</th><th>Total Income (₹)</th></tr>
+    </thead>
+    <tbody>
+      {% for asset in top_assets %}
+        <tr>
+          <td>{{ asset.asset_id }} ({{ asset.brand }} {{ asset.model_no }})</td>
+          <td>₹ {{ asset.total_income }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<!-- Correctly closed the previous section -->
+
+<!-- ###################################################### -->
+<!-- 4. TOP CUSTOMERS SECTION                               -->
+<!-- ###################################################### -->
+<div id="topCustomersSection" class="report-section" style="display:none;">
+  <hr>
+  <h3 id="customer-bar">🏆 Customers by Rental Business</h3>
+  <div style="max-width: 800px; margin: auto;">
+    <canvas id="customerBarChart" width="400" height="150"></canvas>
+    <script>
+      new Chart(document.getElementById('customerBarChart'), {
+        type: 'bar',
+        data: {
+          labels: {{ customer_labels|safe }},
+          datasets: [{
+            label: 'Total ₹ from Customer',
+            data: {{ customer_values|safe }},
+            backgroundColor: '#17a2b8'
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    </script>
+  </div>
+</div>
+<!-- Correctly closed the previous section -->
+
+<!-- ###################################################### -->
+<!-- 5. IN-WARRANTY ASSETS SECTION                          -->
+<!-- ###################################################### -->
+<div id="warrantySection" class="report-section" style="display:none;">
+  <hr>
+  <h3>🛡️ In-Warranty Assets ({{ in_warranty_count }})</h3>
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr>
+        <th>Asset ID</th>
+        <th>Brand</th>
+        <th>Model</th>
+        <th>Warranty Expiry</th>
+        <th>Days Left</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for asset in in_warranty_assets %}
+        <tr>
+          <td>{{ asset.asset_id }}</td>
+          <td>{{ asset.brand }}</td>
+          <td>{{ asset.model_no }}</td>
+          <td>{{ asset.expiry_date }}</td>
+          <td>{{ asset.days_left }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No assets currently under warranty</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p></p>
+  <h3>🔧 Repairs Under Warranty ({{ in_warranty_count }})</h3>
+  <table border="1" cellpadding="6">
+    <thead>
+    <tr>
+      <th>Asset ID</th>
+      <th>Repair Date</th>
+      <th>Cost</th>
+      <th>Warranty Expiry</th>
+      <th>Days Left</th>
+      <th>Description</th>
+    </tr>
+    </thead>
+    {% for r in repairs_with_warranty %}
+    <tr>
+      <td>{{ r.product.asset_id }}</td>
+      <td>{{ r.date }}</td>
+      <td>₹ {{ r.cost }}</td>
+      <td>{{ r.repair_warranty_expiry_date }}</td>
+      <td>{{ r.repair_warranty_days_left }}</td>
+      <!-- <td>{{ r.repair_warranty_status }}</td> -->
+      <td>{{ r.info }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">No repairs currently under warranty</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- 2 one  -->
+
+
+<!-- Correctly closed the previous section -->
+
+<!-- ###################################################### -->
+<!-- 6. TOP REPAIRED ASSETS SECTION                         -->
+<!-- ###################################################### -->
+<div id="repairsSection" class="report-section" style="display:none;">
+  <hr>
+  <h3>🛠️ Top Repaired Assets</h3>
+  <table border="1" class="table-container" tabindex="0" cellpadding="6">
+    <thead>
+      <tr>
+        <th>Asset ID</th>
+        <th>Brand</th>
+        <th>Model</th>
+        <th>Total Repairs</th>
+        <th>Total Repair Cost (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in top_repaired_assets %}
+        <tr>
+          <td>{{ r.product__asset_id }}</td>
+          <td>{{ r.product__brand }}</td>
+          <td>{{ r.product__model_no }}</td>
+          <td>{{ r.total_repairs }}</td>
+          <td>₹ {{ r.total_cost }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No repair data available</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<!-- Correctly closed the previous section -->
+
+<script>
+  function toggleReport(sectionId) {
+    // Hide all report sections first
+    document.querySelectorAll('.report-section').forEach(sec => sec.style.display = 'none');
+
+    // Show the clicked section
+    const sectionToShow = document.getElementById(sectionId);
+    if (sectionToShow) {
+        sectionToShow.style.display = 'block';
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Product Details{% endblock %}</h1>
+{% block content %}
+<h2>
+  Product Details: {{ product.asset_id }}
+  <!-- href="{% url 'product_list' %}" -->
+  <a
+    href="{{ redirect_url }}"
+    style="
+      font-size: medium;
+      padding: 5px 5px;
+      background-color: #6366f1;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      position: fixed;
+      right: 10px;
+    "
+    >⬅ Back to Product List</a
+  >
+</h2>
+
+{% if messages %}
+<ul>
+  {% for message in messages %}
+  <li style="color: green">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<ul>
+  <li>Type: {{ product.type_of_asset }}</li>
+  <li>Brand: {{ product.brand }}</li>
+  <li>Model No: {{ product.model_no }}</li>
+  <li>Serial No: {{ product.serial_no }}</li>
+
+  <li>Purchase Date: {{ product.purchase_date }}</li>
+  <li>Purchase Price: {{ product.purchase_price }}</li>
+  <li>Revenue: {{ product.revenue }}</li>
+  <li>
+    {% if product.is_sold %}Selling Price: ₹ {{ product.sale_price }} (Sold)
+    <p></p>
+    {% else %}Current Value: ₹ {{ product.current_value }} {% endif %}
+  </li>
+  <li>Under Warranty: {{ product.under_warranty|yesno:"Yes,No" }}</li>
+  <li>Purchased From: {{ product.purchased_from.name }}</li>
+</ul>
+
+<hr />
+<h3>Repair History</h3>
+<a
+  href="{% url 'add_repair' product.pk %}"
+  style="
+    padding: 8px 14px;
+    background-color: #6366f1;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+  "
+  >➕ Add repairs
+</a>
+
+<pre style="color: white">
+  (Note: Repair costs are included in the current value calculation.)
+</pre>
+{% if repairs %}
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Name</th>
+      <th>Cost</th>
+      <th>Warrenty</th>
+      <th>Details</th>
+      <th>Edited By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for repair in repairs %}
+    <tr>
+      <td>{{ repair.date }}</td>
+      <td>{{ repair.name }}</td>
+      <td>₹{{ repair.cost }}</td>
+      <td>
+        {% if repair.repair_warranty_status == "Active" %}
+        <span style="color: green"
+          >Active ({{ repair.repair_warranty_days_left }} days left)</span
+        >
+        {% elif repair.repair_warranty_status == "Expiring Soon" %}
+        <span style="color: orange"
+          >Expiring Soon ({{ repair.repair_warranty_days_left }} days
+          left)</span
+        >
+        {% elif repair.repair_warranty_status == "Expired" %}
+        <span style="color: red">Expired</span>
+        {% else %}
+        <span>No Warranty</span>
+        {% endif %}
+      </td>
+      <td>{{ repair.info }}</td>
+      <td>{{ repair.edited_by }}</td>
+      <td>
+        <!-- ✅ Edit and Delete Buttons -->
+        <a
+          href="{% url 'edit_repair' repair.id %}"
+          class="btn btn-warning btn-sm"
+          >✏️</a
+        >
+        |
+        <a
+          href="{% url 'delete_repair' repair.id %}"
+          class="btn btn-danger btn-sm"
+          onclick="return confirm('Are you sure you want to delete this repair?');"
+          >🗑️</a
+        >
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No repairs logged for this product.</p>
+{% endif %}
+<hr />
+<!-- Configs -->
+<h3>Configuration History:</h3>
+<a
+  href="{% url 'add_config' product.pk %}"
+  style="
+    padding: 8px 14px;
+    background-color: #6366f1;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+  "
+  >➕ Add Configuration</a
+>
+<pre style="color: white">
+  (Note: Configurations are listed in reverse chronological order.)
+</pre>
+<table border="1" cellpadding="8">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>CPU</th>
+      <th>RAM</th>
+      <th>HDD</th>
+      <th>SSD</th>
+      <th>Graphics</th>
+      <th>Display</th>
+      <th>Power</th>
+      <th>Cost</th>
+      <th>Details</th>
+      <th>Edited By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for config in configs %}
+    <tr>
+      <td>{{ config.date_of_config }}</td>
+      <td>{{ config.cpu }}</td>
+      <td>{{ config.ram }}</td>
+      <td>{{ config.hdd }}</td>
+      <td>{{ config.ssd }}</td>
+      <td>{{ config.graphics }}</td>
+      <td>{{ config.display_size }}</td>
+      <td>{{ config.power_supply }}</td>
+      <td>₹{{ config.cost }}</td>
+      <td>{{ config.detailed_config }}</td>
+      <td>{{ config.edited_by.username }}</td>
+      <td>
+        {% if user.is_superuser %}
+        <a href="{% url 'edit_config' config.pk %}">✏️</a>
+
+        <a
+          href="{% url 'delete_config' config.pk %}"
+          onclick="return confirm('Are you sure?')"
+          >🗑️</a
+        >
+        {% else %}
+        <span style="color: gray">(Admin Only) </span>{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="8">No configurations found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<pre>
+
+  <hr />
+</pre>
+
+<!-- Current Rentals -->
+<h3>Current Rentals</h3>
+{% if current_rentals %}
+<table border="1" cellpadding="8">
+  <thead>
+    <tr>
+      <th>Customer</th>
+      <th>Start Date</th>
+      <th>Billing Day</th>
+      <th>Contract No.</th>
+      <th>Payment Amount</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rental in current_rentals %}
+    <tr>
+      <td>{{ rental.customer.name }}</td>
+      <td>{{ rental.rental_start_date }}</td>
+      <td>{{ rental.billing_day }}</td>
+      <td>{{ rental.contract_number }}</td>
+      <td>₹{{ rental.payment_amount }}</td>
+      <td>{{ rental.status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No ongoing rentals for this product.</p>
+{% endif %}
+<pre>
+
+  <hr />
+</pre>
+
+<!-- Rental History -->
+<h3>Rental History</h3>
+{% if rental_history %}
+<table border="1" cellpadding="8">
+  <thead>
+    <tr>
+      <th>Customer</th>
+      <th>Start Date</th>
+      <th>End Date</th>
+      <th>Payment Amount</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rental in rental_history %}
+    <tr>
+      <td>{{ rental.customer.name }}</td>
+      <td>{{ rental.rental_start_date }}</td>
+      <td>{{ rental.rental_end_date }}</td>
+      <td>₹{{ rental.payment_amount }}</td>
+      <td>{{ rental.status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No past rentals for this product.</p>
+{% endif %}
+
+<hr />
+
+{% endblock %}
