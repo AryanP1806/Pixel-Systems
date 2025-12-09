@@ -577,17 +577,24 @@ class Repair(models.Model):
         else:
             return "Active"
 
+    # models.py inside Repair class
     def save(self, *args, **kwargs):
         """Auto update the under_repair_warranty field when saving."""
         
-        if self._state.adding:
-            if self.purchase_date and (self.warranty_duration_months or 0) > 0:
-                expiry = self.purchase_date + relativedelta(
-                    months=int(self.warranty_duration_months or 0)
-                )
-                self.under_warranty = timezone.now().date() <= expiry
+        # Check if this is a new record or an update
+        # Note: We usually check dates on every save, not just adding, 
+        # just in case the date changed during an edit.
+        
+        if self.date and (self.repair_warranty_months or 0) > 0:
+            expiry = self.date + relativedelta(
+                months=int(self.repair_warranty_months or 0)
+            )
+            self.under_repair_warranty = timezone.now().date() <= expiry
+        else:
+            # If no date or no duration, it is not under warranty
+            self.under_repair_warranty = False
+            
         super().save(*args, **kwargs)
-
 
 class PendingProductConfiguration(models.Model):
     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)

@@ -3,3 +3,14 @@
 2025-12-01 17:49:00,951 - INFO - User: aryan | Action: Submitted edit for product | Object: ProductAsset | ID: 263
 2025-12-01 17:49:46,143 - INFO - User: aryan | Action: Created new product | Object: ProductAsset | ID: 421
 2025-12-01 17:50:18,827 - INFO - User: aryan | Action: Added product configuration | Object: ProductConfiguration
+2025-12-01 19:29:24,913 - INFO - User: aryan | Action: Added product configuration | Object: ProductConfiguration | AssetID: Pixel/2025/001
+2025-12-01 19:31:43,920 - INFO - User:  | Action: Logged out | Object: User
+2025-12-01 19:32:11,409 - INFO - User: deep | Action: Submitted edit for product for approval | Object: ProductAsset | ObjectID: 156
+2025-12-01 19:32:27,155 - INFO - User: deep | Action: Submitted product configuration for approval | Object: PendingProductConfiguration | AssetID: Pixel/2025/001
+2025-12-01 19:32:34,507 - INFO - User:  | Action: Logged out | Object: User
+2025-12-01 19:33:25,919 - INFO - User: aryan | Action: Logged out | Object: User
+2025-12-01 19:37:34,942 - INFO - User: aryan | Action: Rejected product | Object: PendingProduct | ObjectID: 1 | AssetID: 1
+2025-12-01 19:38:44,256 - INFO - User: deep | Action: Submitted edit for product for approval | Object: ProductAsset | ObjectID: 1
+2025-12-01 19:39:11,011 - INFO - User: aryan | Action: Rejected product | Object: PendingProduct | ObjectID: 2
+2025-12-01 19:39:59,334 - INFO - User: aryan | Action: Added new customer | Object: Customer | ObjectID: 22 | Customer: Aryan Pore
+2025-12-01 19:50:23,623 - INFO - User: aryan | Action: Added new customer | Object: Customer | ObjectID: 23 | Customer: Deepak Pore
