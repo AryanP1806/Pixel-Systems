@@ -8,6 +8,13 @@ from .views import AssetAutocomplete, CustomerAutocomplete
 urlpatterns = [
     path('', views.homepage, name='home'),
 
+    path("expiry-dashboard/", views.expiry_dashboard, name="expiry_dashboard"),
+    
+    path('search/', views.global_search, name='global_search'),
+    
+    # Add this to your urlpatterns
+    path('set-year/', views.set_global_year, name='set_global_year'),
+
     path('settings/', views.settings_page, name='settings_page'),
     path('settings/', views.settings_home, name='settings_home'),
     path('settings/cpu/', views.manage_cpu_Options, name='manage_cpu_Options'),
@@ -35,12 +42,15 @@ urlpatterns = [
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/add/', views.add_customer, name='add_customer'),
     path('customers/edit/<int:pk>/', views.edit_customer, name='edit_customer'),
+    path('customers/<int:pk>/', views.customer_detail, name='customer_detail'),
     
     path('rentals/', views.rental_list, name='rental_list'),
     path('rentals/add/', views.add_rental, name='add_rental'),
     path('rentals/complete/<int:rental_id>/', views.mark_rental_completed, name='mark_rental_completed'),
     path('rentals/edit/<int:rental_id>/', views.edit_rental, name='edit_rental'),
+    path('rentals/add-bulk/', views.add_bulk_rental, name='add_bulk_rental'),
     # path('rentals/check_overdue/', views.check_overdue_view, name='check_overdue'),
+
     path('send-billing-reminder/', views.send_billing_reminder, name='send_billing_reminder'),
     path("check-contracts/", views.check_contracts, name="check_contracts"),
     

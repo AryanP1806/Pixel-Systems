@@ -55,10 +55,10 @@
       <tr>
         <th>Name</th>
         <th>Email</th>
-        <th>Primary Address</th>
-        <th>Secondary Address</th>
+        <!-- <th>Primary Address</th>
+        <th>Secondary Address</th> -->
         <th>Primary Phone</th>
-        <th>Secondary Phone</th>
+        <!-- <th>Secondary Phone</th> -->
         <th>Permanent?</th>
         <th>BNI?</th>
         <th>Edited By</th>
@@ -68,16 +68,28 @@
     <tbody>
       {% for customer in customers %}
       <tr>
-        <td>{{ customer.name }}</td>
+        <td>
+          <a
+            href="{% url 'customer_detail' customer.id %}"
+            style="color: #2563eb; text-decoration: none; font-weight: bold"
+            >{{ customer.name }}
+          </a>
+        </td>
         <td>{{ customer.email }}</td>
-        <td>{{ customer.address_primary }}</td>
-        <td>{{ customer.address_secondary|default:'NA' }}</td>
+        <!-- <td>{{ customer.address_primary }}</td>
+        <td>{{ customer.address_secondary|default:'NA' }}</td> -->
         <td>{{ customer.phone_number_primary }}</td>
-        <td>{{ customer.phone_number_secondary }}</td>
+        <!-- <td>{{ customer.phone_number_secondary }}</td> -->
         <td>{{ customer.is_permanent|yesno:"Yes,No" }}</td>
         <td>{{ customer.is_bni_member|yesno:"Yes,No" }}</td>
         <td>{{ customer.edited_by.username }} | {{customer.edited_at}}</td>
         <td>
+          <a
+            href="{% url 'customer_detail' customer.id %}"
+            style="text-decoration: none"
+          >
+            <button style="cursor: pointer">📄 View</button>
+          </a>
           <a href="{% url 'edit_customer' customer.id %}"
             ><button>Edit</button></a
           >

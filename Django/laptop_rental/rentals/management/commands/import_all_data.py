@@ -15,6 +15,8 @@ from rentals.models import (
 
 User = get_user_model()
 
+# to import webiste excel file changes 
+# handles all categories
 # python manage.py import_all_data "data/my_asset_data.xlsx"
 
 

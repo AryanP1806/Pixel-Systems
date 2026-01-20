@@ -1,6 +1,5 @@
-<!-- templates/base.html -->
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <style>
     .login-image img {
@@ -21,21 +20,70 @@
       top: 100px;
       right: 0px;
       width: 100px;
-        margin: 0px 0px; /* Center the form */
-        padding: 0px;
-        /* border: 1px solid #ccc;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
-        font-family: sans-serif;
+      margin: 0px 0px;
+      padding: 0px;
+      font-family: sans-serif;
+    }
+
+    /* --- MODAL CSS --- */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 3000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 50%;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+      font-family: sans-serif;
+      color: #333;
+    }
+
+    .close-btn {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close-btn:hover,
+    .close-btn:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .version-list {
+      text-align: left;
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+
+    .version-footer {
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+    .version-footer:hover {
+      text-decoration: underline;
+      color: #6366f1;
     }
   </style>
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Laptop Rental{% endblock %}</title>
-    <!-- <link rel="stylesheet" type="text/css" href="{% static 'styles10.css' %}" /> -->
-    <!-- <link rel="stylesheet" type="text/css" href="{% static 'aryan.css' %}" /> -->
 
-    <!-- <link id="theme-style" rel="stylesheet" href="{% static 'aryan.css' %}" /> -->
     <script>
       // Select theme before page loads (prevents flicker)
       const savedTheme = localStorage.getItem("theme") || "light";
@@ -44,13 +92,11 @@
           ? "{% static 'aryan2.css' %}"
           : "{% static 'aryan.css' %}";
       document.write(
-        `<link id="theme-style" rel="stylesheet" href="${cssFile}">`
+        `<link id="theme-style" rel="stylesheet" href="${cssFile}">`,
       );
     </script>
-    <!-- jQuery (must be loaded first) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Django Autocomplete Light CSS/JS -->
     {{ form.media.css }}
 
     <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}" />
@@ -69,15 +115,21 @@
         <a href="{% url 'approval_dashboard' %}"> Approvals</a>
         <a href="{% url 'report_dashboard' %}"> Reports</a>
         {% endif %}
-        <form class="navbar-year" method="get" action="{% url 'product_list' %}">
-        <select name="year" onchange="this.form.submit()">
-            {% for y in year_list %}
-                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
-                    {{ y }}
-                </option>
-            {% endfor %}
-        </select>
-    </form>
+
+        <form
+          class="navbar-year"
+          method="get"
+          action="{% url 'set_global_year' %}"
+        >
+          <select name="year" onchange="this.form.submit()">
+    {% for y in year_list %}
+      <pre></pre><option value="{{ y }}" {% if y == selected_year %}selected{% endif %}></pre>
+        {{ y }}
+      </option>
+    {% endfor %}
+  </select>
+  
+        </form>
       </div>
       <div class="nav-right">
         <button
@@ -104,16 +156,63 @@
     <div class="login-image">
       <img src="{% static 'images/pslogo.png' %}" alt="Login Banner" />
     </div>
-    
-    
 
-
-
-    <!-- <img src="pslogo.png" alt="" width="100px" height="100px" /> -->
     <div class="container">{% block content %}{% endblock %}</div>
 
-    <!-- Django Autocomplete Light JS -->
     {{ form.media.js }}
+
+    <div id="versionModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 10px">
+          System Version 2.0.0
+        </h2>
+
+        <div style="margin-top: 20px">
+          <h3>✨ What's New:</h3>
+          <ul class="version-list">
+            <li>
+              <strong>New Feature:</strong> Added specific Customer Detail pages
+              with rental history.
+            </li>
+            <li>
+              <strong>Improvement:</strong> Enhanced Rental History with Date
+              Filters and Edit actions.
+            </li>
+            <li>
+              <strong>Feature:</strong> Added Revenue Calculation logic for
+              filtered customers in reports.
+            </li>
+            <li>
+              <strong>UI:</strong> Added New HomePage design
+            </li>
+          </ul>
+        </div>
+
+        <div
+          style="
+            margin-top: 20px;
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: small;
+          "
+        >
+          <strong>Developer Note:</strong><br />
+          This system is built using Django. If you encounter any bugs, please
+          report them to the administrator.
+          <br /><em>Last Updated: January 19, 2026</em>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; color: #888">
+          Developed by <strong>Aryan Pore</strong>
+        </div>
+      </div>
+    </div>
+
+    <footer style="z-index: 1000" class="version-footer" id="versionTrigger">
+      Made By AP (v2.0.0)
+    </footer>
 
     <script>
       document
@@ -131,28 +230,61 @@
         const savedTheme = localStorage.getItem("theme") || "light";
         applyTheme(savedTheme);
 
-        toggleBtn.addEventListener("click", function () {
-          const current = localStorage.getItem("theme") || "light";
-          const newTheme = current === "light" ? "dark" : "light";
-          applyTheme(newTheme);
-        });
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", function () {
+            const current = localStorage.getItem("theme") || "light";
+            const newTheme = current === "light" ? "dark" : "light";
+            applyTheme(newTheme);
+          });
+        }
 
         function applyTheme(theme) {
           if (theme === "dark") {
             themeLink.href = "{% static 'aryan2.css' %}";
-            toggleBtn.textContent = "☀️";
-            toggleBtn.style.background = "#ddd";
-            toggleBtn.style.color = "#000";
+            if (toggleBtn) {
+              toggleBtn.textContent = "☀️";
+              toggleBtn.style.background = "#ddd";
+              toggleBtn.style.color = "#000";
+            }
           } else {
             themeLink.href = "{% static 'aryan.css' %}";
-            toggleBtn.textContent = "🌙";
-            toggleBtn.style.background = "#444";
-            toggleBtn.style.color = "#fff";
+            if (toggleBtn) {
+              toggleBtn.textContent = "🌙";
+              toggleBtn.style.background = "#444";
+              toggleBtn.style.color = "#fff";
+            }
           }
           localStorage.setItem("theme", theme);
         }
+
+        // --- MODAL JS LOGIC ---
+        const modal = document.getElementById("versionModal");
+        const btn = document.getElementById("versionTrigger");
+        const span = document.getElementsByClassName("close-btn")[0];
+
+        if (btn) {
+          // Open modal on footer click
+          btn.onclick = function () {
+            modal.style.display = "block";
+          };
+        } else {
+          console.error("Footer button not found!");
+        }
+
+        if (span) {
+          // Close on X click
+          span.onclick = function () {
+            modal.style.display = "none";
+          };
+        }
+
+        // Close on click outside
+        window.onclick = function (event) {
+          if (event.target == modal) {
+            modal.style.display = "none";
+          }
+        };
       })();
     </script>
   </body>
-  <footer style="z-index: 1000">Made By AP</footer>
 </html>

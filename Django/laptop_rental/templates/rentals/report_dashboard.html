@@ -79,23 +79,98 @@
   </div>
   <hr>
   <h2>Results</h2>
-  <ul>
+  {% if request.GET.customer and not request.GET.product %}
+<div class="filter-group">
+  <label for="drillDownProduct">🏷️ Select Asset (Showing revenue from this customer)</label>
+  
+  <select 
+    name="product" 
+    id="drillDownProduct" 
+    onchange="if(this.value) window.location.href = window.location.href + '&product=' + this.value;"
+  >
+    <option value="">-- Select an Asset --</option>
+    
+    {% for p in customer_assets %}
+      <option value="{{ p.id }}">
+        {{ p.asset_id }} (Earned: ₹{{ p.customer_specific_revenue|default:"0" }})
+      </option>
+    {% empty %}
+      <option disabled>No assets found for this customer</option>
+    {% endfor %}
+  </select>
+</div>
+{% endif %}
+  <!-- <ul>
     <li><strong>Total Rentals:</strong> {{ total_rentals }}</li>
     <li><strong>Total Days Rented:</strong> {{ total_days }}</li>
+
     {% if product_id %}
       <h3>💰 Financial Summary for {{ product_obj.asset_id }}</h3>
-      <li><strong>Purchase Price:</strong> ₹ {{ purchase_price }}</li>
-      <li><strong>Gross Profit:</strong> ₹ {{ gross_profit }}</li>
-      <li><strong>Maintenance Cost:</strong> ₹ {{ maintenance_cost }}</li>
-      {% if sold_asset %}
-        <li><strong>Sold Asset:</strong> ₹ {{ sold_asset }}</li>
-      {% endif %}
       <li><strong>Net Profit:</strong> ₹ {{ net_profit }}</li>
-    {% else %}
+    {% elif not request.GET.customer %}
       <li><strong>Total Revenue:</strong> ₹ {{ total_revenue }}</li>
     {% endif %}
-  </ul>
-  <div style="max-width: 800px; margin: auto;">
+</ul> -->
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-title">📝 Activity</div>
+    <div class="stat-value">{{ total_rentals }} <span style="font-size:0.6em">Rentals</span></div>
+    <div class="stat-sub">Across {{ total_days }} billing days</div>
+  </div>
+<div class="stat-card">
+    <div class="stat-title">💰 Gross Revenue</div>
+    <div class="stat-value">
+      {% if product_id %}
+        ₹ {{ gross_profit }}
+        
+      {% elif request.GET.customer %}
+        <span id="customer_total_revenue">Calculating...</span>
+        
+        <script>
+          document.addEventListener("DOMContentLoaded", function() {
+            // Get the filtered monthly values passed to the chart
+            const monthlyData = {{ monthly_values|safe }};
+            
+            // Sum them up to get total customer revenue
+            const totalRev = monthlyData.reduce((sum, val) => sum + val, 0);
+            
+            // Display formatted value
+            document.getElementById("customer_total_revenue").innerText = "₹ " + totalRev.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+          });
+        </script>
+
+      {% else %}
+        ₹ {{ total_revenue }}
+      {% endif %}
+    </div>
+
+    {% if sold_asset > 0 %}
+      <div class="stat-sub">+ ₹{{ sold_asset }} from Resale</div>
+    {% endif %}
+  </div>
+  {% if product_id %}
+  <div class="stat-card">
+    <div class="stat-title">📉 Total Costs</div>
+    <div class="stat-value text-red">- ₹ {{ total_cost }}</div>
+    <div class="stat-sub">
+      Purchase: ₹{{ purchase_price }} <br>
+      Maint/Repair: ₹{{ maintenance_cost }}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-title">📊 Net Profit</div>
+    <div class="stat-value {% if net_profit >= 0 %}text-green{% else %}text-red{% endif %}">
+      ₹ {{ net_profit }}
+    </div>
+    <div class="stat-sub">
+      ROI: {{ roi_percentage }}%
+    </div>
+  </div>
+  {% endif %}
+</div>
+<div style="max-width: 800px; margin: auto;">
     <canvas id="revenueChart"></canvas>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -116,8 +191,14 @@
           scales: {
             y: {
               beginAtZero: true,
+              ticks: { precision: 0 }
+            },
+            // Add this to help with layout consistency
+            x: {
               ticks: {
-                precision: 0
+                autoSkip: false,
+                maxRotation: 45,
+                minRotation: 45
               }
             }
           }
@@ -126,6 +207,8 @@
     </script>
   </div>
 </div>
+
+  <p style="padding: 2vh"></p>
 <!-- Correctly closed the previous section -->
 
 <!-- ###################################################### -->

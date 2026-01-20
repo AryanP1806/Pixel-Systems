@@ -1,22 +1,28 @@
 #include <stdio.h>
-#include <graphics.h>
+int num = 5;
+struct employee
+{
+    char name[20];
+    float salary;
+};
 
-int main() {
-    int gd = DETECT, gm;
-    initgraph(&gd, &gm, "");
-
-    // Draw a simple rectangle
-    rectangle(100, 100, 200, 200);
-    floodfill(150, 150, WHITE);
-
-    // Draw a circle
-    circle(300, 150, 50);
-    floodfill(300, 150, WHITE);
-
-    // Draw a line
-    line(400, 100, 500, 200);
-
-    getch();
-    closegraph();
+int main()
+{
+    struct employee e[num]; 
+    for (int i = 0; i < num; i++){
+        printf("\nEnter Employee Name: ");
+        scanf("%s", e[i].name); 
+        printf("\nEnter Employee Salary: ");
+        scanf("%f", &e[i].salary);
+    }
+    int highest_sal= e[0].salary;
+    char emp_name = e[0].name;
+    for(int i = 0; i<num-1;i++){
+        if(e[i].salary < e[i+1].salary ){
+            highest_sal = e[i+1].salary;
+            emp_name = e[i+1].name;
+        }
+    }
+    printf("%s has highest salary of %d",emp_name,highest_sal);
     return 0;
 }

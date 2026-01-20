@@ -1,0 +1,328 @@
+{% extends 'base.html' %} {% load static %}
+<h1>{% block title %}Bulk Rental Entry{% endblock %}</h1>
+{% block content %}
+<div class="container">
+  <div class="homepage-center">
+    <h1>📦 Bulk Add Rentals</h1>
+  </div>
+
+  <form method="post" id="bulkForm" style="max-width: 100%">
+    {% csrf_token %}
+
+    <div class="box" style="margin-bottom: var(--space-xl); text-align: left">
+      <h3 style="margin-bottom: var(--space-lg); color: var(--primary)">
+        Common Details
+      </h3>
+
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: var(--space-lg);
+        "
+      >
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Customer</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.customer }}
+          </div>
+        </div>
+        <p></p>
+        <p></p>
+        <p></p>
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Status</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.status }}
+          </div>
+        </div>
+
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Start Date</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.rental_start_date }}
+          </div>
+        </div>
+
+        <div id="end-date-wrapper" style="display: none">
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >End Date</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.rental_end_date }}
+          </div>
+        </div>
+
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Contract No</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.contract_number }}
+          </div>
+        </div>
+
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Validity</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.contract_validity }}
+          </div>
+        </div>
+
+        <div>
+          <label
+            style="
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--text-secondary);
+            "
+            >Billing Day</label
+          >
+          <div style="margin-top: var(--space-xs)">
+            {{ header_form.billing_day }}
+          </div>
+        </div>
+      </div>
+      {{ header_form.media }}
+    </div>
+
+    <h3 style="margin-bottom: var(--space-md); color: var(--text-primary)">
+      Assets to Rent
+    </h3>
+
+    {{ formset.management_form }}
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 60%">Asset (Searchable)</th>
+            <th style="width: 30%">Payment Amount (₹)</th>
+            <th style="width: 10%">Action</th>
+          </tr>
+        </thead>
+        <tbody id="formset-container">
+          {% for form in formset %}
+          <tr class="item-row">
+            <td>
+              {{ form.asset }} {% if form.asset.errors %}
+              <div
+                style="color: var(--danger); font-size: 12px; margin-top: 5px"
+              >
+                {{ form.asset.errors }}
+              </div>
+              {% endif %}
+            </td>
+            <td>
+              {{ form.payment_amount }} {% if form.payment_amount.errors %}
+              <div
+                style="color: var(--danger); font-size: 12px; margin-top: 5px"
+              >
+                {{ form.payment_amount.errors }}
+              </div>
+              {% endif %}
+            </td>
+            <td style="text-align: center">
+              <button
+                type="button"
+                class="remove-row-btn"
+                style="
+                  background: linear-gradient(135deg, var(--danger), #dc2626);
+                  padding: 6px 12px;
+                  font-size: 12px;
+                "
+              >
+                🗑️
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      style="
+        margin-top: var(--space-lg);
+        display: flex;
+        gap: var(--space-md);
+        justify-content: space-between;
+      "
+    >
+      <button
+        type="button"
+        id="add-row-btn"
+        style="
+          background: linear-gradient(135deg, var(--info), #2563eb);
+          width: auto;
+        "
+      >
+        ➕ Add Another Asset
+      </button>
+
+      <button
+        type="submit"
+        style="
+          background: linear-gradient(135deg, var(--success), #059669);
+          width: auto;
+        "
+      >
+        🚀 Save All Rentals
+      </button>
+    </div>
+  </form>
+</div>
+
+<table style="display: none">
+  <tr id="empty-row">
+    <td>{{ formset.empty_form.asset }}</td>
+    <td>{{ formset.empty_form.payment_amount }}</td>
+    <td style="text-align: center">
+      <button
+        type="button"
+        class="remove-row-btn"
+        style="
+          background: linear-gradient(135deg, var(--danger), #dc2626);
+          padding: 6px 12px;
+          font-size: 12px;
+        "
+      >
+        🗑️
+      </button>
+    </td>
+  </tr>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // ============================================
+    // 1. END DATE VISIBILITY (For Everyone)
+    // ============================================
+    const statusField = document.querySelector(
+      '[name="{{ header_form.status.name }}"]',
+    );
+    const endDateWrapper = document.getElementById("end-date-wrapper");
+
+    function toggleEndDate() {
+      if (!statusField || !endDateWrapper) return;
+
+      const val = statusField.value.toLowerCase();
+      const selectedText =
+        statusField.options[statusField.selectedIndex].text.toLowerCase();
+
+      // Show end date if status is 'Completed'
+      if (selectedText.includes("completed") || val === "completed") {
+        endDateWrapper.style.display = "block";
+      } else {
+        endDateWrapper.style.display = "none";
+      }
+    }
+
+    if (statusField && endDateWrapper) {
+      toggleEndDate();
+      statusField.addEventListener("change", toggleEndDate);
+    }
+
+    // ============================================
+    // 2. ZERO PAYMENT FIX
+    // ============================================
+    const form = document.getElementById("bulkForm");
+    form.addEventListener("submit", function (e) {
+      const paymentInputs = document.querySelectorAll(
+        'input[name$="payment_amount"]',
+      );
+      paymentInputs.forEach(function (input) {
+        if (!input.value.trim()) {
+          input.value = "0";
+        }
+      });
+    });
+
+    // ============================================
+    // 3. FORMSET LOGIC & AUTO-NEXT
+    // ============================================
+    const addBtn = document.getElementById("add-row-btn");
+    const container = document.getElementById("formset-container");
+    const totalFormsInput = document.getElementById("id_form-TOTAL_FORMS");
+    const emptyRow = document.getElementById("empty-row").cloneNode(true);
+
+    function addNewRow() {
+      const formCount = parseInt(totalFormsInput.value);
+      const newRow = emptyRow.cloneNode(true);
+
+      newRow.removeAttribute("id");
+      newRow.classList.add("item-row");
+      newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, formCount);
+
+      container.appendChild(newRow);
+      totalFormsInput.value = formCount + 1;
+
+      $(newRow)
+        .find("[data-autocomplete-light-function=select2]")
+        .each(function () {
+          var $el = $(this);
+          if (window.dal_init_function) {
+            window.dal_init_function($el);
+          }
+        });
+      $(document).trigger("dal-init-new-row", [newRow]);
+    }
+
+    addBtn.addEventListener("click", addNewRow);
+
+    // Auto-next row logic
+    $(document).on("select2:select", 'select[id$="-asset"]', function (e) {
+      var $currentRow = $(this).closest("tr");
+      if ($currentRow.is(":last-child")) {
+        addNewRow();
+      }
+    });
+
+    container.addEventListener("click", function (e) {
+      if (e.target.closest(".remove-row-btn")) {
+        e.target.closest("tr").remove();
+      }
+    });
+  });
+</script>
+
+{{ formset.media }} {% endblock %}

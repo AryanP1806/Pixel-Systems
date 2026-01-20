@@ -13,6 +13,11 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import logging
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
 logging.basicConfig(level=logging.DEBUG)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,10 +27,46 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=+5z17xm4&9igf5#5zx(zixk(ay+0bhr+f&3hx!8n!l0c!skf2'
 
+SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+
+
+# # 1. Force HTTPS (Redirects HTTP to HTTPS)
+# SECURE_SSL_REDIRECT = True 
+
+# # 2. Secure Cookies (Prevents cookies from being sent over plain HTTP)
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+
+# # 3. Browser Hardening
+# # Prevents the browser from guessing content types (MIME sniffing)
+# SECURE_CONTENT_TYPE_NOSNIFF = True
+# # Protects against XSS attacks
+# SECURE_BROWSER_XSS_FILTER = True
+# # Prevents your site from being embedded in an iframe (Clickjacking protection)
+# X_FRAME_OPTIONS = 'DENY'
+
+
+
+
+DEBUG = os.getenv('DEBUG') == 'True'
+
+# ✅ REPLACE with this conditional logic:
+# if not DEBUG:
+#     # Production Settings (Live Server)
+#     SECURE_SSL_REDIRECT = True
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True
+#     SECURE_BROWSER_XSS_FILTER = True
+#     SECURE_CONTENT_TYPE_NOSNIFF = True
+# else:
+#     # Development Settings (Localhost)
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+    
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.0.90'] 
 
@@ -69,6 +110,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'rentals.context_processors.global_year_context'
             ],
         },
     },
@@ -85,7 +127,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',  # or 'django.db.backends.mysql' if using mysqlclient
         'NAME': 'laptop_rental_db',
         'USER': 'root',
-        'PASSWORD': 'aryan@999',
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': 'localhost',   # or IP if remote
         'PORT': '3306',        # default MySQL port
         'OPTIONS': {
@@ -146,12 +188,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # My email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'aryanpore3056@gmail.com'
-# EMAIL_HOST_PASSWORD = 'jnzr cnku dnch fzxq' 
-EMAIL_HOST_PASSWORD = 'vlsi kbcq rdba zdlw' 
+EMAIL_HOST = 'smtpout.secureserver.net'
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True   # <--- CHANGE THIS (was False/Missing)
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = 'support@pixelitsolution.com'
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL') 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
@@ -162,7 +204,3 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 
 
-
-TEMPLATES[0]['OPTIONS']['context_processors'] += [
-    'rentals.context_processors.global_year'
-]

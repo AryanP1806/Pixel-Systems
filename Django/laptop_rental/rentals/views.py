@@ -24,18 +24,296 @@ from reportlab.pdfgen import canvas
 from django.urls import reverse
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal, ROUND_HALF_UP
-from .site_logger import log_action
+# from .site_logger import log_action
+from datetime import date, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
+from .models import ProductAsset, ProductConfiguration
+from .forms import ProductConfigurationForm
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404, redirect
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import ProductAssetForm, PendingProductForm
+from .models import ProductAsset, PendingProduct
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from .models import (
+    Customer, PendingCustomer, ProductAsset, PendingProduct, ProductConfiguration,
+    PendingProductConfiguration, Rental, PendingRental, Repair, PendingRepair,
+    Supplier, AssetType, CPUOption, HDDOption, RAMOption, GraphicsOption, DisplaySizeOption
+)
+from io import StringIO, BytesIO
+from zipfile import ZipFile
+import pandas as pd
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+
+from dal import autocomplete
+from .models import Customer, ProductAsset, Rental
+from django.db.models import Q
+
+from dal import autocomplete
+
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .models import Rental, ProductAsset
+
+
+from collections import defaultdict
+from django.db.models import Sum
+from django.shortcuts import render
+from django.utils.dateparse import parse_date
+import json
+from .models import Customer, ProductAsset, Rental, Repair, ProductConfiguration
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import RentalForm, PendingRentalForm
+from .models import Rental
+from django.db.models import Count, Q
+from django.utils import timezone
+from .forms import RentalBulkHeaderForm, RentalItemFormSet
 
 def logout_view(request):
-    log_action(request.user, "Logged out", "User")
     logout(request)
+    # log_action(request.user, "Logged out", "User")
     return redirect('login')
+
+
+def set_global_year(request):
+    year = request.GET.get('year')
+    if year:
+        request.session['selected_year'] = int(year)
+    
+    # Redirect to the previous page's path (without query parameters) 
+    # to prevent old ?year=... in the URL from overriding our new selection
+    referer = request.META.get('HTTP_REFERER', '/')
+    path = referer.split('?')[0]  # Strip old query params
+    return redirect(path)
+
 
 @login_required
 def homepage(request):
-    return render(request, 'homepage.html')
+    today = timezone.now().date()
+    
+    # 1. Existing KPIs
+    active_rentals = Rental.objects.filter(status='ongoing').count()
+    
+    rented_asset_ids = Rental.objects.filter(status='ongoing').values_list('asset_id', flat=True)
+    available_stock = ProductAsset.objects.filter(condition_status='working').exclude(id__in=rented_asset_ids).count()
+    
+    # 2. 🔴 NEW: Overdue Rentals (End date is in the past, but status is still ongoing)
+    overdue_rentals = Rental.objects.filter(
+        status='ongoing', 
+        rental_end_date__lt=today
+    ).count()
 
+    # 3. 🟡 NEW: Due Returns (Ending Today or Tomorrow)
+    due_soon = Rental.objects.filter(
+        status='ongoing',
+        rental_end_date__range=[today, today + timedelta(days=1)]
+    ).count()
+
+    # 4. 💰 NEW: Revenue This Month (Simple estimation based on active rentals)
+    # This sums up the monthly payment amount of all currently active rentals
+    monthly_revenue = Rental.objects.filter(status='ongoing').aggregate(Sum('payment_amount'))['payment_amount__sum'] or 0
+
+    # 5. Existing Alerts
+    pending_approvals = 0
+    if request.user.is_superuser:
+        pending_approvals = (
+            PendingProduct.objects.count() + 
+            PendingCustomer.objects.count() + 
+            PendingRental.objects.count() +
+            PendingRepair.objects.count()
+        )
+
+    context = {
+        'active_rentals': active_rentals,
+        'available_stock': available_stock,
+        'pending_approvals': pending_approvals,
+        
+        # New Context Variables
+        'overdue_rentals': overdue_rentals,
+        'due_soon': due_soon,
+        'monthly_revenue': monthly_revenue,
+    }
+    return render(request, 'homepage.html', context)
+
+
+# In rentals/views.py
+# In rentals/views.py
+
+@login_required
+def global_search(request):
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return redirect('home')
+
+    # 1. Search Customers
+    customers = Customer.objects.filter(
+        Q(name__icontains=query) |
+        Q(email__icontains=query) |
+        Q(phone_number_primary__icontains=query) |
+        Q(phone_number_secondary__icontains=query)
+    )
+
+    # 2. Search Products
+    products = ProductAsset.objects.filter(
+        Q(asset_id__icontains=query) |
+        Q(serial_no__icontains=query) |
+        Q(model_no__icontains=query) |
+        Q(brand__icontains=query)
+    )
+
+    # --- NEW: Attach "Rented By" info to products ---
+    # Fetch all ongoing rentals to map Asset ID -> Customer Name
+    active_rentals_map = {
+        r.asset_id: r.customer.name 
+        for r in Rental.objects.filter(status='ongoing').select_related('customer')
+    }
+
+    # Attach the renter name to each product object manually
+    for p in products:
+        p.current_renter_name = active_rentals_map.get(p.id)
+
+    # 3. Search Rentals (Contract Number)
+    rentals = Rental.objects.filter(
+        Q(contract_number__icontains=query)
+    ).select_related('customer', 'asset')
+
+    # Auto-jump logic (unchanged)
+    total_results = customers.count() + products.count() + rentals.count()
+    if total_results == 1:
+        if customers.exists():
+            return redirect('customer_detail', pk=customers.first().pk)
+        if products.exists():
+            return redirect('product_detail', pk=products.first().pk)
+
+    return render(request, 'global_search.html', {
+        'query': query,
+        'customers': customers,
+        'products': products,
+        'rentals': rentals,
+        'total_results': total_results
+    })
+# Make sure these imports are at the top of views.py
+from datetime import timedelta
+from django.utils import timezone
+from django.contrib import messages
+from django.core.mail import send_mail
+
+@login_required
+def expiry_dashboard(request):
+    today = timezone.now().date()
+    warning_date = today + timedelta(days=15)  # Look ahead 15 days
+
+    # 1. FETCH DATA
+    # Already Expired
+    expired_rentals = Rental.objects.filter(
+        contract_validity__isnull=False,
+        contract_validity__lt=today,
+        status="ongoing",
+    ).select_related('customer', 'asset').order_by('contract_validity')
+
+    # Expiring Soon (Next 15 Days)
+    expiring_soon = Rental.objects.filter(
+        contract_validity__isnull=False,
+        contract_validity__gte=today,
+        contract_validity__lte=warning_date,
+        status="ongoing",
+    ).select_related('customer', 'asset').order_by('contract_validity')
+
+    # 2. HANDLE EMAIL SENDING (Only when button is clicked)
+    if request.method == "POST" and 'send_reminders' in request.POST:
+        if not expired_rentals.exists():
+            messages.info(request, "No expired contracts to remind.")
+        else:
+            # Build Email Content
+            body_lines = ["The following rental contracts have expired:\n"]
+            recipient_list = ['accounts@pixelitsolution.com', 'support@pixelitsolution.com', 'rental@pixelitsolution.com'] # Admin email
+            
+            for rental in expired_rentals:
+                line = f"- {rental.customer.name} | Asset: {rental.asset.asset_id} | Expired: {rental.contract_validity}"
+                body_lines.append(line)
+                
+                # OPTIONAL: Add customer email to list if you want to CC them?
+                # if rental.customer.email:
+                #     recipient_list.append(rental.customer.email)
+            
+            body_lines.append("\nPlease take necessary action.")
+            
+            try:
+                send_mail(
+                    subject="Rental Management System - Contract Notification",
+                    message="\n".join(body_lines),
+                    from_email='support@pixelitsolution.com',
+                    recipient_list=recipient_list,
+                    fail_silently=False,
+                )
+                messages.success(request, f"✅ Reminder sent for {expired_rentals.count()} expired contracts.")
+            except Exception as e:
+                messages.error(request, f"❌ Failed to send email: {e}")
+        
+        # Redirect to avoid resending on refresh
+        return redirect('check_contracts')
+
+    # 3. RENDER DASHBOARD
+    return render(request, 'rentals/check_contracts.html', {
+        'expired_rentals': expired_rentals,
+        'expiring_soon': expiring_soon,
+        'today': today
+    })
+# @login_required
+# def expiry_dashboard(request):  # <--- RENAMED from check_contracts
+#     today = timezone.now().date()
+#     warning_date = today + timedelta(days=15)
+
+#     # 1. Fetch Data
+#     expired_rentals = Rental.objects.filter(
+#         contract_validity__isnull=False,
+#         contract_validity__lt=today,
+#         status="ongoing",
+#     ).select_related('customer', 'asset').order_by('contract_validity')
+
+#     expiring_soon = Rental.objects.filter(
+#         contract_validity__isnull=False,
+#         contract_validity__gte=today,
+#         contract_validity__lte=warning_date,
+#         status="ongoing",
+#     ).select_related('customer', 'asset').order_by('contract_validity')
+
+#     # 2. Logic for Sending Email
+#     if request.method == "POST" and 'send_reminders' in request.POST:
+#         if expired_rentals.exists():
+#             # ... (Email logic stays the same) ...
+#             try:
+#                 # ... (Send mail code) ...
+#                 messages.success(request, f"✅ Reminder sent.")
+#             except Exception as e:
+#                 messages.error(request, f"❌ Email failed: {e}")
+        
+#         return redirect('expiry_dashboard')  # <--- UPDATE THIS REDIRECT
+
+#     # 3. Render
+#     return render(request, 'rentals/check_contracts.html', {
+#         'expired_rentals': expired_rentals,
+#         'expiring_soon': expiring_soon,
+#         'today': today
+#     })
 # @login_required
 # def rental_list(request):
 #     rentals = Rental.objects.filter(status__in=['ongoing'])
@@ -84,23 +362,20 @@ def product_list(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
 
-    # ---- YEAR HANDLING ----
-    # 1) Try to read from GET
-    selected_year = request.GET.get('year')
-
-    if selected_year:
-        # User explicitly selected a year -> store it
-        request.session['selected_year'] = selected_year
-    else:
-        # No year in URL -> use session value or default
-        selected_year = str(request.session.get('selected_year', 2025))
+    current_year = datetime.now().year
+    
+    # 1. Get from session
+    raw_year = request.session.get('selected_year', current_year)
+    
+    # 2. FORCE INTEGER CONVERSION HERE
+    try:
+        selected_year = int(raw_year)
+    except:
+        selected_year = current_year
 
     products = ProductAsset.objects.all()
-
-    # 🔎 FILTER BY YEAR USING asset_id CONTAINS
-    products = products.filter(asset_id__icontains=selected_year)
-
-    # ---- OTHER FILTERS ----
+    # Filter using string version for DB, but keep 'selected_year' as INT for Template
+    products = products.filter(asset_id__icontains=str(selected_year))    # ---- OTHER FILTERS ----
     if start_date:
         products = products.filter(purchase_date__gte=parse_date(start_date))
 
@@ -160,7 +435,7 @@ def add_asset_type(request):
     form = AssetTypeForm(request.POST or None)
     if form.is_valid():
         form.save()
-        log_action(request.user, "Added new asset type", "AssetType")
+        # log_action(request.user, "Added new asset type", "AssetType")
         return redirect('asset_type_list')
     return render(request, 'products/add_asset_type.html', {'form': form})
 
@@ -172,7 +447,7 @@ def edit_asset_type(request, pk):
     form = AssetTypeForm(request.POST or None, instance=asset_type)
     if form.is_valid():
         form.save()
-        log_action(request.user, "Edited asset type", "AssetType", obj_id=asset_type.id)
+        # log_action(request.user, "Edited asset type", "AssetType", obj_id=asset_type.id)
         return redirect('asset_type_list')
     return render(request, 'products/edit_asset_type.html', {'form': form})
 
@@ -185,7 +460,7 @@ def approval_dashboard(request):
     pending_rentals = PendingRental.objects.all()
     pending_configs = PendingProductConfiguration.objects.all()
     pending_repairs = PendingRepair.objects.select_related('product', 'original_repair', 'submitted_by')
- 
+
 
     products_data = [
         {"pending": p, "old": p.original_product} for p in pending_products
@@ -239,15 +514,15 @@ def approve_config(request, pk):
     #         description="From approved config",
     #         edited_by=request.user
     #     )
-    log_action(request.user, "Approved product configuration", "PendingProductConfiguration", obj_id=pending.id, asset=pending.asset)
     pending.delete()
+    # log_action(request.user, "Approved product configuration", "PendingProductConfiguration", obj_id=pending.id)
     return redirect('approval_dashboard')
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_config(request, pk):
     pending = get_object_or_404(PendingProductConfiguration, pk=pk)
-    log_action(request.user, "Rejected product configuration", "PendingProductConfiguration", obj_id=pending.id, asset=pending.asset)
+    # log_action(request.user, "Rejected product configuration", "PendingProductConfiguration", obj_id=pending.id)
     pending.delete()
     return redirect('approval_dashboard')
 
@@ -277,7 +552,7 @@ def approve_product(request, pk):
 
             product.edited_by = pending.submitted_by
             product.edited_at = pending.submitted_at
-            log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id, asset=product.asset_id)
+            # log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id)
             product.save()
 
         else:
@@ -307,7 +582,7 @@ def approve_product(request, pk):
             # tell new_product.save() to ignore this pending record when checking PendingProduct table
             new_product._pending_pk = pending.pk
             new_product.save()
-            log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id, asset=new_product.asset_id)
+            # log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id)
 
         # only delete pending after successful save
         pending.delete()
@@ -323,41 +598,44 @@ def approve_product(request, pk):
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_product(request, pk):
-    log_action(request.user, "Rejected product", "PendingProduct", obj_id=pk)
     get_object_or_404(PendingProduct, pk=pk).delete()
+    # log_action(request.user, "Rejected product", "PendingProduct", obj_id=pk)
     return redirect('approval_dashboard')
 
 
 @login_required
 def rental_history(request):
     query = request.GET.get('q', '')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
 
-    # Filter only completed rentals
+    # Start with all completed rentals
     rentals = Rental.objects.filter(status='completed')
 
-    # Search functionality
+    # 1. Text Search
     if query:
         rentals = rentals.filter(
             Q(customer__name__icontains=query) |
             Q(asset__asset_id__icontains=query) |
-            Q(asset__serial_no__icontains=query) |
             Q(asset__model_no__icontains=query) |
-            Q(contract_number__icontains=query) |
-            Q(edited_by__username__icontains=query)
+            Q(contract_number__icontains=query)
         )
 
-    rentals = rentals.order_by('-asset__asset_id')
-    # Add end_date for display
-    # for rental in rentals:
-    #     rental.end_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+    # 2. Date Range Filter (Filter by when the rental ENDED)
+    if start_date:
+        rentals = rentals.filter(rental_end_date__gte=start_date)
+    if end_date:
+        rentals = rentals.filter(rental_end_date__lte=end_date)
 
-      # newest first
+    # Sort by newest end date first
+    rentals = rentals.order_by('-rental_end_date')
 
     return render(request, 'rentals/rental_history.html', {
         'rentals': rentals,
-        'query': query
+        'query': query,
+        'start_date': start_date,
+        'end_date': end_date
     })
-
 
 @login_required
 def add_customer(request):
@@ -368,7 +646,7 @@ def add_customer(request):
                 customer = form.save(commit=False)
                 customer.edited_by = request.user
                 customer.save()
-                log_action(request.user, "Added new customer", "Customer", obj_id=customer.id, customer=customer)
+                # log_action(request.user, "Added new customer", "Customer", obj_id=customer.id)
 
                 return redirect('customer_list')
         else:
@@ -377,15 +655,14 @@ def add_customer(request):
                 pending = form.save(commit=False)
                 pending.submitted_by = request.user
                 pending.save()
-                log_action(request.user, "Added new pending customer", "Customer", obj_id=customer.id, customer=pending)
+                # log_action(request.user, "Added new pending customer", "Customer", obj_id=customer.id)
 
                 return redirect('customer_list')
     else:
         form = CustomerForm() if request.user.is_superuser else PendingCustomerForm()
-        
+
 
     return render(request, 'rentals/add_customer.html', {'form': form})
-
 
 
 
@@ -404,7 +681,7 @@ def add_product(request):
             product = form.save(commit=False)
             product.edited_by = request.user
             product.save()
-            log_action(request.user, "Created new product", "ProductAsset", obj_id=product.id, asset=product.asset_id)
+            # log_action(request.user, "Created new product", "ProductAsset", obj_id=product.id)
             messages.success(request, f"✅ Product '{product.asset_id}' was successfully created.")
             return redirect(redirect_url)
 
@@ -432,7 +709,7 @@ def add_product(request):
                 submitted_by=request.user
             )
             pending.save()
-            log_action(request.user, "Submitted new product for approval", "PendingProduct", obj_id=pending.id, asset=pending.asset_id)
+            # log_action(request.user, "Submitted new product for approval", "PendingProduct", obj_id=pending.id)
 
             messages.success(request, f"Product {form.cleaned_data.get('asset_id')} submitted for approval and pending review.")
             return redirect(redirect_url)
@@ -440,7 +717,7 @@ def add_product(request):
     return render(request, 'rentals/add_product.html', {'form': form})
 
 
-            
+
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -460,7 +737,7 @@ def approve_customer(request, pk):
         customer.reference_name = pending.reference_name
         customer.edited_by = pending.submitted_by
         customer.save()
-        log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id,customer=customer.name)
+        # log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id)
     else:
         Customer.objects.create(
             name=pending.name,
@@ -475,7 +752,7 @@ def approve_customer(request, pk):
             edited_by=pending.submitted_by,
         )
 
-    log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id, customer=pending.name)
+    # log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id)
     pending.delete()
     messages.success(request, "Customer approved successfully.")
     return redirect("approval_dashboard")
@@ -484,13 +761,10 @@ def approve_customer(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def reject_customer(request, pk):
     get_object_or_404(PendingCustomer, pk=pk).delete()
-    log_action(request.user, "Rejected customer", "PendingCustomer", obj_id=pk)
+    # log_action(request.user, "Rejected customer", "PendingCustomer", obj_id=pk)
     return redirect('approval_dashboard')
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
-from .forms import RentalForm, PendingRentalForm
-from .models import Rental
+
 @login_required
 def add_rental(request):
     if request.method == 'POST':
@@ -501,7 +775,7 @@ def add_rental(request):
                 rental = form.save(commit=False)
                 rental.edited_by = request.user
                 rental.save()
-                log_action(request.user, "Created rental", "Rental", obj_id=rental.id)
+                # log_action(request.user, "Created rental", "Rental", obj_id=rental.id)
                 messages.success(request, "Rental added successfully.")
                 return redirect('rental_list')
 
@@ -513,7 +787,7 @@ def add_rental(request):
                 pending.submitted_by = request.user
                 pending.edited_by = request.user
                 pending.save()
-                log_action(request.user, "Created rental for approval", "Rental")
+                # log_action(request.user, "Created rental for approval", "Rental")
                 messages.success(request, "Rental submitted for approval.")
 
                 return redirect('rental_list')
@@ -522,7 +796,77 @@ def add_rental(request):
 
     return render(request, 'rentals/add_rental.html', {'form': form})
 
+@login_required
+def add_bulk_rental(request):
+    if request.method == 'POST':
+        header_form = RentalBulkHeaderForm(request.POST)
+        formset = RentalItemFormSet(request.POST)
 
+        if header_form.is_valid() and formset.is_valid():
+            # Get common data
+            header_data = header_form.cleaned_data
+            
+            rentals_created = 0
+            
+            # Loop through the table rows
+            for form in formset:
+                if form.cleaned_data: # Skip completely empty rows
+                    asset = form.cleaned_data.get('asset')
+                    
+                    # Handle Payment
+                    raw_amount = form.cleaned_data.get('payment_amount')
+                    amount = raw_amount if raw_amount is not None else 0
+                    
+                    if asset:
+                        if request.user.is_staff or request.user.is_superuser:
+                            # --- ADMIN: Create LIVE Rental directly ---
+                            Rental.objects.create(
+                                customer=header_data['customer'],
+                                rental_start_date=header_data['rental_start_date'],
+                                rental_end_date=header_data['rental_end_date'],
+                                billing_day=header_data['billing_day'],
+                                contract_number=header_data['contract_number'],
+                                contract_validity=header_data['contract_validity'],
+                                status=header_data['status'],
+                                asset=asset,
+                                payment_amount=amount,
+                                edited_by=request.user
+                            )
+                        else:
+                            # --- NORMAL USER: Create PENDING Rental for Approval ---
+                            PendingRental.objects.create(
+                                customer=header_data['customer'],
+                                rental_start_date=header_data['rental_start_date'],
+                                rental_end_date=header_data['rental_end_date'],
+                                billing_day=header_data['billing_day'],
+                                contract_number=header_data['contract_number'],
+                                contract_validity=header_data['contract_validity'],
+                                status=header_data['status'], # Save the status they asked for (e.g. Completed)
+                                asset=asset,
+                                payment_amount=amount,
+                                submitted_by=request.user,
+                                # If your model has edited_by, include it, otherwise skip
+                            )
+                            
+                        rentals_created += 1
+            
+            if rentals_created > 0:
+                if request.user.is_staff or request.user.is_superuser:
+                    messages.success(request, f"Successfully added {rentals_created} rentals in bulk!")
+                else:
+                    messages.success(request, f"Submitted {rentals_created} rentals for approval.")
+            else:
+                messages.warning(request, "No valid assets were selected.")
+                
+            return redirect('rental_list')
+    else:
+        header_form = RentalBulkHeaderForm()
+        formset = RentalItemFormSet()
+
+    return render(request, 'rentals/add_bulk_rental.html', {
+        'header_form': header_form,
+        'formset': formset
+    })
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -561,7 +905,7 @@ def approve_rental(request, pk):
 
     # ✅ Remove pending request after approval
     pending.delete()
-    log_action(request.user, "Approved rental", "PendingRental", obj_id=pending.id)
+    # log_action(request.user, "Approved rental", "PendingRental", obj_id=pending.id)
     messages.success(request, "Rental approved successfully.")
     return redirect("approval_dashboard")
 
@@ -569,7 +913,7 @@ def approve_rental(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def reject_rental(request, pk):
     get_object_or_404(PendingRental, pk=pk).delete()
-    log_action(request.user, "Rejected rental", "PendingRental", obj_id=pk)
+    # log_action(request.user, "Rejected rental", "PendingRental", obj_id=pk)
     return redirect('approval_dashboard')
 
 
@@ -584,7 +928,7 @@ def edit_rental(request, rental_id):
         if request.method == "POST" and form.is_valid():
             updated_rental = form.save(commit=False)
             updated_rental.edited_by = request.user
-            log_action(request.user, "Edited rental", "Rental", obj_id=updated_rental.id)
+            # log_action(request.user, "Edited rental", "Rental", obj_id=updated_rental.id)
             updated_rental.save()
             messages.success(request, "Rental updated successfully.")
             return redirect("rental_list")
@@ -610,7 +954,7 @@ def edit_rental(request, rental_id):
                     submitted_by=request.user,
                 )
                 pending.save()
-                log_action(request.user, "Submitted rental edit for approval", "PendingRental", obj_id=pending.id)
+                # log_action(request.user, "Submitted rental edit for approval", "PendingRental", obj_id=pending.id)
                 messages.success(request, "Rental changes submitted for approval.")
                 return redirect("rental_list")
         else:
@@ -628,7 +972,7 @@ def edit_customer(request, pk):
         if request.method == "POST" and form.is_valid():
             updated_customer = form.save(commit=False)
             updated_customer.edited_by = request.user
-            log_action(request.user, "Edited customer", "Customer", obj_id=updated_customer.id)
+            # log_action(request.user, "Edited customer", "Customer", obj_id=updated_customer.id)
             updated_customer.save()
             messages.success(request, "Customer updated successfully.")
             return redirect("customer_list")
@@ -650,7 +994,7 @@ def edit_customer(request, pk):
                     reference_name=cleaned.get("reference_name"),
                     submitted_by=request.user,
                 )
-                log_action(request.user, "Submitted customer edit for approval", "PendingCustomer", obj_id=pending.id)
+                # log_action(request.user, "Submitted customer edit for approval", "PendingCustomer", obj_id=pending.id)
                 pending.save()
                 messages.success(request, "Customer changes submitted for approval.")
                 return redirect("customer_list")
@@ -677,7 +1021,7 @@ def edit_product(request, pk):
             product = form.save(commit=False)
             product.edited_by = request.user
             product.save()
-            log_action(request.user, "Submitted edit for product", "ProductAsset", obj_id=product.id)
+            # log_action(request.user, "Submitted edit for product", "ProductAsset", obj_id=product.id)
 
             messages.success(request, f"✏️ Product '{product.asset_id}' was successfully updated.")
             return redirect(redirect_url)
@@ -708,7 +1052,7 @@ def edit_product(request, pk):
                 date_marked_dead=cleaned.get('date_marked_dead'),
                 damage_narration=cleaned.get('damage_narration'),
             )
-            log_action(request.user, "Submitted edit for product for approval", "ProductAsset", obj_id=product.id)
+            # log_action(request.user, "Submitted edit for product for approval", "ProductAsset", obj_id=product.id)
             messages.success(request, "Changes submitted for approval.")
             return redirect(redirect_url)
 
@@ -720,10 +1064,6 @@ def edit_product(request, pk):
 
 
 
-from .models import ProductAsset, ProductConfiguration
-from .forms import ProductConfigurationForm
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
 
 @login_required
 def add_config(request, pk):
@@ -739,7 +1079,7 @@ def add_config(request, pk):
                 config = form.save(commit=False)
                 config.asset = asset
                 config.edited_by = request.user
-                log_action(request.user, "Added product configuration", "ProductConfiguration", obj_id=config.id, asset=config.asset)
+                # log_action(request.user, "Added product configuration", "ProductConfiguration", obj_id=config.id)
                 config.save()
                 return redirect('product_detail', pk=pk)
             else:
@@ -758,7 +1098,7 @@ def add_config(request, pk):
                     detailed_config=form.cleaned_data.get('detailed_config'),
                     submitted_by=request.user
                 )
-                log_action(request.user, "Submitted product configuration for approval", "PendingProductConfiguration", obj_id=pending.id, asset=pending.asset)
+                # log_action(request.user, "Submitted product configuration for approval", "PendingProductConfiguration", obj_id=pending.id, asset_id=asset.id)
                 pending.save()
                 return redirect('product_detail', pk=pk)
     else:
@@ -773,7 +1113,7 @@ def add_config(request, pk):
                 'display_size': last_config.display_size,
                 'power_supply': last_config.power_supply,
                 'detailed_config': last_config.detailed_config,
-                
+
             })
         else:
             # First config: blank form
@@ -781,7 +1121,35 @@ def add_config(request, pk):
 
     return render(request, 'rentals/add_config.html', {'form': form, 'asset': asset})
 
-@login_required    
+
+
+@login_required
+def customer_detail(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    product = get_object_or_404(ProductAsset, pk=pk)
+    
+    # Fetch rentals specifically for this customer
+    current_rentals = Rental.objects.filter(customer=customer, status='ongoing').select_related('asset')
+    rental_history = Rental.objects.filter(customer=customer, status='completed').select_related('asset').order_by('-rental_end_date')
+    active_count = current_rentals.count()
+    history_count = rental_history.count()
+
+    # Optional: Calculate total active monthly billing for this customer
+    total_active_billing = current_rentals.aggregate(Sum('payment_amount'))['payment_amount__sum'] or 0
+
+    return render(request, 'rentals/customer_detail.html', {
+        'product': product,
+        'customer': customer,
+        'current_rentals': current_rentals,
+        'rental_history': rental_history,
+        'total_active_billing': total_active_billing,
+        'active_count': active_count,
+        'history_count': history_count,
+
+    })
+
+
+@login_required
 def product_detail(request, pk):
     product = get_object_or_404(ProductAsset, pk=pk)
     configs = product.configurations.all().order_by('-date_of_config')
@@ -854,7 +1222,7 @@ def product_detail(request, pk):
 def delete_config(request, config_id):
     config = get_object_or_404(ProductConfiguration, pk=config_id)
     asset_id = config.asset.pk
-    log_action(request.user, "Deleted product configuration", "ProductConfiguration", obj_id=config.id)
+    # log_action(request.user, "Deleted product configuration", "ProductConfiguration", obj_id=config.id)
     config.delete()
     return redirect('product_detail', pk=asset_id)
 
@@ -885,7 +1253,7 @@ def clone_product(request, pk):
             edited_by=request.user
         )
         new_product.save()
-        log_action(request.user, "Cloned product", "ProductAsset", obj_id=new_product.id)
+        # log_action(request.user, "Cloned product", "ProductAsset", obj_id=new_product.id)
         messages.success(request, f"Product cloned successfully {new_product.asset_id}. Please update details as per need.")
         return redirect(redirect_url)
 
@@ -919,64 +1287,84 @@ def clone_product(request, pk):
             condition_status=original.condition_status,
             edited_by=request.user
         )
-        log_action(request.user, "Cloned product for approval", "PendingProduct", obj_id=new_product.id)
+        # log_action(request.user, "Cloned product for approval", "PendingProduct", obj_id=new_product.id)
         new_product.save()
         messages.success(request, f"Product clone {new_product.asset_id} submitted for approval.")
         return redirect(redirect_url)
 
-    
 
 
 
 @login_required
 def rental_list(request):
-    query = request.GET.get('q')
-    filter_type = request.GET.get('filter')
+    query = request.GET.get('q', '').strip()
+    sort_by = request.GET.get('sort', 'newest') # Default to newest
+    billing_filter = request.GET.get('billing_day')
 
-    # Filter by status first
-    # if filter_type == 'ongoing':
-    rentals = Rental.objects.filter(status='ongoing')
-    
+    # 1. Base Query (Optimized)
+    rentals = Rental.objects.select_related('customer', 'asset', 'asset__type_of_asset').filter(status='ongoing')
+
+    # 2. Advanced Search
     if query:
         rentals = rentals.filter(
             Q(customer__name__icontains=query) |
+            Q(customer__phone_number_primary__icontains=query) |
+            Q(customer__email__icontains=query) |
             Q(asset__asset_id__icontains=query) |
-            Q(asset__serial_no__icontains=query)
+            Q(asset__serial_no__icontains=query) |
+            Q(asset__brand__icontains=query) |
+            Q(asset__model_no__icontains=query) |
+            Q(asset__type_of_asset__name__icontains=query) | # NEW: Search "Laptop"
+            Q(contract_number__icontains=query)
         )
 
-    # Sort and calculate due date
-    rentals = rentals.order_by('-rental_start_date')
-    # for rental in rentals:
-    #     rental.due_date = rental.rental_start_date + timedelta(days=rental.duration_days)
+    # 3. Billing Day Filter (Specific 1-31 filter)
+    if billing_filter:
+        rentals = rentals.filter(billing_day=billing_filter)
+
+    # 4. Sorting Logic
+    if sort_by == 'expiry':
+        # Show expiring soonest first (exclude None values if needed)
+        rentals = rentals.order_by('contract_validity')
+    elif sort_by == 'billing':
+        # Group by billing day (1, 2, 3...)
+        rentals = rentals.order_by('billing_day')
+    elif sort_by == 'customer':
+        # A-Z Customer Name
+        rentals = rentals.order_by('customer__name')
+    elif sort_by == 'oldest':
+        # Oldest rentals first
+        rentals = rentals.order_by('rental_start_date')
+    else:
+        # Default: Newest rentals first
+        rentals = rentals.order_by('-rental_start_date')
 
     return render(request, 'rentals/rental_list.html', {
         'rentals': rentals,
-        'filter_type': filter_type
+        'query': query,
+        'sort_by': sort_by,
+        'billing_filter': billing_filter,
+        # Generate 1-31 list for the template dropdown
+        'billing_days': range(1, 32) 
     })
-
 
 @login_required
 def mark_rental_completed(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
     rental.status = 'completed'
-    log_action(request.user, "Marked rental as completed", "Rental", obj_id=rental.id)
+    # log_action(request.user, "Marked rental as completed", "Rental", obj_id=rental.id)
     rental.save()
     return redirect('rental_list')
 
 
 
 
-from collections import defaultdict
-from django.db.models import Sum
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
-import json
-
-from .models import Customer, ProductAsset, Rental, Repair, ProductConfiguration
-
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser)
 def report_dashboard(request):
+    today = timezone.now().date()
+
     customers = Customer.objects.all()
     products = ProductAsset.objects.all()
 
@@ -1002,10 +1390,53 @@ def report_dashboard(request):
     else:
         selected_customers = []
 
-    # Calculate customer business totals
-    for customer in selected_customers:
-        total = Rental.objects.filter(customer=customer).aggregate(total=Sum('payment_amount'))['total'] or 0
-        customer_business.append({'name': customer.name, 'total': total})
+
+    # Replace your "Revenue by customer" and "customer_business" loops with this:
+    customer_revenue = {}
+    customer_business = []
+
+    for customer in Customer.objects.all():
+        customer_total = Decimal('0.00')
+        # Get all rentals for this customer
+        customer_rentals = Rental.objects.filter(customer=customer)
+
+        for rental in customer_rentals:
+            if not rental.rental_start_date:
+                continue
+
+            # Match calculator logic: use end_date or today
+            end_date = rental.rental_end_date or today
+            if end_date > today:
+                end_date = today
+
+            current_date = rental.rental_start_date
+            rental_revenue = Decimal('0.00')
+
+            # Month-by-month calculation (Exact match to your calculator)
+            while current_date <= end_date:
+                if current_date.month == 12:
+                    next_month_start = date(current_date.year + 1, 1, 1)
+                else:
+                    next_month_start = date(current_date.year, current_date.month + 1, 1)
+
+                days_in_month = (next_month_start - timedelta(days=1)).day
+
+                if current_date.month == end_date.month and current_date.year == end_date.year:
+                    end_day = end_date.day
+                else:
+                    end_day = days_in_month
+
+                days_to_count = end_day - current_date.day + 1
+                daily_rate = rental.payment_amount / Decimal(days_in_month)
+                rental_revenue += (daily_rate * Decimal(days_to_count))
+                current_date = next_month_start
+
+            customer_total += rental_revenue.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        # Fill both data structures
+        if customer_total > 0:
+            customer_revenue[customer.name] = float(customer_total)
+            customer_business.append({'name': customer.name, 'total': float(customer_total)})
 
     # If product selected, calculate profit
     product_obj = None
@@ -1033,7 +1464,8 @@ def report_dashboard(request):
         config_cost = ProductConfiguration.objects.filter(asset=product_obj).aggregate(total=Sum('cost'))['total'] or 0
 
         maintenance_cost = float(repair_cost) + float(config_cost)
-        net_profit = gross_profit - maintenance_cost - purchase_price
+        # Add sold_asset to the gains
+        net_profit = (gross_profit + sold_asset) - maintenance_cost - purchase_price
 
     # Apply filters
     if customer_id:
@@ -1056,11 +1488,36 @@ def report_dashboard(request):
     ))
 
     # Monthly revenue trends
+    # Replace your "Monthly revenue trends" loop with this:
     monthly = {}
     for r in rentals:
-        month = r.rental_start_date.strftime("%Y-%m")
-        monthly[month] = monthly.get(month, 0) + float(r.payment_amount or 0)
+        if not r.rental_start_date: continue
 
+        end_date = r.rental_end_date or today
+        if end_date > today: end_date = today
+
+        current_date = r.rental_start_date
+        while current_date <= end_date:
+            month_key = current_date.strftime("%Y-%m")
+
+            # Calculate days in this specific month
+            if current_date.month == 12:
+                next_month = date(current_date.year + 1, 1, 1)
+            else:
+                next_month = date(current_date.year, current_date.month + 1, 1)
+
+            days_in_month = (next_month - timedelta(days=1)).day
+
+            if current_date.month == end_date.month and current_date.year == end_date.year:
+                days_to_count = end_date.day - current_date.day + 1
+            else:
+                days_to_count = days_in_month - current_date.day + 1
+
+            revenue_for_this_month = (r.payment_amount / Decimal(days_in_month)) * Decimal(days_to_count)
+
+            # Add to the specific month in the chart
+            monthly[month_key] = monthly.get(month_key, 0) + float(revenue_for_this_month)
+            current_date = next_month
     # Top 5 assets by revenue
     top_assets = (
         ProductAsset.objects.annotate(total_income=Sum('revenue'))
@@ -1077,12 +1534,6 @@ def report_dashboard(request):
     type_labels = list(type_revenue.keys())
     type_values = [float(v) for v in type_revenue.values()]
 
-    # Revenue by customer
-    customer_revenue = {}
-    for customer in Customer.objects.all():
-        total = Rental.objects.filter(customer=customer).aggregate(total=Sum('payment_amount'))['total']
-        if total:
-            customer_revenue[customer.name] = float(total)
 
     sorted_customers = sorted(customer_revenue.items(), key=lambda x: x[1], reverse=True)
     customer_labels = [name for name, _ in sorted_customers]
@@ -1095,7 +1546,7 @@ def report_dashboard(request):
         .order_by('-total_cost')[:5]
     )
 
-    today = timezone.now().date()
+    # today = timezone.now().date()
     in_warranty_assets = []
     for asset in products:
         if asset.purchase_date and asset.warranty_duration_months and asset.warranty_duration_months > 0:
@@ -1112,7 +1563,7 @@ def report_dashboard(request):
 
 
     # Repairs with active warranty
-    today = timezone.now().date()
+    # today = timezone.now().date()
 
     repairs = Repair.objects.all()
     repairs_with_warranty = []
@@ -1122,11 +1573,95 @@ def report_dashboard(request):
         if expiry and today <= expiry:
             repairs_with_warranty.append(r)
 
+
+    # Ensure all months between start and end exist, even with 0 revenue
+    if monthly:
+        all_keys = sorted(monthly.keys())
+        first_month = datetime.strptime(all_keys[0], "%Y-%m")
+        last_month = datetime.strptime(all_keys[-1], "%Y-%m")
+
+        current = first_month
+        while current <= last_month:
+            key = current.strftime("%Y-%m")
+            if key not in monthly:
+                monthly[key] = 0.0
+
+            # Increment month
+            if current.month == 12:
+                current = current.replace(year=current.year + 1, month=1)
+            else:
+                current = current.replace(month=current.month + 1)
+
+
+    customer_assets = []
+    if customer_id:
+        # 1. Fetch assets rented by this customer
+        customer_assets = ProductAsset.objects.filter(rentals__customer_id=customer_id).distinct()
+
+        # 2. Calculate revenue specifically for this customer on these assets
+        for asset in customer_assets:
+            asset_total = Decimal('0.00')
+            # Get rentals only for this specific asset AND this specific customer
+            asset_rentals = Rental.objects.filter(asset=asset, customer_id=customer_id)
+
+            for rental in asset_rentals:
+                if not rental.rental_start_date:
+                    continue
+                
+                # Use same date logic as your main report
+                calc_end_date = rental.rental_end_date or today
+                if calc_end_date > today:
+                    calc_end_date = today
+                
+                # Skip invalid dates
+                if rental.rental_start_date > calc_end_date:
+                    continue
+
+                # Calculate days and revenue
+                current_date = rental.rental_start_date
+                rental_rev = Decimal('0.00')
+
+                while current_date <= calc_end_date:
+                    if current_date.month == 12:
+                        next_month = date(current_date.year + 1, 1, 1)
+                    else:
+                        next_month = date(current_date.year, current_date.month + 1, 1)
+                    
+                    days_in_month = (next_month - timedelta(days=1)).day
+                    
+                    if current_date.month == calc_end_date.month and current_date.year == calc_end_date.year:
+                        end_day = calc_end_date.day
+                    else:
+                        end_day = days_in_month
+                        
+                    days_to_count = end_day - current_date.day + 1
+                    daily_rate = rental.payment_amount / Decimal(days_in_month)
+                    rental_rev += (daily_rate * Decimal(days_to_count))
+                    
+                    current_date = next_month
+
+                asset_total += rental_rev
+
+            # 3. Attach this calculated value to the asset object temporarily
+            asset.customer_specific_revenue = asset_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    # --- END OF NEW BLOCK ---
+    roi_percentage = 0
+    total_cost = 0
+    if product_obj:
+        total_cost = purchase_price + maintenance_cost
+        if purchase_price > 0:
+            roi_percentage = (net_profit / purchase_price) * 100
+    # # Now proceed to sort and dump to JSON as shown in step 1
+    sorted_months = sorted(monthly.keys())
     # Final context
     context = {
         'customers': customers,
         'products': products,
         'rentals': rentals,
+        
+        'customer_assets': customer_assets,
+        'roi_percentage': roi_percentage,  # <--- Add this
+        'total_cost': total_cost,          # <--- Add this
         'total_revenue': total_revenue,
         'total_rentals': total_rentals,
         'purchase_price': product_obj.purchase_price if product_obj else 0,
@@ -1146,8 +1681,8 @@ def report_dashboard(request):
         'net_profit': net_profit,
         'product_obj': product_obj,
         'product_id': product_id,
-        'monthly_labels': json.dumps(list(reversed(monthly.keys()))),
-        'monthly_values': json.dumps([float(v) for v in reversed(monthly.values())]),
+        'monthly_labels': json.dumps(sorted_months),
+        'monthly_values': json.dumps([monthly[m] for m in sorted_months]),
         'top_assets': top_assets,
         'customer_business': customer_business,
         'type_labels': json.dumps(type_labels),
@@ -1159,13 +1694,6 @@ def report_dashboard(request):
     }
 
     return render(request, 'rentals/report_dashboard.html', context)
-
-from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
-from django.contrib import messages
-from django.shortcuts import redirect
-from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Rental, ProductAsset
 
 
 @login_required
@@ -1250,7 +1778,7 @@ def run_revenue_calculator(request):
             )
 
     # Step 5: Display success message
-    log_action(request.user, "Ran revenue recalculation", "System Task")
+    # log_action(request.user, "Ran revenue recalculation", "System Task")
     messages.success(
         request,
         f"Revenue successfully recalculated for {updated_rentals} rentals as of {today}."
@@ -1291,7 +1819,7 @@ def add_supplier(request):
         form = SupplierForm(request.POST)
         if form.is_valid():
             form.save()
-            log_action(request.user, "Added new supplier", "Supplier")
+            # log_action(request.user, "Added new supplier", "Supplier")
             messages.success(request, "Vendor added successfully.")
             return redirect('supplier_list')
     else:
@@ -1305,7 +1833,7 @@ def edit_supplier(request, pk):
     if request.method == 'POST':
         form = SupplierForm(request.POST, instance=supplier)
         if form.is_valid():
-            log_action(request.user, "Edited supplier", "Supplier", obj_id=supplier.id)
+            # log_action(request.user, "Edited supplier", "Supplier", obj_id=supplier.id)
             form.save()
             return redirect('supplier_list')
     else:
@@ -1322,7 +1850,7 @@ def send_billing_reminder(request):
     if not rentals_due_today.exists():
         messages.info(request, "No rentals due for billing today.")
         return redirect('rental_list')
-    
+
     body_lines = []
     for rental in rentals_due_today:
         asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
@@ -1333,13 +1861,13 @@ def send_billing_reminder(request):
 
     try:
         send_mail(
-            subject="Todays Billing Reminder",
+            subject="Rental Management System - Notification Billing Reminder",
             message=body,
-            from_email='aryanpore3056@gmail.com',
-            recipient_list=['accounts@pixelitsolution.com'],
+            from_email='support@pixelitsolution.com',
+            recipient_list=['accounts@pixelitsolution.com','aryanpore3056@gmail.com'],
             fail_silently=False,
             )
-        log_action(request.user, "Sent billing reminders", "System Task")
+        # log_action(request.user, "Sent billing reminders", "System Task")
         messages.success(request, "Billing reminder sent successfully!")
     except Exception as e:
         messages.error(request, f"Failed to send reminder: {e}")
@@ -1349,9 +1877,9 @@ def send_billing_reminder(request):
 
 @login_required
 def add_repair(request, pk):
-    
+
     product = get_object_or_404(ProductAsset, pk=pk)
-    # nameing = get(ProductAsset)    
+    # nameing = get(ProductAsset)
 
     if request.method == 'POST':
         form = RepairForm(request.POST)
@@ -1365,7 +1893,7 @@ def add_repair(request, pk):
                 form_product = form.cleaned_data.get("product")
                 if not form_product and product:
                     repair.product = product
-                log_action(request.user, "Added new repair", "Repair", obj_id=repair.id)
+                # log_action(request.user, "Added new repair", "Repair", obj_id=repair.id)
                 repair.save()
                 messages.success(request, "Repair added successfully.")
                 return redirect('product_detail', pk=repair.product.pk)
@@ -1373,22 +1901,18 @@ def add_repair(request, pk):
                 # NORMAL USER → Save to PendingRepair table
                 cleaned_data = form.cleaned_data
 
-                
-                # views.py inside add_repair
                 pending_repair = PendingRepair(
                     product=cleaned_data.get('product') or product,
                     name=cleaned_data.get('name'),
                     cost=cleaned_data.get('cost'),
                     date=cleaned_data.get('date'),
-                    # CORRECT: Matches the field name in models.py
-                    # Also ensure cleaned_data key matches your form field name
-                    repair_warranty_months=cleaned_data.get('repair_warranty_months'), 
+                    repair_warranty_months=cleaned_data.get('repair_warranty_months'),
 
                     submitted_by=request.user,
-                    is_edit=False,  
+                    is_edit=False,  # NEW REPAIR, not an edit
                 )
                 pending_repair.save()
-                log_action(request.user, "Submitted new repair for approval", "PendingRepair", obj_id=pending_repair.id)
+                # log_action(request.user, "Submitted new repair for approval", "PendingRepair", obj_id=pending_repair.id)
                 messages.success(
                     request,
                     "Repair submitted for approval. It will appear after superuser approval."
@@ -1415,7 +1939,7 @@ def edit_repair(request, pk):
             updated_repair = form.save(commit=False)
             updated_repair.edited_by = request.user
             updated_repair.save()
-            log_action(request.user, "Edited repair", "Repair", obj_id=updated_repair.id)
+            # log_action(request.user, "Edited repair", "Repair", obj_id=updated_repair.id)
             messages.success(request, "Repair updated successfully.")
             return redirect('product_detail', pk=repair.product.pk)
 
@@ -1439,7 +1963,7 @@ def edit_repair(request, pk):
                     pending_repair.product = repair.product
                     pending_repair.submitted_by = request.user
                     pending_repair.save()
-                    log_action(request.user, "Updated existing pending repair edit", "PendingRepair", obj_id=pending_repair.id)
+                    # log_action(request.user, "Updated existing pending repair edit", "PendingRepair", obj_id=pending_repair.id)
                     messages.success(request, "Repair edit updated and submitted for approval.")
                 else:
                     # Create a new pending edit request
@@ -1453,7 +1977,7 @@ def edit_repair(request, pk):
                         is_edit=True
                     )
                     messages.success(request, "Repair edit submitted for approval.")
-                    log_action(request.user, "Submitted repair edit for approval", "PendingRepair", obj_id=repair.id)
+                    # log_action(request.user, "Submitted repair edit for approval", "PendingRepair", obj_id=repair.id)
                 return redirect('product_detail', pk=repair.product.pk)
         else:
             form = RepairForm(instance=repair)
@@ -1469,7 +1993,7 @@ def delete_repair(request, pk):
     if request.user.is_superuser:
         # Superuser can delete directly
         repair.delete()
-        log_action(request.user, "Deleted repair", "Repair", obj_id=repair.id)
+        # log_action(request.user, "Deleted repair", "Repair", obj_id=repair.id)
         messages.success(request, "Repair deleted successfully.")
         return redirect('product_detail', pk=product_pk)
 
@@ -1495,7 +2019,7 @@ def delete_repair(request, pk):
                 name=None
             )
             messages.success(request, "Delete request submitted for approval.")
-            log_action(request.user, "Submitted repair delete request for approval", "PendingRepair", obj_id=repair.id)
+            # log_action(request.user, "Submitted repair delete request for approval", "PendingRepair", obj_id=repair.id)
 
         return redirect('product_detail', pk=product_pk)
 
@@ -1516,7 +2040,7 @@ def approve_repair_edit(request, pk):
             original.edited_by = pending_repair.submitted_by
             # original.edited_at = timezone.now()
             original.save()
-            log_action(request.user, "Approved repair edit", "Repair", obj_id=original.id)
+            # log_action(request.user, "Approved repair edit", "Repair", obj_id=original.id)
             messages.success(request, "Repair edit approved successfully.")
         else:
             # CREATE NEW REPAIR
@@ -1529,7 +2053,7 @@ def approve_repair_edit(request, pk):
                 edited_at=pending_repair.submitted_at
             )
             messages.success(request, "New repair approved successfully.")
-            log_action(request.user, "Approved new repair", "Repair")
+            # log_action(request.user, "Approved new repair", "Repair")
         # DELETE the pending record after approval
         pending_repair.delete()
 
@@ -1554,7 +2078,7 @@ def manage_hdd_Options(request):
     form = HDDOptionForm(request.POST or None, instance=instance)
 
     if request.method == 'POST' and form.is_valid():
-        log_action(request.user, "Managed HDD option", "HDDOption", obj_id=instance.id if instance else None)
+        # log_action(request.user, "Managed HDD option", "HDDOption", obj_id=instance.id if instance else None)
         form.save()
         return redirect('manage_hdd_Options')
 
@@ -1583,7 +2107,7 @@ def manage_ram_Options(request):
 
     if request.method == 'POST' and form.is_valid():
         form.save()
-        log_action(request.user, "Managed RAM option", "RAMOption", obj_id=instance.id if instance else None)
+        # log_action(request.user, "Managed RAM option", "RAMOption", obj_id=instance.id if instance else None)
         return redirect('manage_ram_Options')
 
     return render(request, 'rentals/manage_Options.html', {
@@ -1609,7 +2133,7 @@ def manage_cpu_Options(request):
     form = CPUOptionForm(request.POST or None, instance=instance)
 
     if request.method == 'POST' and form.is_valid():
-        log_action(request.user, "Managed CPU option", "CPUOption", obj_id=instance.id if instance else None)
+        # log_action(request.user, "Managed CPU option", "CPUOption", obj_id=instance.id if instance else None)
         form.save()
         return redirect('manage_cpu_Options')
 
@@ -1636,7 +2160,7 @@ def manage_display_size_Options(request):
     form = DisplaySizeOptionForm(request.POST or None, instance=instance)
 
     if request.method == 'POST' and form.is_valid():
-        log_action(request.user, "Managed Display Size option", "DisplaySizeOption", obj_id=instance.id if instance else None)
+        # log_action(request.user, "Managed Display Size option", "DisplaySizeOption", obj_id=instance.id if instance else None)
         form.save()
         return redirect('manage_display_size_Options')
 
@@ -1663,7 +2187,7 @@ def manage_graphics_Options(request):
     form = GraphicsOptionForm(request.POST or None, instance=instance)
 
     if request.method == 'POST' and form.is_valid():
-        log_action(request.user, "Managed Graphics option", "GraphicsOption", obj_id=instance.id if instance else None)
+        # log_action(request.user, "Managed Graphics option", "GraphicsOption", obj_id=instance.id if instance else None)
         form.save()
         return redirect('manage_graphics_Options')
 
@@ -1685,7 +2209,7 @@ def edit_config(request, config_id):
     if request.user.is_superuser:
         form = ProductConfigurationForm(request.POST or None, instance=config)
         if request.method == 'POST' and form.is_valid():
-            log_action(request.user, "Edited product configuration", "ProductConfiguration", obj_id=config.id)
+            # log_action(request.user, "Edited product configuration", "ProductConfiguration", obj_id=config.id)
             form.save()
             return redirect('product_detail', pk=config.asset.pk)
     else:
@@ -1706,7 +2230,7 @@ def edit_config(request, config_id):
                     is_edit=True,
                     original_config=config,
                 )
-                log_action(request.user, "Submitted product configuration edit for approval", "PendingProductConfiguration", obj_id=pending.id)
+                # log_action(request.user, "Submitted product configuration edit for approval", "PendingProductConfiguration", obj_id=pending.id)
                 messages.success(request, "Configuration edit submitted for approval.")
                 pending.save()
                 return redirect('product_detail', pk=config.asset.pk)
@@ -1734,7 +2258,7 @@ def approve_edited_config(request, pk):
     config.power_supply = pending.power_supply
     config.detailed_config = pending.detailed_config
     config.save()
-    log_action(request.user, "Approved product configuration edit", "ProductConfiguration", obj_id=config.id)
+    # log_action(request.user, "Approved product configuration edit", "ProductConfiguration", obj_id=config.id)
 
     pending.delete()
     messages.success(request, "Configuration update approved.")
@@ -1746,7 +2270,7 @@ def approve_edited_config(request, pk):
 def reject_edited_config(request, pk):
     pending = get_object_or_404(PendingProductConfiguration, pk=pk)
     pending.delete()
-    log_action(request.user, "Rejected product configuration edit", "PendingProductConfiguration", obj_id=pending.id)
+    # log_action(request.user, "Rejected product configuration edit", "PendingProductConfiguration", obj_id=pending.id)
     messages.info(request, "Configuration update rejected.")
     return redirect('approval_dashboard')
 
@@ -1763,7 +2287,7 @@ def approve_edited_repair(request, pk):
     repair.cost = pending.cost
     repair.repair_date = pending.repair_date
     repair.save()
-    log_action(request.user, "Approved repair edit", "Repair", obj_id=repair.id)
+    # log_action(request.user, "Approved repair edit", "Repair", obj_id=repair.id)
 
     pending.delete()
     messages.success(request, "Repair update approved.")
@@ -1775,60 +2299,57 @@ def approve_edited_repair(request, pk):
 def reject_edited_repair(request, pk):
     pending = get_object_or_404(PendingRepair, pk=pk)
     pending.delete()
-    log_action(request.user, "Rejected repair edit", "PendingRepair", obj_id=pending.id)
+    # log_action(request.user, "Rejected repair edit", "PendingRepair", obj_id=pending.id)
     messages.info(request, "Repair update rejected.")
     return redirect('approval_dashboard')
-
 
 
 @login_required
 def check_contracts(request):
     today = now().date()
 
+    # 1. Fetch expired rentals
     expired_rentals = Rental.objects.filter(
         contract_validity__isnull=False,
         contract_validity__lt=today,
         status="ongoing",
     )
 
-    body_lines = []
-    for rental in expired_rentals:
-        asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
-        customer_name = rental.customer.name if rental.customer else 'Unknown Customer'
-        body_lines.append(f"- Asset: {asset_id} | Customer: {customer_name}")
+    # 2. Check if we actually have any expired rentals
+    if expired_rentals.exists():
+        
+        # 3. Build the email body
+        body_lines = []
+        for rental in expired_rentals:
+            asset_id = rental.asset.asset_id if rental.asset else 'Unknown'
+            customer_name = rental.customer.name if rental.customer else 'Unknown Customer'
+            expiry_date = rental.contract_validity
+            body_lines.append(f"- {asset_id} | {customer_name} | Expired: {expiry_date}")
 
-    body = "Contract Expiry Reminder:\n\n" + "\n".join(body_lines)
-    # for rental in expired_rentals:
-    #     subject = f"Contract Expired for Rental #{rental.id}"
-    #     message = f"""
-    #     """
+        body = "⚠️ Contract Expiry Alert ({expired_rentals.count()} items)\nThe following contracts have expired:\n\n" + "\n".join(body_lines)
 
-        # message = f"""
-        # Hello {rental.customer.name},
-
-        # Your rental contract for asset {rental.asset.asset_id} has expired on {rental.contract_validity}.
-
-        # Please return or renew your rental as soon as possible.
-        # """
-    if rental.customer.email:
-            # send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [rental.customer.email])
+        # 4. Send Email to ADMINS (No need to check customer email)
+        try:
             send_mail(
-            subject="Todays Contract Expiry Reminder",
-            message=body,
-            from_email='aryanpore3056@gmail.com',
-            recipient_list=['accounts@pixelitsolution.com'],
-            fail_silently=False,
+                subject=f"Rental Management System - Contract Notification",
+                message=body,
+                from_email='support@pixelitsolution.com',
+                recipient_list=[
+                    'accounts@pixelitsolution.com', 
+                    'support@pixelitsolution.com', 
+                    'rental@pixelitsolution.com',
+                    'aryanpore3056@gmail.com'
+                ],
+                fail_silently=False,
             )
-    log_action(request.user, "Checked contract expiries", "System Task")
-    messages.success(request, f"Checked {expired_rentals.count()} rentals for contract expiry.")
+            messages.success(request, f"✅ Alert sent for {expired_rentals.count()} expired contracts.")
+        except Exception as e:
+            messages.error(request, f"❌ Failed to send email: {e}")
+
+    else:
+        messages.info(request, "👍 No expired contracts found today.")
+
     return redirect("rental_list")
-
-
-from dal import autocomplete
-from .models import Customer, ProductAsset, Rental
-from django.db.models import Q
-
-from dal import autocomplete
 
 class AssetAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
@@ -1837,11 +2358,11 @@ class AssetAutocomplete(autocomplete.Select2QuerySetView):
             status__in=['ongoing', 'overdue'],
             asset__isnull=False
         ).values_list('asset_id', flat=True)
-        
+
         qs = ProductAsset.objects.filter(
             condition_status='working'
         ).exclude(id__in=rented_ids)
-        
+
         if self.q:
             qs = qs.filter(
                 Q(asset_id__icontains=self.q) |
@@ -1850,7 +2371,7 @@ class AssetAutocomplete(autocomplete.Select2QuerySetView):
                 Q(serial_no__icontains=self.q)
             )
         return qs
-    
+
     def get_result_label(self, item):
         return f"{item.asset_id} - {item.brand} {item.model_no}"
 
@@ -1864,10 +2385,10 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
                 Q(email__icontains=self.q)
             )
         return qs
-    
+
     def get_result_label(self, item):
         return f"{item.name} - {item.phone_number_primary}"
-    
+
 
 
 
@@ -1888,7 +2409,7 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
 #         def write_csv_to_zip(filename, queryset):
 #             if not queryset.exists():
 #                 return
-            
+
 #             # Use StringIO for CSV writing
 #             csv_buffer = StringIO()
 #             fieldnames = list(queryset[0].keys())
@@ -1896,7 +2417,7 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
 #             writer.writeheader()
 #             for record in queryset:
 #                 writer.writerow(record)
-            
+
 #             # Encode to bytes before writing to zip
 #             zip_file.writestr(filename, csv_buffer.getvalue().encode('utf-8'))
 
@@ -2057,25 +2578,8 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
 
 
 # Required imports (place at top of views.py)
-import csv
-from io import StringIO, BytesIO
-from zipfile import ZipFile
-import pandas as pd
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 
 # models (already in your file)
-from .models import (
-    Customer, PendingCustomer, ProductAsset, PendingProduct, ProductConfiguration,
-    PendingProductConfiguration, Rental, PendingRental, Repair, PendingRepair,
-    Supplier, AssetType, CPUOption, HDDOption, RAMOption, GraphicsOption, DisplaySizeOption
-)
 
 
 # ----------------------------
@@ -2246,6 +2750,7 @@ def serialize_supplier(s):
 # CSV -> ZIP
 # ----------------------------
 @login_required
+@user_passes_test(lambda u: u.is_superuser)
 def export_reports_csv(request):
     """Export all data models to a ZIP of CSVs"""
     output = BytesIO()
@@ -2282,13 +2787,14 @@ def export_reports_csv(request):
 
     response = HttpResponse(output.getvalue(), content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
-    log_action(request.user, "Exported full report as CSV ZIP", "Report Export")
+    # log_action(request.user, "Exported full report as CSV ZIP", "Report Export")
     return response
 
 # -------------------------------------------
 # Excel Export (Multi-sheet)
 # -------------------------------------------
 @login_required
+@user_passes_test(lambda u: u.is_superuser)
 def export_reports_excel(request):
     """Export all data models to a single Excel workbook"""
     output = BytesIO()
@@ -2322,18 +2828,13 @@ def export_reports_excel(request):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
     response.write(output.getvalue())
-    log_action(request.user, "Exported full report as Excel", "Report Export")
+    # log_action(request.user, "Exported full report as Excel", "Report Export")
     return response
 # ----------------------------
 # PDF export
 # ----------------------------
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-
 @login_required
+@user_passes_test(lambda u: u.is_superuser)
 def export_reports_pdf(request):
     """
     Create a structured, unclipped PDF containing all key datasets.
@@ -2424,5 +2925,5 @@ def export_reports_pdf(request):
     response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
     response.write(output.getvalue())
 
-    log_action(request.user, "Exported full report as PDF", "Report Export")
+    # log_action(request.user, "Exported full report as PDF", "Report Export")
     return response
