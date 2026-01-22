@@ -157,67 +157,96 @@ def homepage(request):
     }
     return render(request, 'homepage.html', context)
 
+
+
+# views.py
+
 @login_required
 def smart_asset_search(request):
-    """
-    Search for assets based on specific configuration criteria.
-    Shows ALL assets (Available, Rented, Sold) with their current status.
-    """
     # 1. Get Filter Parameters
     asset_type_id = request.GET.get('asset_type')
     cpu_id = request.GET.get('cpu')
     ram_id = request.GET.get('ram')
     hdd_id = request.GET.get('hdd')
-    ssd_val = request.GET.get('ssd')
     display_id = request.GET.get('display')
     graphics_id = request.GET.get('graphics')
     
-    # 2. Base Query: Start with ALL assets (not just working)
-    # We want to show everything that matches the hardware config
+    # --- NEW: Text Field Filters ---
+    ssd_val = request.GET.get('ssd')
+    power_val = request.GET.get('power')
+    
+    # --- NEW: Sorting & Availability ---
+    show_available_only = request.GET.get('available_only') == 'true'
+    sort_by = request.GET.get('ordering', 'asset_id') # Default sort
+
+    # 2. Base Query
     assets = ProductAsset.objects.all()
 
-    # 3. Apply Asset Type Filter
+    # 3. Apply Filters
     if asset_type_id:
         assets = assets.filter(type_of_asset_id=asset_type_id)
 
-    # 4. Apply Configuration Filters
-    if any([cpu_id, ram_id, hdd_id, ssd_val, display_id, graphics_id]):
-        
-        # Subquery: Find the ID of the *latest* config for each asset
+    # Subquery for latest config filtering
+    # We filter if ANY config parameter is present
+    if any([cpu_id, ram_id, hdd_id, display_id, graphics_id, ssd_val, power_val]):
         latest_config_subquery = ProductConfiguration.objects.filter(
             asset=OuterRef('pk')
         ).order_by('-date_of_config').values('id')[:1]
 
-        # Filter assets to only those matching the subquery
         assets = assets.filter(configurations__id=Subquery(latest_config_subquery))
 
-        # Apply specific hardware filters
-        if cpu_id:
-            assets = assets.filter(configurations__cpu_id=cpu_id)
-        if ram_id:
-            assets = assets.filter(configurations__ram_id=ram_id)
-        if hdd_id:
-            assets = assets.filter(configurations__hdd_id=hdd_id)
-        if display_id:
-            assets = assets.filter(configurations__display_size_id=display_id)
-        if graphics_id:
-            assets = assets.filter(configurations__graphics_id=graphics_id)
-        if ssd_val:
-            assets = assets.filter(configurations__ssd__icontains=ssd_val)
+        if cpu_id: assets = assets.filter(configurations__cpu_id=cpu_id)
+        if ram_id: assets = assets.filter(configurations__ram_id=ram_id)
+        if hdd_id: assets = assets.filter(configurations__hdd_id=hdd_id)
+        if display_id: assets = assets.filter(configurations__display_size_id=display_id)
+        if graphics_id: assets = assets.filter(configurations__graphics_id=graphics_id)
+        
+        # --- NEW: Filter by CharFields ---
+        if ssd_val: assets = assets.filter(configurations__ssd=ssd_val)
+        if power_val: assets = assets.filter(configurations__power_supply=power_val)
 
-    # 5. Prefetch Data for "Status" Display
-    # We need to know if there is an active rental to show "Rented to X"
+    # 4. Prefetch for efficiency (Ensure configs are ordered by newest)
+    from django.db.models import Prefetch
+    config_prefetch = Prefetch(
+        'configurations',
+        queryset=ProductConfiguration.objects.order_by('-date_of_config')
+    )
+    
     ongoing_rentals_prefetch = Prefetch(
         'rentals',
         queryset=Rental.objects.filter(status__in=['ongoing', 'overdue']).select_related('customer'),
-        to_attr='active_rental_list' # Stores result in a list attribute
+        to_attr='active_rental_list'
     )
+    
+    # 5. Availability Logic
+    if show_available_only:
+        assets = assets.filter(condition_status='working')
+        active_ids = Rental.objects.filter(status__in=['ongoing', 'overdue']).values_list('asset_id', flat=True)
+        assets = assets.exclude(id__in=active_ids)
+        pending_ids = PendingRental.objects.filter(asset__isnull=False).values_list('asset_id', flat=True)
+        assets = assets.exclude(id__in=pending_ids)
 
-    # 6. Optimization
+    # 6. Apply Sorting
+    # Map friendly names to actual fields if needed, or just use field names
+    if sort_by == 'asset_id_desc':
+        assets = assets.order_by('-asset_id')
+    elif sort_by == 'purchased_newest':
+        assets = assets.order_by('-purchase_date')
+    elif sort_by == 'purchased_oldest':
+        assets = assets.order_by('purchase_date')
+    else:
+        # Default asc
+        assets = assets.order_by('asset_id')
+
     assets = assets.select_related('type_of_asset').prefetch_related(
-        'configurations', 
+        config_prefetch, 
         ongoing_rentals_prefetch
     )
+
+    # --- NEW: Fetch Unique CharField Values for Dropdowns ---
+    # exclude null/empty values for cleaner dropdowns
+    ssd_options = ProductConfiguration.objects.exclude(ssd__isnull=True).exclude(ssd__exact='').values_list('ssd', flat=True).distinct().order_by('ssd')
+    power_options = ProductConfiguration.objects.exclude(power_supply__isnull=True).exclude(power_supply__exact='').values_list('power_supply', flat=True).distinct().order_by('power_supply')
 
     context = {
         'assets': assets,
@@ -228,6 +257,10 @@ def smart_asset_search(request):
         'display_options': DisplaySizeOption.objects.all(),
         'graphics_options': GraphicsOption.objects.all(),
         
+        # --- NEW: Pass CharField Options ---
+        'ssd_options': ssd_options,
+        'power_options': power_options,
+
         # Preserve selections
         'selected_type': int(asset_type_id) if asset_type_id else None,
         'selected_cpu': int(cpu_id) if cpu_id else None,
@@ -236,10 +269,17 @@ def smart_asset_search(request):
         'selected_display': int(display_id) if display_id else None,
         'selected_graphics': int(graphics_id) if graphics_id else None,
         'selected_ssd': ssd_val,
+        'selected_power': power_val,
+        'selected_sort': sort_by,
+        'show_available_only': show_available_only
     }
 
+    if request.headers.get('HX-Request'):
+        return render(request, 'rentals/partials/smart_search_results.html', context)
+
     return render(request, 'rentals/smart_search.html', context)
-    
+
+
 @login_required
 def global_search(request):
     query = request.GET.get('q', '').strip()

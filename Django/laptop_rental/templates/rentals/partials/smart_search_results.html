@@ -1,0 +1,82 @@
+{% for asset in assets %}
+<tr style="border-bottom: 1px solid #e5e7eb; transition: background 0.2s;">
+  <td style="padding: 12px 15px">
+    <a href="{% url 'product_detail' asset.id %}" style="font-weight: bold; color: #6366f1; text-decoration: none">
+      {{ asset.asset_id }}
+    </a>
+  </td>
+  <td style="padding: 12px 15px">{{ asset.type_of_asset.name }}</td>
+  <td style="padding: 12px 15px">
+    <div style="font-weight: 500;">{{ asset.brand }} {{ asset.model_no }}</div>
+    <div style="font-size: 0.8em; color: #6b7280; margin-top: 2px;">S/N: {{ asset.serial_no }}</div>
+  </td>
+  <td style="padding: 12px 15px">
+    {% with config=asset.configurations.first %} 
+    {% if config %}
+    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+      
+      <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.cpu.name|default:"-" }}
+      </span>
+
+      <span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.ram.name|default:"-" }}
+      </span>
+
+      {% if config.hdd %}
+      <span style="background: #ffedd5; color: #9a3412; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.hdd.name }}
+      </span>
+      {% endif %}
+
+      {% if config.ssd %}
+      <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.ssd }} 
+      </span>
+      {% endif %}
+
+      {% if config.graphics %}
+      <span style="background: #fdf4ff; color: #86198f; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.graphics.name }}
+      </span>
+      {% endif %}
+
+      {% if config.display_size %}
+      <span style="background: #f3e8ff; color: #6b21a8; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600;">
+        {{ config.display_size.name }}
+      </span>
+      {% endif %}
+
+    </div>
+    {% else %}
+    <span style="color: #9ca3af; font-style: italic; font-size: 0.9em;">No Config</span>
+    {% endif %} 
+    {% endwith %}
+  </td>
+  <td style="padding: 12px 15px">
+    {# Logic Priority: Sold > Rented > Damaged > Available #}
+    {% if asset.condition_status == 'sold' %}
+        <span style="background: #fce7f3; color: #be185d; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 700;">SOLD</span>
+    {% elif asset.active_rental_list %}
+        <div style="display: flex; flex-direction: column;">
+            <span style="background: #ffedd5; color: #b45309; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 700; width: fit-content;">RENTED</span>
+            <small style="color: #6b7280; font-size: 0.75em; margin-top: 4px;">{{ asset.active_rental_list.0.customer.name|truncatechars:15 }}</small>
+        </div>
+    {% elif asset.condition_status == 'damaged' or asset.condition_status == 'missing' %}
+        <span style="background: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 700;">{{ asset.condition_status|upper }}</span>
+    {% else %}
+        <a href="{% url 'add_rental' %}?asset={{ asset.id }}" 
+           style="background: #10b981; color: white; padding: 5px 10px; border-radius: 6px; font-size: 0.8em; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+           <span>Rent</span> ➝
+        </a>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280; background: #f9fafb;">
+    <div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
+    <p>No assets found matching these criteria.</p>
+  </td>
+</tr>
+{% endfor %}
