@@ -1,0 +1,429 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Smart Asset Search{% endblock %}</h1>
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto">
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    "
+  >
+    <div>
+      <h1 style="margin: 0; color: #1f2937">⚡ Smart Asset Match</h1>
+      <p style="color: #6b7280; margin: 5px 0 0">
+        Search inventory by configuration (shows Available, Rented, and Sold).
+      </p>
+    </div>
+    <a
+      href="{% url 'home' %}"
+      style="text-decoration: none; color: #6366f1; font-weight: 600"
+      >&larr; Back to Dashboard</a
+    >
+  </div>
+
+  <div style="padding: 20px; margin-bottom: 25px">
+    <form
+      method="get"
+      action="."
+      style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        align-items: end;
+      "
+    >
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >Asset Type</label
+        >
+        <select
+          name="asset_type"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any Type</option>
+          {% for type in asset_types %}
+          <pre><option value="{{ type.id }}" {% if selected_type == type.id %}selected{% endif %}>{{ type.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >CPU</label
+        >
+        <select
+          name="cpu"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any CPU</option>
+          {% for opt in cpu_options %}
+          <pre><option value="{{ opt.id }}" {% if selected_cpu == opt.id %}selected{% endif %}>{{ opt.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >RAM</label
+        >
+        <select
+          name="ram"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any RAM</option>
+          {% for opt in ram_options %}
+          <pre><option value="{{ opt.id }}" {% if selected_ram == opt.id %}selected{% endif %}>{{ opt.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >HDD</label
+        >
+        <select
+          name="hdd"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any HDD</option>
+          {% for opt in hdd_options %}
+          <pre><option value="{{ opt.id }}" {% if selected_hdd == opt.id %}selected{% endif %}>{{ opt.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >Display</label
+        >
+        <select
+          name="display"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any Size</option>
+          {% for opt in display_options %}
+          <pre><option value="{{ opt.id }}" {% if selected_display == opt.id %}selected{% endif %}>{{ opt.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label
+          style="
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+          "
+          >Graphics</label
+        >
+        <select
+          name="graphics"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+          "
+        >
+          <option value="">Any GPU</option>
+          {% for opt in graphics_options %}
+          <pre><option value="{{ opt.id }}" {% if selected_graphics == opt.id %}selected{% endif %}>{{ opt.name }}</option></pre>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 10px">
+        <button
+          type="submit"
+          style="
+            background-color: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            flex: 1;
+          "
+        >
+          Find
+        </button>
+      </div>
+      <a
+        href="{% url 'smart_asset_search' %}"
+        style="
+          padding: 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          color: #374151;
+          text-decoration: none;
+          background: white;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        "
+      >
+        Reset
+      </a>
+    </form>
+  </div>
+
+  <h3 style="margin-bottom: 15px; color: #374151">
+    Results: {{ assets.count }} Matches found
+  </h3>
+
+  <div style="overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px">
+    <table style="width: 100%; border-collapse: collapse; min-width: 800px">
+      <thead style="background-color: #f3f4f6">
+        <tr>
+          <th
+            style="
+              padding: 12px 15px;
+              text-align: left;
+              border-bottom: 2px solid #e5e7eb;
+            "
+          >
+            Asset ID
+          </th>
+          <th
+            style="
+              padding: 12px 15px;
+              text-align: left;
+              border-bottom: 2px solid #e5e7eb;
+            "
+          >
+            Type
+          </th>
+          <th
+            style="
+              padding: 12px 15px;
+              text-align: left;
+              border-bottom: 2px solid #e5e7eb;
+            "
+          >
+            Model / Brand
+          </th>
+          <th
+            style="
+              padding: 12px 15px;
+              text-align: left;
+              border-bottom: 2px solid #e5e7eb;
+            "
+          >
+            Latest Config
+          </th>
+          <th
+            style="
+              padding: 12px 15px;
+              text-align: left;
+              border-bottom: 2px solid #e5e7eb;
+            "
+          >
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for asset in assets %}
+        <tr style="border-bottom: 1px solid #e5e7eb">
+          <td style="padding: 12px 15px">
+            <a
+              href="{% url 'product_detail' asset.id %}"
+              style="font-weight: bold; color: #6366f1; text-decoration: none"
+            >
+              {{ asset.asset_id }}
+            </a>
+          </td>
+          <td style="padding: 12px 15px">{{ asset.type_of_asset.name }}</td>
+          <td style="padding: 12px 15px">
+            {{ asset.brand }} {{ asset.model_no }}<br />
+            <span style="font-size: 0.85em; color: #6b7280"
+              >{{ asset.serial_no }}</span
+            >
+          </td>
+          <td style="padding: 12px 15px">
+            {% with config=asset.configurations.first %} {% if config %}
+            <div style="display: flex; gap: 5px; flex-wrap: wrap">
+              <span
+                style="
+                  background: #e0e7ff;
+                  color: #3730a3;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 0.8em;
+                "
+                >{{ config.cpu.name|default:"-" }}</span
+              >
+              <span
+                style="
+                  background: #d1fae5;
+                  color: #065f46;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 0.8em;
+                "
+                >{{ config.ram.name|default:"-" }}</span
+              >
+              <span
+                style="
+                  background: #ffedd5;
+                  color: #9a3412;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 0.8em;
+                "
+                >{{ config.hdd.name|default:"-" }}</span
+              >
+              {% if config.graphics %}
+              <span
+                style="
+                  background: #fce7f3;
+                  color: #9d174d;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 0.8em;
+                "
+                >{{ config.graphics.name }}</span
+              >
+              {% endif %} {% if config.display_size %}
+              <span
+                style="
+                  background: #e5e7eb;
+                  color: #374151;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 0.8em;
+                "
+                >{{ config.display_size.name }}</span
+              >
+              {% endif %}
+            </div>
+            {% else %}
+            <span style="color: #9ca3af; font-style: italic">No Config</span>
+            {% endif %} {% endwith %}
+          </td>
+          <td style="padding: 12px 15px">
+            {# Priority 1: Check if Sold #}
+            {% if asset.condition_status == 'sold' %}
+                <div style="color: #be185d; font-weight: 600; font-size: 0.9em;">
+                   ❌ SOLD
+                </div>
+                <div style="color: #6b7280; font-size: 0.8em;">
+                    To: {{ asset.sold_to|default:"Unknown" }}
+                </div>
+            
+            {# Priority 2: Check if Rented (using prefetched list) #}
+            {% elif asset.active_rental_list %}
+                <div style="color: #d97706; font-weight: 600; font-size: 0.9em;">
+                    🔒 RENTED
+                </div>
+                <div style="color: #6b7280; font-size: 0.8em;">
+                    By: {{ asset.active_rental_list.0.customer.name }}
+                </div>
+
+            {# Priority 3: Check if Damaged/Missing #}
+            {% elif asset.condition_status == 'damaged' %}
+                <span style="color: red; font-weight: bold;">⚠️ Damaged</span>
+            {% elif asset.condition_status == 'missing' %}
+                <span style="color: red; font-weight: bold;">❓ Missing</span>
+
+            {# Priority 4: Available #}
+            {% else %}
+                <a
+                  href="{% url 'add_rental' %}?asset={{ asset.id }}"
+                  style="
+                    background-color: #10b981;
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    text-decoration: none;
+                    font-size: 0.9em;
+                    font-weight: 600;
+                    display: inline-block;
+                  "
+                >
+                  ✅ Rent Now
+                </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td
+            colspan="5"
+            style="text-align: center; padding: 40px; color: #6b7280"
+          >
+            No assets found matching these criteria.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div> </p>
+{% endblock %}

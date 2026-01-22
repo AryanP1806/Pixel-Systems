@@ -16,7 +16,7 @@
     </div>
 
     <div>
-      <label style="font-weight: bold">From (End Date):</label><br />
+      <label style="font-size:small; font-weight: bold">From (Start Date):</label><br />
       <input
         type="date"
         name="start_date"
@@ -120,7 +120,7 @@
 
         <td>₹{{ rental.payment_amount }}</td>
         <td>{{ rental.contract_number|default:"-" }}</td>
-        <td>{{ rental.edited_by.username }}</td>
+        <td>{{ rental.edited_by.username }} | {{ rental.edited_at }}</td>
 
         <td>
           {% if user.is_superuser %}
@@ -142,5 +142,8 @@
       {% endfor %}
     </tbody>
   </table>
+
 </div>
+  <p style="padding: 1vh"></p>
+
 {% endblock %}

@@ -705,8 +705,41 @@ Dashboard{% endblock %} {% block content %}
 </div>
 
 <script>
+  // 1. On page load: Restore Tab & Scroll Position
+  document.addEventListener("DOMContentLoaded", function () {
+    // A. Restore Tab
+    const savedTab = localStorage.getItem("activeApprovalTab");
+    if (savedTab) {
+      const tabBtn = document.querySelector(
+        `button[onclick="openTab(event, '${savedTab}')"]`
+      );
+      if (tabBtn) {
+        tabBtn.click();
+      }
+    }
+
+    // B. Restore Scroll Position
+    // We check if a scroll position is saved and apply it.
+    // We use a slight timeout to ensure the DOM has updated (tab switched)
+    // before scrolling, otherwise the page height might be too short.
+    const savedScroll = localStorage.getItem("approvalScrollY");
+    if (savedScroll) {
+      setTimeout(function () {
+        window.scrollTo(0, parseInt(savedScroll));
+      }, 50); // 50ms delay is usually sufficient for DOM repaints
+    }
+  });
+
+  // 2. Save Scroll Position on Page Unload (Reload, Link Click, Action)
+  window.addEventListener("beforeunload", function () {
+    localStorage.setItem("approvalScrollY", window.scrollY);
+  });
+
   function openTab(evt, tabName) {
-    // 1. Hide all tabs
+    // 3. Save the clicked tab to localStorage
+    localStorage.setItem("activeApprovalTab", tabName);
+
+    // Existing tab switching logic
     var i, tabContent, tabBtns;
     tabContent = document.getElementsByClassName("tab-pane");
     for (i = 0; i < tabContent.length; i++) {
@@ -714,13 +747,11 @@ Dashboard{% endblock %} {% block content %}
       tabContent[i].classList.remove("active");
     }
 
-    // 2. Deactivate all buttons
     tabBtns = document.getElementsByClassName("tab-btn");
     for (i = 0; i < tabBtns.length; i++) {
       tabBtns[i].className = tabBtns[i].className.replace(" active", "");
     }
 
-    // 3. Show clicked tab and activate button
     document.getElementById(tabName).style.display = "block";
     document.getElementById(tabName).classList.add("active");
     evt.currentTarget.className += " active";

@@ -11,6 +11,7 @@ urlpatterns = [
     path("expiry-dashboard/", views.expiry_dashboard, name="expiry_dashboard"),
     
     path('search/', views.global_search, name='global_search'),
+    path('assets/smart-search/', views.smart_asset_search, name='smart_asset_search'),
     
     # Add this to your urlpatterns
     path('set-year/', views.set_global_year, name='set_global_year'),

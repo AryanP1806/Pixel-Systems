@@ -85,6 +85,11 @@ from .models import Rental
 from django.db.models import Count, Q
 from django.utils import timezone
 from .forms import RentalBulkHeaderForm, RentalItemFormSet
+from django.db.models import Subquery, OuterRef
+from .models import AssetType, CPUOption, RAMOption, HDDOption
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Subquery, OuterRef, Prefetch
 
 def logout_view(request):
     logout(request)
@@ -152,10 +157,89 @@ def homepage(request):
     }
     return render(request, 'homepage.html', context)
 
+@login_required
+def smart_asset_search(request):
+    """
+    Search for assets based on specific configuration criteria.
+    Shows ALL assets (Available, Rented, Sold) with their current status.
+    """
+    # 1. Get Filter Parameters
+    asset_type_id = request.GET.get('asset_type')
+    cpu_id = request.GET.get('cpu')
+    ram_id = request.GET.get('ram')
+    hdd_id = request.GET.get('hdd')
+    ssd_val = request.GET.get('ssd')
+    display_id = request.GET.get('display')
+    graphics_id = request.GET.get('graphics')
+    
+    # 2. Base Query: Start with ALL assets (not just working)
+    # We want to show everything that matches the hardware config
+    assets = ProductAsset.objects.all()
 
-# In rentals/views.py
-# In rentals/views.py
+    # 3. Apply Asset Type Filter
+    if asset_type_id:
+        assets = assets.filter(type_of_asset_id=asset_type_id)
 
+    # 4. Apply Configuration Filters
+    if any([cpu_id, ram_id, hdd_id, ssd_val, display_id, graphics_id]):
+        
+        # Subquery: Find the ID of the *latest* config for each asset
+        latest_config_subquery = ProductConfiguration.objects.filter(
+            asset=OuterRef('pk')
+        ).order_by('-date_of_config').values('id')[:1]
+
+        # Filter assets to only those matching the subquery
+        assets = assets.filter(configurations__id=Subquery(latest_config_subquery))
+
+        # Apply specific hardware filters
+        if cpu_id:
+            assets = assets.filter(configurations__cpu_id=cpu_id)
+        if ram_id:
+            assets = assets.filter(configurations__ram_id=ram_id)
+        if hdd_id:
+            assets = assets.filter(configurations__hdd_id=hdd_id)
+        if display_id:
+            assets = assets.filter(configurations__display_size_id=display_id)
+        if graphics_id:
+            assets = assets.filter(configurations__graphics_id=graphics_id)
+        if ssd_val:
+            assets = assets.filter(configurations__ssd__icontains=ssd_val)
+
+    # 5. Prefetch Data for "Status" Display
+    # We need to know if there is an active rental to show "Rented to X"
+    ongoing_rentals_prefetch = Prefetch(
+        'rentals',
+        queryset=Rental.objects.filter(status__in=['ongoing', 'overdue']).select_related('customer'),
+        to_attr='active_rental_list' # Stores result in a list attribute
+    )
+
+    # 6. Optimization
+    assets = assets.select_related('type_of_asset').prefetch_related(
+        'configurations', 
+        ongoing_rentals_prefetch
+    )
+
+    context = {
+        'assets': assets,
+        'asset_types': AssetType.objects.all(),
+        'cpu_options': CPUOption.objects.all(),
+        'ram_options': RAMOption.objects.all(),
+        'hdd_options': HDDOption.objects.all(),
+        'display_options': DisplaySizeOption.objects.all(),
+        'graphics_options': GraphicsOption.objects.all(),
+        
+        # Preserve selections
+        'selected_type': int(asset_type_id) if asset_type_id else None,
+        'selected_cpu': int(cpu_id) if cpu_id else None,
+        'selected_ram': int(ram_id) if ram_id else None,
+        'selected_hdd': int(hdd_id) if hdd_id else None,
+        'selected_display': int(display_id) if display_id else None,
+        'selected_graphics': int(graphics_id) if graphics_id else None,
+        'selected_ssd': ssd_val,
+    }
+
+    return render(request, 'rentals/smart_search.html', context)
+    
 @login_required
 def global_search(request):
     query = request.GET.get('q', '').strip()
@@ -796,30 +880,89 @@ def add_rental(request):
 
     return render(request, 'rentals/add_rental.html', {'form': form})
 
+
+
+# In views.py
+# In rentals/views.py
+
+class AssetAutocomplete(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        # 1. Check for Backdated Flag from the URL (sent by Javascript)
+        is_backdated = self.request.GET.get('backdated') == 'true'
+
+        if is_backdated:
+            # === BACKDATED MODE ===
+            # Show EVERY asset in the system (Rented, Sold, Working, etc.)
+            # This allows you to log historical rentals for assets that are currently unavailable.
+            qs = ProductAsset.objects.all().order_by('asset_id')
+        
+        else:
+            # === NORMAL MODE ===
+            # Strict filtering to prevent double-booking
+            
+            # A. Exclude currently rented (Ongoing/Overdue)
+            rented_ids = Rental.objects.filter(
+                status__in=['ongoing', 'overdue'],
+                asset__isnull=False
+            ).values_list('asset_id', flat=True)
+
+            # B. Exclude assets currently in 'Pending Rental' approval queue
+            # (This fixes your issue of seeing assets that are waiting for approval)
+            pending_ids = PendingRental.objects.filter(
+                asset__isnull=False
+            ).values_list('asset_id', flat=True)
+
+            # Combine exclusions
+            excluded_ids = set(rented_ids) | set(pending_ids)
+
+            # C. Apply Filter: Must be 'working' and NOT in the excluded list
+            qs = ProductAsset.objects.filter(
+                condition_status='working'
+            ).exclude(id__in=excluded_ids).order_by('asset_id')
+
+        # 2. Apply Text Search (Common to both modes)
+        if self.q:
+            qs = qs.filter(
+                Q(asset_id__icontains=self.q) |
+                Q(brand__icontains=self.q) |
+                Q(model_no__icontains=self.q) |
+                Q(serial_no__icontains=self.q)
+            )
+        return qs
+
+    def get_result_label(self, item):
+        # Optional: Add status to label for clarity in backdated mode
+        if self.request.GET.get('backdated') == 'true':
+            return f"{item.asset_id} - {item.brand} ({item.condition_status})"
+        return f"{item.asset_id} - {item.brand} {item.model_no}"
+    
+
 @login_required
 def add_bulk_rental(request):
+    # Check if backdated mode is active from URL
+    is_backdated = request.GET.get('backdated') == 'true'
+
     if request.method == 'POST':
         header_form = RentalBulkHeaderForm(request.POST)
-        formset = RentalItemFormSet(request.POST)
+        
+        # Pass the backdated flag to the FormSet
+        formset = RentalItemFormSet(request.POST, form_kwargs={'backdated': is_backdated})
 
         if header_form.is_valid() and formset.is_valid():
-            # Get common data
             header_data = header_form.cleaned_data
-            
             rentals_created = 0
             
-            # Loop through the table rows
             for form in formset:
-                if form.cleaned_data: # Skip completely empty rows
+                if form.cleaned_data: 
                     asset = form.cleaned_data.get('asset')
-                    
-                    # Handle Payment
                     raw_amount = form.cleaned_data.get('payment_amount')
                     amount = raw_amount if raw_amount is not None else 0
                     
                     if asset:
+                        # Determine Status: Force 'completed' if backdated, else use form selection
+                        final_status = 'completed' if is_backdated else header_data['status']
+
                         if request.user.is_staff or request.user.is_superuser:
-                            # --- ADMIN: Create LIVE Rental directly ---
                             Rental.objects.create(
                                 customer=header_data['customer'],
                                 rental_start_date=header_data['rental_start_date'],
@@ -827,13 +970,12 @@ def add_bulk_rental(request):
                                 billing_day=header_data['billing_day'],
                                 contract_number=header_data['contract_number'],
                                 contract_validity=header_data['contract_validity'],
-                                status=header_data['status'],
+                                status=final_status,
                                 asset=asset,
                                 payment_amount=amount,
                                 edited_by=request.user
                             )
                         else:
-                            # --- NORMAL USER: Create PENDING Rental for Approval ---
                             PendingRental.objects.create(
                                 customer=header_data['customer'],
                                 rental_start_date=header_data['rental_start_date'],
@@ -841,32 +983,31 @@ def add_bulk_rental(request):
                                 billing_day=header_data['billing_day'],
                                 contract_number=header_data['contract_number'],
                                 contract_validity=header_data['contract_validity'],
-                                status=header_data['status'], # Save the status they asked for (e.g. Completed)
+                                status=final_status, 
                                 asset=asset,
                                 payment_amount=amount,
                                 submitted_by=request.user,
-                                # If your model has edited_by, include it, otherwise skip
                             )
-                            
                         rentals_created += 1
             
             if rentals_created > 0:
-                if request.user.is_staff or request.user.is_superuser:
-                    messages.success(request, f"Successfully added {rentals_created} rentals in bulk!")
-                else:
-                    messages.success(request, f"Submitted {rentals_created} rentals for approval.")
+                msg = f"Successfully added {rentals_created} backdated entries." if is_backdated else f"Successfully added {rentals_created} rentals."
+                messages.success(request, msg)
             else:
                 messages.warning(request, "No valid assets were selected.")
                 
             return redirect('rental_list')
     else:
         header_form = RentalBulkHeaderForm()
-        formset = RentalItemFormSet()
+        # Pass backdated flag to empty formset too
+        formset = RentalItemFormSet(form_kwargs={'backdated': is_backdated})
 
     return render(request, 'rentals/add_bulk_rental.html', {
         'header_form': header_form,
         'formset': formset
     })
+
+
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -2351,29 +2492,29 @@ def check_contracts(request):
 
     return redirect("rental_list")
 
-class AssetAutocomplete(autocomplete.Select2QuerySetView):
-    def get_queryset(self):
-        # Only show assets that are working and not currently rented
-        rented_ids = Rental.objects.filter(
-            status__in=['ongoing', 'overdue'],
-            asset__isnull=False
-        ).values_list('asset_id', flat=True)
+# class AssetAutocomplete(autocomplete.Select2QuerySetView):
+#     def get_queryset(self):
+#         # Only show assets that are working and not currently rented
+#         rented_ids = Rental.objects.filter(
+#             status__in=['ongoing', 'overdue'],
+#             asset__isnull=False
+#         ).values_list('asset_id', flat=True)
 
-        qs = ProductAsset.objects.filter(
-            condition_status='working'
-        ).exclude(id__in=rented_ids)
+#         qs = ProductAsset.objects.filter(
+#             condition_status='working'
+#         ).exclude(id__in=rented_ids)
 
-        if self.q:
-            qs = qs.filter(
-                Q(asset_id__icontains=self.q) |
-                Q(brand__icontains=self.q) |
-                Q(model_no__icontains=self.q) |
-                Q(serial_no__icontains=self.q)
-            )
-        return qs
+#         if self.q:
+#             qs = qs.filter(
+#                 Q(asset_id__icontains=self.q) |
+#                 Q(brand__icontains=self.q) |
+#                 Q(model_no__icontains=self.q) |
+#                 Q(serial_no__icontains=self.q)
+#             )
+#         return qs
 
-    def get_result_label(self, item):
-        return f"{item.asset_id} - {item.brand} {item.model_no}"
+#     def get_result_label(self, item):
+#         return f"{item.asset_id} - {item.brand} {item.model_no}"
 
 class CustomerAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
