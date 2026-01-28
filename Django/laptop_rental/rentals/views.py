@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Rental, Customer, ProductAsset, ProductConfiguration,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption, PendingRepair
+from .models import Rental, Customer, ProductAsset, ProductConfiguration,Repair, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, AssetType,CPUOption, HDDOption, RAMOption, DisplaySizeOption, GraphicsOption, PendingRepair, UserProfile
 from .forms import CustomerForm, ProductAssetForm, ProductConfigurationForm, RentalForm, PendingCustomerForm, PendingRentalForm, PendingProductConfigurationForm, SupplierForm, RepairForm, AssetTypeForm,CPUOptionForm,  HDDOptionForm, RAMOptionForm, DisplaySizeOptionForm, GraphicsOptionForm
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from django.contrib import messages
 from django.utils.timezone import now
 from django.utils.dateparse import parse_date
+from .utils import get_changed_fields 
 import uuid
 from datetime import date,timedelta
 from django.contrib.auth.decorators import login_required
@@ -24,7 +25,7 @@ from reportlab.pdfgen import canvas
 from django.urls import reverse
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal, ROUND_HALF_UP
-# from .site_logger import log_action
+from .site_logger import log_action
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -65,12 +66,12 @@ from .models import Customer, ProductAsset, Rental
 from django.db.models import Q
 
 from dal import autocomplete
-
+from django.core.cache import cache
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Rental, ProductAsset
-
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from collections import defaultdict
 from django.db.models import Sum
@@ -90,10 +91,13 @@ from .models import AssetType, CPUOption, RAMOption, HDDOption
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Subquery, OuterRef, Prefetch
+from django.contrib.admin.models import LogEntry
+from django.contrib.auth.models import User
+
 
 def logout_view(request):
     logout(request)
-    # log_action(request.user, "Logged out", "User")
+    log_action(request.user, "Logged out", "User")
     return redirect('login')
 
 
@@ -145,6 +149,35 @@ def homepage(request):
             PendingRepair.objects.count()
         )
 
+
+    recent_logs = LogEntry.objects.select_related('content_type', 'user').order_by('-action_time')[:5]
+    all_users = User.objects.exclude(id=request.user.id).select_related('profile').order_by('-last_login')
+    
+    processed_users = []
+    now = timezone.now()
+
+    for u in all_users:
+        # Safely access profile (in case of old data issues)
+        try:
+            last_active = u.profile.last_activity
+        except UserProfile.DoesNotExist:
+            last_active = None
+        
+        # Attach the REAL last active time (fallback to last_login if empty)
+        u.display_last_active = last_active if last_active else u.last_login
+
+        # Determine Online Status (Active within last 5 mins)
+        if last_active and (now - last_active).total_seconds() < 300:
+            u.is_online = True
+        else:
+            u.is_online = False
+        
+        processed_users.append(u)
+
+    # Sort: Online users first, then by most recent activity
+    processed_users.sort(key=lambda x: (not x.is_online, -(x.display_last_active.timestamp() if x.display_last_active else 0)))
+    
+    recent_users = processed_users[:5]
     context = {
         'active_rentals': active_rentals,
         'available_stock': available_stock,
@@ -154,6 +187,10 @@ def homepage(request):
         'overdue_rentals': overdue_rentals,
         'due_soon': due_soon,
         'monthly_revenue': monthly_revenue,
+    
+        # new
+        'recent_logs' :recent_logs,
+        'recent_users': recent_users,
     }
     return render(request, 'homepage.html', context)
 
@@ -287,7 +324,7 @@ def global_search(request):
     if not query:
         return redirect('home')
 
-    # 1. Search Customers
+    # --- EXISTING SEARCH LOGIC (UNCHANGED) ---
     customers = Customer.objects.filter(
         Q(name__icontains=query) |
         Q(email__icontains=query) |
@@ -295,7 +332,6 @@ def global_search(request):
         Q(phone_number_secondary__icontains=query)
     )
 
-    # 2. Search Products
     products = ProductAsset.objects.filter(
         Q(asset_id__icontains=query) |
         Q(serial_no__icontains=query) |
@@ -303,38 +339,78 @@ def global_search(request):
         Q(brand__icontains=query)
     )
 
-    # --- NEW: Attach "Rented By" info to products ---
-    # Fetch all ongoing rentals to map Asset ID -> Customer Name
+    # Attach renter info (existing logic)
     active_rentals_map = {
         r.asset_id: r.customer.name 
         for r in Rental.objects.filter(status='ongoing').select_related('customer')
     }
-
-    # Attach the renter name to each product object manually
     for p in products:
         p.current_renter_name = active_rentals_map.get(p.id)
 
-    # 3. Search Rentals (Contract Number)
     rentals = Rental.objects.filter(
         Q(contract_number__icontains=query)
     ).select_related('customer', 'asset')
 
-    # Auto-jump logic (unchanged)
-    total_results = customers.count() + products.count() + rentals.count()
+    # --- NEW ADDITIONS START HERE ---
+
+    # 4. Search Suppliers (Name, GSTIN, Contact info)
+    suppliers = Supplier.objects.filter(
+        Q(name__icontains=query) |
+        Q(gstin__icontains=query) |
+        Q(email__icontains=query) |
+        Q(phone_primary__icontains=query) |
+        Q(reference_name__icontains=query)
+    )
+
+    # 5. Search Repairs (Issue description or Asset ID involved)
+    repairs = Repair.objects.filter(
+        Q(name__icontains=query) |  # The issue reported
+        # Q(product__asset_id__icontains=query) |
+        Q(info__icontains=query) # If you have a description field
+    ).select_related('product')
+
+    # 6. Search Configs (Find assets by CPU, RAM, etc. e.g., "i5" or "16GB")
+    # We find the *Assets* that match these configs
+    found_configs = ProductConfiguration.objects.filter(
+        Q(cpu__name__icontains=query) |
+        Q(ram__name__icontains=query) |
+        Q(hdd__name__icontains=query) |
+        Q(graphics__name__icontains=query) |
+        Q(ssd__icontains=query) |
+        Q(detailed_config__icontains=query)
+    ).select_related('asset', 'cpu', 'ram', 'hdd', 'graphics', 'display_size')
+    
+    # --- END NEW ADDITIONS ---
+
+    # Calculate Total
+    total_results = (
+        customers.count() + 
+        products.count() + 
+        rentals.count() + 
+        suppliers.count() + 
+        repairs.count() +
+        found_configs.count()
+    )
+
+    # Auto-jump logic (Updated)
     if total_results == 1:
-        if customers.exists():
-            return redirect('customer_detail', pk=customers.first().pk)
-        if products.exists():
-            return redirect('product_detail', pk=products.first().pk)
+        if customers.exists(): return redirect('customer_detail', pk=customers.first().pk)
+        if products.exists(): return redirect('product_detail', pk=products.first().pk)
+        if suppliers.exists(): return redirect('edit_supplier', pk=suppliers.first().pk)
+        # We generally don't auto-redirect to repairs as they are sub-items
 
     return render(request, 'global_search.html', {
         'query': query,
         'customers': customers,
         'products': products,
+        'found_configs': found_configs, # Pass this separately or combine in template
         'rentals': rentals,
+        'suppliers': suppliers,
+        'repairs': repairs,
         'total_results': total_results
     })
-# Make sure these imports are at the top of views.py
+
+
 from datetime import timedelta
 from django.utils import timezone
 from django.contrib import messages
@@ -401,47 +477,6 @@ def expiry_dashboard(request):
         'expiring_soon': expiring_soon,
         'today': today
     })
-# @login_required
-# def expiry_dashboard(request):  # <--- RENAMED from check_contracts
-#     today = timezone.now().date()
-#     warning_date = today + timedelta(days=15)
-
-#     # 1. Fetch Data
-#     expired_rentals = Rental.objects.filter(
-#         contract_validity__isnull=False,
-#         contract_validity__lt=today,
-#         status="ongoing",
-#     ).select_related('customer', 'asset').order_by('contract_validity')
-
-#     expiring_soon = Rental.objects.filter(
-#         contract_validity__isnull=False,
-#         contract_validity__gte=today,
-#         contract_validity__lte=warning_date,
-#         status="ongoing",
-#     ).select_related('customer', 'asset').order_by('contract_validity')
-
-#     # 2. Logic for Sending Email
-#     if request.method == "POST" and 'send_reminders' in request.POST:
-#         if expired_rentals.exists():
-#             # ... (Email logic stays the same) ...
-#             try:
-#                 # ... (Send mail code) ...
-#                 messages.success(request, f"✅ Reminder sent.")
-#             except Exception as e:
-#                 messages.error(request, f"❌ Email failed: {e}")
-        
-#         return redirect('expiry_dashboard')  # <--- UPDATE THIS REDIRECT
-
-#     # 3. Render
-#     return render(request, 'rentals/check_contracts.html', {
-#         'expired_rentals': expired_rentals,
-#         'expiring_soon': expiring_soon,
-#         'today': today
-#     })
-# @login_required
-# def rental_list(request):
-#     rentals = Rental.objects.filter(status__in=['ongoing'])
-#     return render(request, 'rentals/rental_list.html', {'rentals': rentals})
 
 @login_required
 def sold_assets(request):
@@ -449,9 +484,30 @@ def sold_assets(request):
     return render(request, 'rentals/sold_assets.html', {'products': products})
 
 @login_required
+def shortcuts(request):
+    return render(request,'rentals/shortcuts.html')
+@login_required
 def settings_page(request):
-    return render(request, 'settings.html')
+    # 1. Get ALL logs (remove the [:10] slice)
+    log_list = LogEntry.objects.select_related('content_type', 'user').order_by('-action_time')
 
+    # 2. Set up Paginator (10 items per page)
+    paginator = Paginator(log_list, 10)
+
+    # 3. Get current page number from URL (e.g. ?page=2)
+    page_number = request.GET.get('page')
+
+    try:
+        recent_logs = paginator.page(page_number)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        recent_logs = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range, deliver last page of results.
+        recent_logs = paginator.page(paginator.num_pages)
+
+    context = {'recent_logs': recent_logs}
+    return render(request, 'settings.html', context)
 
 
 @login_required
@@ -558,8 +614,17 @@ def asset_type_list(request):
 def add_asset_type(request):
     form = AssetTypeForm(request.POST or None)
     if form.is_valid():
-        form.save()
-        # log_action(request.user, "Added new asset type", "AssetType")
+        asset_type = form.save()
+        
+        # Smart Log
+        log_action(
+            request.user, 
+            "Created Asset Type", 
+            "AssetType", 
+            obj_id=asset_type.id,
+            changes=[f"Name: {asset_type.name}"],
+            object_repr=asset_type.name
+        )
         return redirect('asset_type_list')
     return render(request, 'products/add_asset_type.html', {'form': form})
 
@@ -567,11 +632,23 @@ def add_asset_type(request):
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def edit_asset_type(request, pk):
+    old_instance = AssetType.objects.get(pk=pk) # Capture state
     asset_type = get_object_or_404(AssetType, pk=pk)
     form = AssetTypeForm(request.POST or None, instance=asset_type)
     if form.is_valid():
-        form.save()
-        # log_action(request.user, "Edited asset type", "AssetType", obj_id=asset_type.id)
+        updated_type = form.save()
+        
+        # Diff
+        changes = get_changed_fields(old_instance, updated_type)
+        
+        log_action(
+            request.user, 
+            "Edited Asset Type", 
+            "AssetType", 
+            obj_id=updated_type.id, 
+            changes=changes,
+            object_repr=updated_type.name
+        )
         return redirect('asset_type_list')
     return render(request, 'products/edit_asset_type.html', {'form': form})
 
@@ -629,24 +706,38 @@ def approve_config(request, pk):
         edited_by=pending.submitted_by,
         edited_at= pending.submitted_at
     )
-
-    # if config.repair_cost and config.repair_cost > 0:
-    #     Repair.objects.create(
-    #         product=config.asset,
-    #         date=config.date_of_config,
-    #         cost=config.repair_cost,
-    #         description="From approved config",
-    #         edited_by=request.user
-    #     )
+    details = [
+        f"Asset: {config.asset.asset_id}",
+        f"CPU: {config.cpu}",
+        f"RAM: {config.ram}",
+        f"SSD: {config.ssd}"
+    ]
+    
+    log_action(
+        request.user, 
+        "Approved Configuration", 
+        "ProductConfiguration", 
+        obj_id=config.id, 
+        changes=details, 
+        object_repr=f"Config {config.id}"
+    )
     pending.delete()
-    # log_action(request.user, "Approved product configuration", "PendingProductConfiguration", obj_id=pending.id)
     return redirect('approval_dashboard')
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_config(request, pk):
     pending = get_object_or_404(PendingProductConfiguration, pk=pk)
-    # log_action(request.user, "Rejected product configuration", "PendingProductConfiguration", obj_id=pending.id)
+    details = [f"Asset: {pending.asset.asset_id}", f"RAM: {pending.ram}", f"SSD: {pending.ssd}"]
+    
+    log_action(
+        request.user, 
+        "Rejected configuration", 
+        "PendingProductConfiguration", 
+        obj_id=pending.id, 
+        changes=details,
+        object_repr=f"Req Config {pending.asset.asset_id}"
+    )
     pending.delete()
     return redirect('approval_dashboard')
 
@@ -660,6 +751,7 @@ def approve_product(request, pk):
         if pending.pending_type == "edit" and pending.original_product:
             product = pending.original_product
 
+            changes = get_changed_fields(product, pending)
             # tell product.save() to ignore this pending record when checking PendingProduct table
             product._pending_pk = pending.pk
 
@@ -676,9 +768,15 @@ def approve_product(request, pk):
 
             product.edited_by = pending.submitted_by
             product.edited_at = pending.submitted_at
-            # log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id)
             product.save()
-
+            log_action(
+                request.user, 
+                "Approved Product Edit", 
+                "ProductAsset", 
+                obj_id=product.id, 
+                changes=changes, 
+                object_repr=product.asset_id
+            )
         else:
             # New product (add/clone) — instantiate so we can set _pending_pk
             new_product = ProductAsset(
@@ -706,8 +804,17 @@ def approve_product(request, pk):
             # tell new_product.save() to ignore this pending record when checking PendingProduct table
             new_product._pending_pk = pending.pk
             new_product.save()
-            # log_action(request.user, "Approved product", "PendingProduct", obj_id=pending.id)
-
+            
+            # Log Creation Details
+            details = [f"Asset ID: {new_product.asset_id}", f"Model: {new_product.model_no}"]
+            log_action(
+                request.user, 
+                "Approved New Product", 
+                "ProductAsset", 
+                obj_id=new_product.id, 
+                changes=details, 
+                object_repr=new_product.asset_id
+            )
         # only delete pending after successful save
         pending.delete()
         messages.success(request, "✅ Product approved successfully.")
@@ -722,8 +829,18 @@ def approve_product(request, pk):
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_product(request, pk):
-    get_object_or_404(PendingProduct, pk=pk).delete()
-    # log_action(request.user, "Rejected product", "PendingProduct", obj_id=pk)
+    pending = get_object_or_404(PendingProduct, pk=pk)
+    details = [f"Asset ID: {pending.asset_id}", f"Model: {pending.model_no}"]
+    
+    log_action(
+        request.user, 
+        "Rejected product", 
+        "PendingProduct", 
+        obj_id=pending.id, 
+        changes=details,
+        object_repr=pending.asset_id
+    )
+    pending.delete()
     return redirect('approval_dashboard')
 
 
@@ -770,7 +887,15 @@ def add_customer(request):
                 customer = form.save(commit=False)
                 customer.edited_by = request.user
                 customer.save()
-                # log_action(request.user, "Added new customer", "Customer", obj_id=customer.id)
+                details = [f"Name: {customer.name}", f"Phone: {customer.phone_number_primary}"]
+                log_action(
+                    request.user, 
+                    "Added new customer", 
+                    "Customer", 
+                    obj_id=customer.id, 
+                    changes=details, 
+                    object_repr=customer.name
+                )
 
                 return redirect('customer_list')
         else:
@@ -779,8 +904,15 @@ def add_customer(request):
                 pending = form.save(commit=False)
                 pending.submitted_by = request.user
                 pending.save()
-                # log_action(request.user, "Added new pending customer", "Customer", obj_id=customer.id)
-
+                details = [f"Name: {pending.name}", f"Phone: {pending.phone_number_primary}"]
+                log_action(
+                    request.user, 
+                    "Added new customer (approval)", 
+                    "Customer", 
+                    obj_id=pending.id, 
+                    changes=details, 
+                    object_repr=pending.name
+                )
                 return redirect('customer_list')
     else:
         form = CustomerForm() if request.user.is_superuser else PendingCustomerForm()
@@ -805,7 +937,21 @@ def add_product(request):
             product = form.save(commit=False)
             product.edited_by = request.user
             product.save()
-            # log_action(request.user, "Created new product", "ProductAsset", obj_id=product.id)
+            
+            details = [
+                f"Asset ID: {product.asset_id}",
+                f"Model: {product.model_no}",
+                f"Config: {product.type_of_asset}"
+            ]
+            log_action(
+                request.user, 
+                "Created new product", 
+                "ProductAsset", 
+                obj_id=product.id, 
+                changes=details, 
+                object_repr=product.asset_id
+            )
+            
             messages.success(request, f"✅ Product '{product.asset_id}' was successfully created.")
             return redirect(redirect_url)
 
@@ -833,8 +979,19 @@ def add_product(request):
                 submitted_by=request.user
             )
             pending.save()
-            # log_action(request.user, "Submitted new product for approval", "PendingProduct", obj_id=pending.id)
-
+            details = [
+                f"Asset ID: {pending.asset_id}",
+                f"Model: {pending.model_no}",
+                f"Config: {pending.type_of_asset}"
+            ]
+            log_action(
+                request.user, 
+                "Created new product", 
+                "ProductAsset", 
+                obj_id=pending.id, 
+                changes=details, 
+                object_repr=pending.asset_id
+            )
             messages.success(request, f"Product {form.cleaned_data.get('asset_id')} submitted for approval and pending review.")
             return redirect(redirect_url)
 
@@ -850,6 +1007,8 @@ def approve_customer(request, pk):
 
     if pending.original_customer:
         customer = pending.original_customer
+        changes = get_changed_fields(customer, pending)
+        
         customer.name = pending.name
         customer.email = pending.email
         customer.phone_number_primary = pending.phone_number_primary
@@ -861,7 +1020,14 @@ def approve_customer(request, pk):
         customer.reference_name = pending.reference_name
         customer.edited_by = pending.submitted_by
         customer.save()
-        # log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id)
+        log_action(
+            request.user, 
+            "Approved New Customer", 
+            "Customer", 
+            obj_id=customer.id, 
+            changes=[f"Name: {customer.name}"], 
+            object_repr=customer.name
+        )
     else:
         Customer.objects.create(
             name=pending.name,
@@ -875,8 +1041,14 @@ def approve_customer(request, pk):
             reference_name=pending.reference_name,
             edited_by=pending.submitted_by,
         )
-
-    # log_action(request.user, "Approved customer", "PendingCustomer", obj_id=pending.id)
+        log_action(
+            request.user, 
+            "Approved New Customer", 
+            "Customer", 
+            obj_id=customer.id, 
+            changes=[f"Name: {customer.name}"], 
+            object_repr=customer.name
+        )
     pending.delete()
     messages.success(request, "Customer approved successfully.")
     return redirect("approval_dashboard")
@@ -884,8 +1056,19 @@ def approve_customer(request, pk):
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_customer(request, pk):
-    get_object_or_404(PendingCustomer, pk=pk).delete()
-    # log_action(request.user, "Rejected customer", "PendingCustomer", obj_id=pk)
+    pending = get_object_or_404(PendingCustomer, pk=pk)
+    
+    details = [f"Name: {pending.name}", f"Phone: {pending.phone_number_primary}"]
+    
+    log_action(
+        request.user, 
+        "Rejected customer", 
+        "PendingCustomer", 
+        obj_id=pending.id, 
+        changes=details,
+        object_repr=pending.name
+    )
+    pending.delete()
     return redirect('approval_dashboard')
 
 
@@ -899,7 +1082,20 @@ def add_rental(request):
                 rental = form.save(commit=False)
                 rental.edited_by = request.user
                 rental.save()
-                # log_action(request.user, "Created rental", "Rental", obj_id=rental.id)
+                details = [
+                    f"Customer: {rental.customer.name}",
+                    f"Asset: {rental.asset.asset_id if rental.asset else 'None'}",
+                    f"Start: {rental.rental_start_date}",
+                    f"Amount: {rental.payment_amount}"
+                ]
+                log_action(
+                    request.user, 
+                    "Created rental", 
+                    "Rental", 
+                    obj_id=rental.id, 
+                    changes=details,
+                    object_repr=f"Rental #{rental.id}"
+                )
                 messages.success(request, "Rental added successfully.")
                 return redirect('rental_list')
 
@@ -911,7 +1107,19 @@ def add_rental(request):
                 pending.submitted_by = request.user
                 pending.edited_by = request.user
                 pending.save()
-                # log_action(request.user, "Created rental for approval", "Rental")
+                details = [
+                    f"Customer: {pending.customer}",
+                    f"Asset: {pending.asset}",
+                    f"Start: {pending.rental_start_date}"
+                ]
+                log_action(
+                    request.user, 
+                    "Submitted rental for approval", 
+                    "PendingRental", 
+                    obj_id=pending.id,
+                    changes=details,
+                    object_repr=f"Req Rental {pending.asset}"
+                )
                 messages.success(request, "Rental submitted for approval.")
 
                 return redirect('rental_list')
@@ -1003,7 +1211,7 @@ def add_bulk_rental(request):
                         final_status = 'completed' if is_backdated else header_data['status']
 
                         if request.user.is_staff or request.user.is_superuser:
-                            Rental.objects.create(
+                            rental_obj =Rental.objects.create(
                                 customer=header_data['customer'],
                                 rental_start_date=header_data['rental_start_date'],
                                 rental_end_date=header_data['rental_end_date'],
@@ -1015,8 +1223,24 @@ def add_bulk_rental(request):
                                 payment_amount=amount,
                                 edited_by=request.user
                             )
+                            details = [
+                                f"Customer: {header_data['customer']}",
+                                f"Asset: {asset.asset_id}",
+                                f"Amount: {amount}",
+                                f"Start: {header_data['rental_start_date']}"
+                            ]
+                            
+                            log_action(
+                                request.user, 
+                                "Created Bulk Rental", 
+                                "Rental" if request.user.is_staff else "PendingRental", 
+                                obj_id=rental_obj.id, 
+                                changes=details,
+                                object_repr=f"Rental {asset.asset_id}"
+                            )
+                            rentals_created += 1
                         else:
-                            PendingRental.objects.create(
+                            pending_obj = PendingRental.objects.create(
                                 customer=header_data['customer'],
                                 rental_start_date=header_data['rental_start_date'],
                                 rental_end_date=header_data['rental_end_date'],
@@ -1028,8 +1252,21 @@ def add_bulk_rental(request):
                                 payment_amount=amount,
                                 submitted_by=request.user,
                             )
+                            details = [
+                                f"Customer: {header_data['customer']}", 
+                                f"Asset: {asset.asset_id}",
+                                f"Amount: {amount}"
+                            ]
+                            log_action(
+                                request.user, 
+                                "Submitted Bulk Rental", 
+                                "PendingRental", 
+                                obj_id=pending_obj.id, 
+                                changes=details,
+                                object_repr=f"Req Rental {asset.asset_id}"
+                            )
                         rentals_created += 1
-            
+
             if rentals_created > 0:
                 msg = f"Successfully added {rentals_created} backdated entries." if is_backdated else f"Successfully added {rentals_created} rentals."
                 messages.success(request, msg)
@@ -1057,6 +1294,9 @@ def approve_rental(request, pk):
     if pending.original_rental:
         # ✅ Update existing rental
         rental = pending.original_rental
+
+        changes = get_changed_fields(rental, pending)
+
         rental.customer = pending.customer
         rental.asset = pending.asset
         rental.rental_start_date = pending.rental_start_date
@@ -1069,6 +1309,15 @@ def approve_rental(request, pk):
         rental.edited_by = pending.submitted_by
         rental.edited_at = pending.submitted_at
         rental.save()
+
+        log_action(
+            request.user, 
+            "Approved Rental Edit", 
+            "Rental", 
+            obj_id=rental.id, 
+            changes=changes, 
+            object_repr=f"Rental {rental.id}"
+        )
     else:
         # ✅ Create new rental
         rental = Rental.objects.create(
@@ -1083,18 +1332,36 @@ def approve_rental(request, pk):
             payment_amount=pending.payment_amount,
             edited_by=pending.submitted_by,
         )
-
+        details = [f"Customer: {rental.customer}", f"Asset: {rental.asset}"]
+        log_action(
+            request.user, 
+            "Approved New Rental", 
+            "Rental", 
+            obj_id=rental.id, 
+            changes=details, 
+            object_repr=f"Rental {rental.id}"
+        )
     # ✅ Remove pending request after approval
     pending.delete()
-    # log_action(request.user, "Approved rental", "PendingRental", obj_id=pending.id)
     messages.success(request, "Rental approved successfully.")
     return redirect("approval_dashboard")
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def reject_rental(request, pk):
-    get_object_or_404(PendingRental, pk=pk).delete()
-    # log_action(request.user, "Rejected rental", "PendingRental", obj_id=pk)
+    pending = get_object_or_404(PendingRental, pk=pk)
+    
+    details = [f"Customer: {pending.customer}", f"Asset: {pending.asset}"]
+    
+    log_action(
+        request.user, 
+        "Rejected rental", 
+        "PendingRental", 
+        obj_id=pending.id, 
+        changes=details,
+        object_repr=f"Req Rental {pending.asset}"
+    )
+    pending.delete()
     return redirect('approval_dashboard')
 
 
@@ -1102,15 +1369,28 @@ def reject_rental(request, pk):
 @login_required
 def edit_rental(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
-
+    old_instance = Rental.objects.get(pk=rental_id)
     if request.user.is_superuser:
         # ✅ Superuser can edit directly
         form = RentalForm(request.POST or None, instance=rental)
         if request.method == "POST" and form.is_valid():
             updated_rental = form.save(commit=False)
+            
+            # 2. Calculate Differences
+            changes = get_changed_fields(old_instance, updated_rental)
+            
             updated_rental.edited_by = request.user
-            # log_action(request.user, "Edited rental", "Rental", obj_id=updated_rental.id)
             updated_rental.save()
+            
+            # 3. Log Smart Changes
+            log_action(
+                request.user, 
+                "Edited rental", 
+                "Rental", 
+                obj_id=updated_rental.id,
+                changes=changes,
+                object_repr=f"Rental #{updated_rental.id}"
+            )
             messages.success(request, "Rental updated successfully.")
             return redirect("rental_list")
 
@@ -1135,7 +1415,17 @@ def edit_rental(request, rental_id):
                     submitted_by=request.user,
                 )
                 pending.save()
-                # log_action(request.user, "Submitted rental edit for approval", "PendingRental", obj_id=pending.id)
+                changes = get_changed_fields(rental, pending)
+                
+                # 2. Log
+                log_action(
+                    request.user, 
+                    "Requested Rental Edit", 
+                    "PendingRental", 
+                    obj_id=pending.id, 
+                    changes=changes, 
+                    object_repr=f"Req for Rental {rental.id}"
+                )
                 messages.success(request, "Rental changes submitted for approval.")
                 return redirect("rental_list")
         else:
@@ -1147,14 +1437,30 @@ def edit_rental(request, rental_id):
 @login_required
 def edit_customer(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
+    
+    old_instance = Customer.objects.get(pk=pk)
 
     if request.user.is_superuser:
         form = CustomerForm(request.POST or None, instance=customer)
         if request.method == "POST" and form.is_valid():
             updated_customer = form.save(commit=False)
+            
+            # 4. Calculate Differences
+            changes = get_changed_fields(old_instance, updated_customer)
+            
             updated_customer.edited_by = request.user
-            # log_action(request.user, "Edited customer", "Customer", obj_id=updated_customer.id)
             updated_customer.save()
+            
+            # 5. Log with specific details
+            log_action(
+                request.user, 
+                "Edited customer", 
+                "Customer", 
+                obj_id=updated_customer.id, 
+                changes=changes,             # <--- Passing the differences
+                object_repr=updated_customer.name 
+            )
+            
             messages.success(request, "Customer updated successfully.")
             return redirect("customer_list")
     else:
@@ -1175,8 +1481,19 @@ def edit_customer(request, pk):
                     reference_name=cleaned.get("reference_name"),
                     submitted_by=request.user,
                 )
-                # log_action(request.user, "Submitted customer edit for approval", "PendingCustomer", obj_id=pending.id)
                 pending.save()
+                
+                # Capture Changes
+                changes = get_changed_fields(customer, pending)
+                
+                log_action(
+                    request.user, 
+                    "Requested Customer Edit", 
+                    "PendingCustomer", 
+                    obj_id=pending.id, 
+                    changes=changes,
+                    object_repr=f"Req for {customer.name}"
+                )
                 messages.success(request, "Customer changes submitted for approval.")
                 return redirect("customer_list")
         else:
@@ -1189,7 +1506,7 @@ def edit_customer(request, pk):
 def edit_product(request, pk):
     product = get_object_or_404(ProductAsset, pk=pk)
     form = ProductAssetForm(request.POST or None, instance=product)
-
+    old_instance = ProductAsset.objects.get(pk=pk)
     # Preserve filters
     query_string = request.GET.urlencode()
     redirect_url = reverse('product_list')
@@ -1199,18 +1516,30 @@ def edit_product(request, pk):
     if request.method == 'POST' and form.is_valid():
         if request.user.is_superuser:
             # Direct edit by superuser
-            product = form.save(commit=False)
-            product.edited_by = request.user
-            product.save()
-            # log_action(request.user, "Submitted edit for product", "ProductAsset", obj_id=product.id)
+            updated_product = form.save(commit=False)
+            
+            # 2. Calculate Differences
+            changes = get_changed_fields(old_instance, updated_product)
+            
+            updated_product.edited_by = request.user
+            updated_product.save()
 
+            # 3. Log Smart Changes
+            log_action(
+                request.user, 
+                "Edited product", 
+                "ProductAsset", 
+                obj_id=updated_product.id, 
+                changes=changes, 
+                object_repr=updated_product.asset_id
+            )
             messages.success(request, f"✏️ Product '{product.asset_id}' was successfully updated.")
             return redirect(redirect_url)
 
         else:
             # Save as pending edit for approval
             cleaned = form.cleaned_data
-            PendingProduct.objects.create(
+            pending_obj = PendingProduct.objects.create(
                 original_product=product,
                 pending_type='edit',
                 submitted_by=request.user,
@@ -1233,7 +1562,17 @@ def edit_product(request, pk):
                 date_marked_dead=cleaned.get('date_marked_dead'),
                 damage_narration=cleaned.get('damage_narration'),
             )
-            # log_action(request.user, "Submitted edit for product for approval", "ProductAsset", obj_id=product.id)
+            changes = get_changed_fields(product, pending_obj)
+            
+            # 2. Log with "Requested Changes"
+            log_action(
+                request.user, 
+                "Requested Product Edit", 
+                "PendingProduct", 
+                obj_id=pending_obj.id, 
+                changes=changes, 
+                object_repr=f"Req for {product.asset_id}"
+            )
             messages.success(request, "Changes submitted for approval.")
             return redirect(redirect_url)
 
@@ -1260,7 +1599,19 @@ def add_config(request, pk):
                 config = form.save(commit=False)
                 config.asset = asset
                 config.edited_by = request.user
-                # log_action(request.user, "Added product configuration", "ProductConfiguration", obj_id=config.id)
+                details = [
+                    f"CPU: {config.cpu}", 
+                    f"RAM: {config.ram}", 
+                    f"SSD: {config.ssd}"
+                ]
+                log_action(
+                    request.user, 
+                    "Added configuration", 
+                    "ProductConfiguration", 
+                    obj_id=config.id, 
+                    changes=details,
+                    object_repr=f"Config for {asset.asset_id}"
+                )
                 config.save()
                 return redirect('product_detail', pk=pk)
             else:
@@ -1279,8 +1630,22 @@ def add_config(request, pk):
                     detailed_config=form.cleaned_data.get('detailed_config'),
                     submitted_by=request.user
                 )
-                # log_action(request.user, "Submitted product configuration for approval", "PendingProductConfiguration", obj_id=pending.id, asset_id=asset.id)
                 pending.save()
+                
+                # FIXED LOGGING
+                details = [
+                    f"Asset: {asset.asset_id}", 
+                    f"RAM: {pending.ram}", 
+                    f"SSD: {pending.ssd}"
+                ]
+                log_action(
+                    request.user, 
+                    "Submitted config for approval", 
+                    "PendingProductConfiguration", 
+                    obj_id=pending.id, 
+                    changes=details, 
+                    object_repr=f"Req Config {asset.asset_id}"
+                )
                 return redirect('product_detail', pk=pk)
     else:
         if last_config:
@@ -1351,59 +1716,22 @@ def product_detail(request, pk):
         'redirect_url': redirect_url,
         })
 
-# @login_required
-# def edit_config(request, pk):
-#     config = get_object_or_404(ProductConfiguration, pk=pk)
-
-#     if request.user.is_superuser:
-#         # Superusers can directly edit
-#         form = ProductConfigurationForm(request.POST or None, instance=config)
-#         if request.method == "POST" and form.is_valid():
-#             updated_config = form.save(commit=False)
-#             updated_config.edited_by = request.user
-#             updated_config.save()
-#             messages.success(request, "Configuration updated successfully.")
-#             return redirect("config_list")
-#     else:
-#         # Normal users → Create a pending config
-#         if request.method == "POST":
-#             form = ProductConfigurationForm(request.POST, instance=config)
-#             if form.is_valid():
-#                 cleaned = form.cleaned_data
-
-#                 # ✅ Ensure date_of_config is always set
-#                 date_value = cleaned.get("date_of_config") or config.date_of_config or timezone.now().date()
-
-#                 PendingProductConfiguration.objects.create(
-#                     asset=config.asset,
-#                     date_of_config=date_value,
-#                     cpu=cleaned.get("cpu"),
-#                     ram=cleaned.get("ram"),
-#                     hdd=cleaned.get("hdd"),
-#                     ssd=cleaned.get("ssd"),
-#                     graphics=cleaned.get("graphics"),
-#                     display_size=cleaned.get("display_size"),
-#                     power_supply=cleaned.get("power_supply"),
-#                     detailed_config=cleaned.get("detailed_config"),
-#                     submitted_by=request.user,
-#                     is_edit=True,
-#                     original_config=config,
-#                 )
-#                 messages.success(request, "Configuration changes submitted for approval.")
-#                 return redirect("config_list")
-#         else:
-#             form = ProductConfigurationForm(instance=config)
-
-#     return render(request, "rentals/edit_config.html", {"form": form, "config": config})
-
-
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def delete_config(request, config_id):
     config = get_object_or_404(ProductConfiguration, pk=config_id)
     asset_id = config.asset.pk
-    # log_action(request.user, "Deleted product configuration", "ProductConfiguration", obj_id=config.id)
+    details = [f"RAM: {config.ram}", f"SSD: {config.ssd}", f"Asset: {config.asset.asset_id}"]
+    
+    log_action(
+        request.user, 
+        "Deleted configuration", 
+        "ProductConfiguration", 
+        obj_id=config.id, 
+        changes=details,
+        object_repr=f"Config {config.id}"
+    )
     config.delete()
     return redirect('product_detail', pk=asset_id)
 
@@ -1434,26 +1762,19 @@ def clone_product(request, pk):
             edited_by=request.user
         )
         new_product.save()
-        # log_action(request.user, "Cloned product", "ProductAsset", obj_id=new_product.id)
+        details = [f"Source Asset: {original.asset_id}", f"New Model: {new_product.model_no}"]
+        log_action(
+            request.user, 
+            "Cloned product", 
+            "ProductAsset", 
+            obj_id=new_product.id, 
+            changes=details,
+            object_repr=new_product.asset_id
+        )
         messages.success(request, f"Product cloned successfully {new_product.asset_id}. Please update details as per need.")
         return redirect(redirect_url)
 
     else:
-        # Non-superuser → save to PendingProduct
-        # PendingProduct.objects.create(
-        #     type_of_asset=original.type_of_asset,
-        #     brand=original.brand,
-        #     model_no=original.model_no,
-        #     serial_no=original.serial_no,
-        #     purchase_price=original.purchase_price,
-        #     current_value=original.current_value,
-        #     purchase_date=original.purchase_date,
-        #     under_warranty=original.under_warranty,
-        #     warranty_duration_months=original.warranty_duration_months,
-        #     purchased_from=original.purchased_from,
-        #     condition_status=original.condition_status,
-        #     submitted_by=request.user
-        # )
         new_product = PendingProduct(
             type_of_asset=original.type_of_asset,
             brand=original.brand,
@@ -1468,8 +1789,16 @@ def clone_product(request, pk):
             condition_status=original.condition_status,
             edited_by=request.user
         )
-        # log_action(request.user, "Cloned product for approval", "PendingProduct", obj_id=new_product.id)
         new_product.save()
+        details = [f"Source Asset: {original.asset_id}", "Waiting Approval"]
+        log_action(
+            request.user, 
+            "Requested Product Clone", 
+            "PendingProduct", 
+            obj_id=new_product.id, 
+            changes=details,
+            object_repr=f"Clone Req {original.asset_id}"
+        )
         messages.success(request, f"Product clone {new_product.asset_id} submitted for approval.")
         return redirect(redirect_url)
 
@@ -1533,7 +1862,16 @@ def rental_list(request):
 def mark_rental_completed(request, rental_id):
     rental = get_object_or_404(Rental, pk=rental_id)
     rental.status = 'completed'
-    # log_action(request.user, "Marked rental as completed", "Rental", obj_id=rental.id)
+    details = [f"Customer: {rental.customer.name}", f"Asset: {rental.asset.asset_id}"]
+    
+    log_action(
+        request.user, 
+        "Marked rental as completed", 
+        "Rental", 
+        obj_id=rental.id, 
+        changes=details,
+        object_repr=f"Rental {rental.id}"
+    )
     rental.save()
     return redirect('rental_list')
 
@@ -1959,7 +2297,14 @@ def run_revenue_calculator(request):
             )
 
     # Step 5: Display success message
-    # log_action(request.user, "Ran revenue recalculation", "System Task")
+    details = [f"Rentals Updated: {updated_rentals}", "Recalculated full revenue history"]
+    log_action(
+        request.user, 
+        "Ran revenue recalculation", 
+        "System Task", 
+        changes=details,
+        object_repr="Revenue Calc"
+    )
     messages.success(
         request,
         f"Revenue successfully recalculated for {updated_rentals} rentals as of {today}."
@@ -1999,8 +2344,20 @@ def add_supplier(request):
     if request.method == 'POST':
         form = SupplierForm(request.POST)
         if form.is_valid():
-            form.save()
-            # log_action(request.user, "Added new supplier", "Supplier")
+            supplier = form.save()
+            details = [
+                f"Name: {supplier.name}", 
+                f"GST: {supplier.gstin}", 
+                f"Phone: {supplier.phone_primary}"
+            ]
+            log_action(
+                request.user, 
+                "Created new supplier", 
+                "Supplier", 
+                obj_id=supplier.id, 
+                changes=details, 
+                object_repr=supplier.name
+            )
             messages.success(request, "Vendor added successfully.")
             return redirect('supplier_list')
     else:
@@ -2011,11 +2368,24 @@ def add_supplier(request):
 @login_required
 def edit_supplier(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
+    old_instance = Supplier.objects.get(pk=pk)
     if request.method == 'POST':
         form = SupplierForm(request.POST, instance=supplier)
         if form.is_valid():
-            # log_action(request.user, "Edited supplier", "Supplier", obj_id=supplier.id)
-            form.save()
+            updated_supplier = form.save()
+            
+            # 2. Calculate Diff
+            changes = get_changed_fields(old_instance, updated_supplier)
+            
+            # 3. Log
+            log_action(
+                request.user, 
+                "Edited supplier", 
+                "Supplier", 
+                obj_id=updated_supplier.id, 
+                changes=changes, 
+                object_repr=updated_supplier.name
+            )
             return redirect('supplier_list')
     else:
         form = SupplierForm(instance=supplier)
@@ -2048,7 +2418,17 @@ def send_billing_reminder(request):
             recipient_list=['accounts@pixelitsolution.com','aryanpore3056@gmail.com'],
             fail_silently=False,
             )
-        # log_action(request.user, "Sent billing reminders", "System Task")
+    
+        count = rentals_due_today.count()
+        details = [f"Reminders Sent: {count}", f"Date: {today}"]
+        
+        log_action(
+            request.user, 
+            "Sent billing reminders", 
+            "System Task", 
+            changes=details,
+            object_repr=f"Billing Reminder {today}"
+        )
         messages.success(request, "Billing reminder sent successfully!")
     except Exception as e:
         messages.error(request, f"Failed to send reminder: {e}")
@@ -2074,8 +2454,18 @@ def add_repair(request, pk):
                 form_product = form.cleaned_data.get("product")
                 if not form_product and product:
                     repair.product = product
-                # log_action(request.user, "Added new repair", "Repair", obj_id=repair.id)
+                
                 repair.save()
+
+                details = [f"Issue: {repair.name}", f"Cost: {repair.cost}", f"Date: {repair.date}"]
+                log_action(
+                    request.user, 
+                    "Added new repair", 
+                    "Repair", 
+                    obj_id=repair.id, 
+                    changes=details,
+                    object_repr=f"Repair {repair.id} ({repair.product.asset_id})"
+                )
                 messages.success(request, "Repair added successfully.")
                 return redirect('product_detail', pk=repair.product.pk)
             else:
@@ -2093,7 +2483,15 @@ def add_repair(request, pk):
                     is_edit=False,  # NEW REPAIR, not an edit
                 )
                 pending_repair.save()
-                # log_action(request.user, "Submitted new repair for approval", "PendingRepair", obj_id=pending_repair.id)
+                details = [f"Issue: {pending_repair.name}", f"Est Cost: {pending_repair.cost}"]
+                log_action(
+                    request.user, 
+                    "Submitted repair for approval", 
+                    "PendingRepair", 
+                    obj_id=pending_repair.id, 
+                    changes=details,
+                    object_repr=f"Req Repair {pending_repair.product.asset_id}"
+                )
                 messages.success(
                     request,
                     "Repair submitted for approval. It will appear after superuser approval."
@@ -2112,7 +2510,7 @@ def add_repair(request, pk):
 @login_required
 def edit_repair(request, pk):
     repair = get_object_or_404(Repair, pk=pk)
-
+    old_instance = Repair.objects.get(pk=pk)
     if request.user.is_superuser:
         # Superuser edits directly
         form = RepairForm(request.POST or None, instance=repair)
@@ -2120,7 +2518,17 @@ def edit_repair(request, pk):
             updated_repair = form.save(commit=False)
             updated_repair.edited_by = request.user
             updated_repair.save()
-            # log_action(request.user, "Edited repair", "Repair", obj_id=updated_repair.id)
+            changes = get_changed_fields(old_instance, updated_repair)
+            
+            # 3. Log
+            log_action(
+                request.user, 
+                "Edited repair", 
+                "Repair", 
+                obj_id=updated_repair.id, 
+                changes=changes,
+                object_repr=f"Repair for {updated_repair.product.asset_id}"
+            )
             messages.success(request, "Repair updated successfully.")
             return redirect('product_detail', pk=repair.product.pk)
 
@@ -2144,11 +2552,19 @@ def edit_repair(request, pk):
                     pending_repair.product = repair.product
                     pending_repair.submitted_by = request.user
                     pending_repair.save()
-                    # log_action(request.user, "Updated existing pending repair edit", "PendingRepair", obj_id=pending_repair.id)
+                    details = [f"Asset: {repair.product.asset_id}", "Updated existing edit request"]
+                    log_action(
+                        request.user, 
+                        "Updated pending repair request", 
+                        "PendingRepair", 
+                        obj_id=pending_repair.id,
+                        changes=details,
+                        object_repr=f"Req Repair {repair.product.asset_id}"
+                    )
                     messages.success(request, "Repair edit updated and submitted for approval.")
                 else:
                     # Create a new pending edit request
-                    PendingRepair.objects.create(
+                    p =PendingRepair.objects.create(
                         original_repair=repair,
                         submitted_by=request.user,
                         date=form.cleaned_data['date'],
@@ -2157,8 +2573,16 @@ def edit_repair(request, pk):
                         product=repair.product,
                         is_edit=True
                     )
+                    changes = get_changed_fields(repair, p)
+                    log_action(
+                        request.user, 
+                        "Submitted repair edit for approval", 
+                        "PendingRepair", 
+                        obj_id=p.id,
+                        changes=changes,
+                        object_repr=f"Req Repair {repair.product.asset_id}"
+                    )
                     messages.success(request, "Repair edit submitted for approval.")
-                    # log_action(request.user, "Submitted repair edit for approval", "PendingRepair", obj_id=repair.id)
                 return redirect('product_detail', pk=repair.product.pk)
         else:
             form = RepairForm(instance=repair)
@@ -2173,8 +2597,16 @@ def delete_repair(request, pk):
 
     if request.user.is_superuser:
         # Superuser can delete directly
+        details = [f"Issue: {repair.name}", f"Cost: {repair.cost}"]
+        log_action(
+            request.user, 
+            "Deleted repair", 
+            "Repair", 
+            obj_id=repair.id, 
+            changes=details,
+            object_repr=f"Repair {repair.id}"
+        )
         repair.delete()
-        # log_action(request.user, "Deleted repair", "Repair", obj_id=repair.id)
         messages.success(request, "Repair deleted successfully.")
         return redirect('product_detail', pk=product_pk)
 
@@ -2189,7 +2621,7 @@ def delete_repair(request, pk):
             messages.warning(request, "Delete request already pending for this repair.")
         else:
             # Create a pending delete request (no data means delete)
-            PendingRepair.objects.create(
+            p = PendingRepair.objects.create(
                 original_repair=repair,
                 submitted_by=request.user,
                 product=repair.product,
@@ -2199,8 +2631,17 @@ def delete_repair(request, pk):
                 cost=None,
                 name=None
             )
+            details = [f"Asset: {repair.product.asset_id}", f"Issue: {repair.name}", "Requested Deletion"]
+            
+            log_action(
+                request.user, 
+                "Submitted repair delete request", 
+                "PendingRepair", 
+                obj_id=p.id,
+                changes=details,
+                object_repr=f"Req Delete Repair {repair.id}"
+            )
             messages.success(request, "Delete request submitted for approval.")
-            # log_action(request.user, "Submitted repair delete request for approval", "PendingRepair", obj_id=repair.id)
 
         return redirect('product_detail', pk=product_pk)
 
@@ -2215,17 +2656,25 @@ def approve_repair_edit(request, pk):
         if pending_repair.is_edit:
             # EDIT EXISTING REPAIR
             original = pending_repair.original_repair
+            changes = get_changed_fields(original, pending_repair)
             original.name = pending_repair.name
             original.cost = pending_repair.cost
             original.date = pending_repair.date
             original.edited_by = pending_repair.submitted_by
             # original.edited_at = timezone.now()
             original.save()
-            # log_action(request.user, "Approved repair edit", "Repair", obj_id=original.id)
+            log_action(
+                request.user, 
+                "Approved Repair Edit", 
+                "Repair", 
+                obj_id=original.id, 
+                changes=changes, 
+                object_repr=f"Repair {original.id}"
+            )
             messages.success(request, "Repair edit approved successfully.")
         else:
             # CREATE NEW REPAIR
-            Repair.objects.create(
+            new_repair = Repair.objects.create(
                 product=pending_repair.product,
                 name=pending_repair.name,
                 cost=pending_repair.cost,
@@ -2233,8 +2682,16 @@ def approve_repair_edit(request, pk):
                 edited_by=pending_repair.submitted_by,
                 edited_at=pending_repair.submitted_at
             )
+            details = [f"Asset: {new_repair.product.asset_id}", f"Cost: {new_repair.cost}"]
+            log_action(
+                request.user, 
+                "Approved New Repair", 
+                "Repair", 
+                obj_id=new_repair.id,
+                changes=details,
+                object_repr=f"Repair {new_repair.id}"
+            )
             messages.success(request, "New repair approved successfully.")
-            # log_action(request.user, "Approved new repair", "Repair")
         # DELETE the pending record after approval
         pending_repair.delete()
 
@@ -2256,11 +2713,30 @@ def manage_hdd_Options(request):
         instance = get_object_or_404(HDDOption, id=request.GET["edit"])
         editing = True
 
+    old_instance = HDDOption.objects.get(id=instance.id) if instance else None
+
     form = HDDOptionForm(request.POST or None, instance=instance)
 
     if request.method == 'POST' and form.is_valid():
-        # log_action(request.user, "Managed HDD option", "HDDOption", obj_id=instance.id if instance else None)
-        form.save()
+        obj = form.save()
+        
+        if old_instance:
+            # Edit Mode
+            changes = get_changed_fields(old_instance, obj)
+            action = "Edited HDD Option"
+        else:
+            # Create Mode
+            changes = [f"Name: {obj.name}"] # Assuming 'name' is the field
+            action = "Created HDD Option"
+            
+        log_action(
+            request.user, 
+            action, 
+            "HDDOption", 
+            obj_id=obj.id, 
+            changes=changes,
+            object_repr=str(obj)
+        )
         return redirect('manage_hdd_Options')
 
     return render(request, 'rentals/manage_Options.html', {
@@ -2286,9 +2762,26 @@ def manage_ram_Options(request):
 
     form = RAMOptionForm(request.POST or None, instance=instance)
 
+    old_instance = RAMOption.objects.get(id=instance.id) if instance else None
+
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        # log_action(request.user, "Managed RAM option", "RAMOption", obj_id=instance.id if instance else None)
+        updated_ram_option = form.save()
+
+        if old_instance:
+            changes = get_changed_fields(old_instance, updated_ram_option)
+            action = "Edited RAM Option"
+        else:
+            changes = [f"Name: {updated_ram_option.name}"]
+            action = "Created RAM Option"
+
+        log_action(
+            request.user,
+            action,
+            "RAMOption",
+            obj_id=updated_ram_option.id,
+            changes=changes,
+            object_repr=str(updated_ram_option)
+        )
         return redirect('manage_ram_Options')
 
     return render(request, 'rentals/manage_Options.html', {
@@ -2312,10 +2805,25 @@ def manage_cpu_Options(request):
         editing = True
 
     form = CPUOptionForm(request.POST or None, instance=instance)
-
+    old_instance = CPUOption.objects.get(id=instance.id) if instance else None
     if request.method == 'POST' and form.is_valid():
-        # log_action(request.user, "Managed CPU option", "CPUOption", obj_id=instance.id if instance else None)
-        form.save()
+        updated_cpu_option = form.save()
+
+        if old_instance:
+            changes = get_changed_fields(old_instance, updated_cpu_option)
+            action = "Edited CPU Option"
+        else:
+            changes = [f"Name: {updated_cpu_option.name}"]
+            action = "Created CPU Option"
+
+        log_action(
+            request.user,
+            action,
+            "CPUOption",
+            obj_id=updated_cpu_option.id,
+            changes=changes,
+            object_repr=str(updated_cpu_option)
+        )
         return redirect('manage_cpu_Options')
 
     return render(request, 'rentals/manage_Options.html', {
@@ -2339,10 +2847,25 @@ def manage_display_size_Options(request):
         editing = True
 
     form = DisplaySizeOptionForm(request.POST or None, instance=instance)
-
+    old_instance = DisplaySizeOption.objects.get(id=instance.id) if instance else None
     if request.method == 'POST' and form.is_valid():
-        # log_action(request.user, "Managed Display Size option", "DisplaySizeOption", obj_id=instance.id if instance else None)
-        form.save()
+        updated_display_size_option = form.save()
+
+        if old_instance:
+            changes = get_changed_fields(old_instance, updated_display_size_option)
+            action = "Edited Display Size Option"
+        else:
+            changes = [f"Name: {updated_display_size_option.name}"]
+            action = "Created Display Size Option"
+
+        log_action(
+            request.user,
+            action,
+            "DisplaySizeOption",
+            obj_id=updated_display_size_option.id,
+            changes=changes,
+            object_repr=str(updated_display_size_option)
+        )
         return redirect('manage_display_size_Options')
 
     return render(request, 'rentals/manage_Options.html', {
@@ -2366,12 +2889,30 @@ def manage_graphics_Options(request):
         editing = True
 
     form = GraphicsOptionForm(request.POST or None, instance=instance)
+    old_instance = GraphicsOption.objects.get(id=instance.id) if instance else None
 
     if request.method == 'POST' and form.is_valid():
-        # log_action(request.user, "Managed Graphics option", "GraphicsOption", obj_id=instance.id if instance else None)
-        form.save()
-        return redirect('manage_graphics_Options')
 
+
+        updated_graphics_option = form.save()
+
+        if old_instance:
+            changes = get_changed_fields(old_instance, updated_graphics_option)
+            action = "Edited Graphics Option"
+        else:
+            changes = [f"Name: {updated_graphics_option.name}"]
+            action = "Created Graphics Option"
+
+        log_action(
+            request.user,
+            action,
+            "GraphicsOption",
+            obj_id=updated_graphics_option.id,
+            changes=changes,
+            object_repr=str(updated_graphics_option)
+        )
+        return redirect('manage_graphics_Options')
+    
     return render(request, 'rentals/manage_Options.html', {
         'form': form,
         'items': items,
@@ -2386,12 +2927,25 @@ def manage_graphics_Options(request):
 @login_required
 def edit_config(request, config_id):
     config = get_object_or_404(ProductConfiguration, id=config_id)
+    old_instance = ProductConfiguration.objects.get(id=config_id)
 
     if request.user.is_superuser:
         form = ProductConfigurationForm(request.POST or None, instance=config)
         if request.method == 'POST' and form.is_valid():
-            # log_action(request.user, "Edited product configuration", "ProductConfiguration", obj_id=config.id)
-            form.save()
+            updated_config = form.save()
+            
+            # 2. Diff
+            changes = get_changed_fields(old_instance, updated_config)
+            
+            # 3. Log
+            log_action(
+                request.user, 
+                "Edited product configuration", 
+                "ProductConfiguration", 
+                obj_id=config.id,
+                changes=changes,
+                object_repr=f"Config for {config.asset.asset_id}"
+            )
             return redirect('product_detail', pk=config.asset.pk)
     else:
         if request.method == 'POST':
@@ -2411,9 +2965,20 @@ def edit_config(request, config_id):
                     is_edit=True,
                     original_config=config,
                 )
-                # log_action(request.user, "Submitted product configuration edit for approval", "PendingProductConfiguration", obj_id=pending.id)
+                pending.save() # Save first to generate ID
+
+                # FIX: Calculate Diff between Original and Requested
+                changes = get_changed_fields(config, pending)
+                
+                log_action(
+                    request.user, 
+                    "Requested Config Edit", 
+                    "PendingProductConfiguration", 
+                    obj_id=pending.id, 
+                    changes=changes,
+                    object_repr=f"Req Config {config.asset.asset_id}"
+                )
                 messages.success(request, "Configuration edit submitted for approval.")
-                pending.save()
                 return redirect('product_detail', pk=config.asset.pk)
         else:
             form = ProductConfigurationForm(instance=config)
@@ -2430,6 +2995,8 @@ def approve_edited_config(request, pk):
     pending = get_object_or_404(PendingProductConfiguration, pk=pk)
     config = pending.original_config
 
+    changes = get_changed_fields(config, pending)
+
     # Apply changes
     config.ram = pending.ram
     config.hdd = pending.hdd
@@ -2439,8 +3006,15 @@ def approve_edited_config(request, pk):
     config.power_supply = pending.power_supply
     config.detailed_config = pending.detailed_config
     config.save()
-    # log_action(request.user, "Approved product configuration edit", "ProductConfiguration", obj_id=config.id)
 
+    log_action(
+        request.user, 
+        "Approved Config Edit", 
+        "ProductConfiguration", 
+        obj_id=config.id, 
+        changes=changes,
+        object_repr=f"Config {config.id}"
+    )
     pending.delete()
     messages.success(request, "Configuration update approved.")
     return redirect('approval_dashboard')
@@ -2450,8 +3024,18 @@ def approve_edited_config(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def reject_edited_config(request, pk):
     pending = get_object_or_404(PendingProductConfiguration, pk=pk)
+    
+    details = [f"Asset: {pending.asset.asset_id}", "Rejected Edit Request"]
+    
+    log_action(
+        request.user, 
+        "Rejected config edit", 
+        "PendingProductConfiguration", 
+        obj_id=pending.id,
+        changes=details,
+        object_repr=f"Req Edit {pending.asset.asset_id}"
+    )
     pending.delete()
-    # log_action(request.user, "Rejected product configuration edit", "PendingProductConfiguration", obj_id=pending.id)
     messages.info(request, "Configuration update rejected.")
     return redirect('approval_dashboard')
 
@@ -2468,8 +3052,16 @@ def approve_edited_repair(request, pk):
     repair.cost = pending.cost
     repair.repair_date = pending.repair_date
     repair.save()
-    # log_action(request.user, "Approved repair edit", "Repair", obj_id=repair.id)
-
+    details = [f"Asset: {pending.product.asset_id}", f"Issue: {pending.name}", "Rejected Edit"]
+    
+    log_action(
+        request.user, 
+        "Rejected repair edit", 
+        "PendingRepair", 
+        obj_id=pending.id,
+        changes=details,
+        object_repr=f"Req Edit Repair {pending.product.asset_id}"
+    )
     pending.delete()
     messages.success(request, "Repair update approved.")
     return redirect('approval_dashboard')
@@ -2479,8 +3071,18 @@ def approve_edited_repair(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def reject_edited_repair(request, pk):
     pending = get_object_or_404(PendingRepair, pk=pk)
+    
+    details = [f"Asset: {pending.product.asset_id}", f"Issue: {pending.name}", "Rejected Edit"]
+    
+    log_action(
+        request.user, 
+        "Rejected repair edit", 
+        "PendingRepair", 
+        obj_id=pending.id,
+        changes=details,
+        object_repr=f"Req Edit Repair {pending.product.asset_id}"
+    )
     pending.delete()
-    # log_action(request.user, "Rejected repair edit", "PendingRepair", obj_id=pending.id)
     messages.info(request, "Repair update rejected.")
     return redirect('approval_dashboard')
 
@@ -2532,30 +3134,6 @@ def check_contracts(request):
 
     return redirect("rental_list")
 
-# class AssetAutocomplete(autocomplete.Select2QuerySetView):
-#     def get_queryset(self):
-#         # Only show assets that are working and not currently rented
-#         rented_ids = Rental.objects.filter(
-#             status__in=['ongoing', 'overdue'],
-#             asset__isnull=False
-#         ).values_list('asset_id', flat=True)
-
-#         qs = ProductAsset.objects.filter(
-#             condition_status='working'
-#         ).exclude(id__in=rented_ids)
-
-#         if self.q:
-#             qs = qs.filter(
-#                 Q(asset_id__icontains=self.q) |
-#                 Q(brand__icontains=self.q) |
-#                 Q(model_no__icontains=self.q) |
-#                 Q(serial_no__icontains=self.q)
-#             )
-#         return qs
-
-#     def get_result_label(self, item):
-#         return f"{item.asset_id} - {item.brand} {item.model_no}"
-
 class CustomerAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
         qs = Customer.objects.all()
@@ -2571,196 +3149,6 @@ class CustomerAutocomplete(autocomplete.Select2QuerySetView):
         return f"{item.name} - {item.phone_number_primary}"
 
 
-
-
-
-# import csv
-# import pandas as pd
-# from django.http import HttpResponse
-# from reportlab.pdfgen import canvas
-# from io import BytesIO, StringIO
-# from zipfile import ZipFile
-
-# def export_reports_csv(request):
-#     """Export multiple CSV files zipped together"""
-#     output = BytesIO()
-
-#     with ZipFile(output, 'w') as zip_file:
-
-#         def write_csv_to_zip(filename, queryset):
-#             if not queryset.exists():
-#                 return
-
-#             # Use StringIO for CSV writing
-#             csv_buffer = StringIO()
-#             fieldnames = list(queryset[0].keys())
-#             writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
-#             writer.writeheader()
-#             for record in queryset:
-#                 writer.writerow(record)
-
-#             # Encode to bytes before writing to zip
-#             zip_file.writestr(filename, csv_buffer.getvalue().encode('utf-8'))
-
-#         # --- Customers CSV ---
-#         write_csv_to_zip("customers.csv", Customer.objects.all().values())
-
-#         # --- Products CSV ---
-#         write_csv_to_zip("products.csv", ProductAsset.objects.all().values())
-
-#         # --- Rentals CSV ---
-#         write_csv_to_zip("rentals.csv", Rental.objects.all().values())
-
-#         # --- Repairs CSV ---
-#         write_csv_to_zip("repairs.csv", Repair.objects.all().values())
-
-#     response = HttpResponse(output.getvalue(), content_type='application/zip')
-#     response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
-#     return response
-
-# import pandas as pd
-# from django.http import HttpResponse
-# from io import BytesIO
-# from zipfile import ZipFile
-# import csv
-
-# from .models import Customer, ProductAsset, Rental, Repair
-
-# def export_reports_excel(request):
-#     """Export Customers, Products, Rentals, Repairs to Excel with multiple sheets"""
-#     output = BytesIO()
-
-#     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-#         # --- Customers ---
-#         customers = Customer.objects.all().values(
-#             'id', 'name', 'phone_number_primary', 'email',
-#             'address_primary', 'is_permanent', 'is_bni_member'
-#         )
-#         df_customers = pd.DataFrame(list(customers))
-#         df_customers.to_excel(writer, sheet_name='Customers', index=False)
-
-#         # --- Products ---
-#         products = ProductAsset.objects.all().values(
-#             'id', 'asset_id', 'type_of_asset__name', 'brand', 'model_no',
-#             'serial_no', 'purchase_date', 'purchase_price',
-#             'under_warranty', 'warranty_duration_months'
-#         )
-#         df_products = pd.DataFrame(list(products))
-#         df_products.rename(columns={'type_of_asset__name': 'Type of Asset'}, inplace=True)
-#         df_products.to_excel(writer, sheet_name='Products', index=False)
-
-#         # --- Rentals ---
-#         rentals = Rental.objects.all().values(
-#             'id', 'customer__name', 'asset__asset_id', 'rental_start_date',
-#             'billing_day', 'status', 'contract_number'
-#         )
-#         df_rentals = pd.DataFrame(list(rentals))
-#         df_rentals.rename(columns={
-#             'customer__name': 'Customer',
-#             'asset__asset_id': 'Asset'
-#         }, inplace=True)
-#         df_rentals.to_excel(writer, sheet_name='Rentals', index=False)
-
-#         # --- Repairs ---
-#         repairs = Repair.objects.all().values(
-#             'id', 'product__asset_id', 'name', 'date', 'cost'
-#         )
-#         df_repairs = pd.DataFrame(list(repairs))
-#         df_repairs.rename(columns={
-#             'product__asset_id': 'Asset ID',
-#             'name': 'Repair Name',
-#             'date': 'Repair Date',
-#             'cost': 'Repair Cost'
-#         }, inplace=True)
-#         df_repairs.to_excel(writer, sheet_name='Repairs', index=False)
-
-#     # Return as downloadable Excel
-#     response = HttpResponse(
-#         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-#     )
-#     response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
-#     response.write(output.getvalue())
-
-#     return response
-
-
-
-# from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-# from reportlab.lib.pagesizes import A4
-# from reportlab.lib import colors
-# from reportlab.lib.styles import getSampleStyleSheet
-# def export_reports_pdf(request):
-#     """Export all data into a structured PDF"""
-#     output = BytesIO()
-#     doc = SimpleDocTemplate(output, pagesize=A4)
-#     elements = []
-#     styles = getSampleStyleSheet()
-
-#     # Helper function to add a section
-#     def add_section(title, queryset, fields):
-#         elements.append(Paragraph(title, styles['Heading2']))
-#         elements.append(Spacer(1, 12))
-
-#         if not queryset:
-#             elements.append(Paragraph("No data available", styles['Normal']))
-#             elements.append(Spacer(1, 12))
-#             return
-
-#         # Prepare table data
-#         table_data = [fields]
-#         for item in queryset:
-#             table_data.append([str(item.get(field, "")) for field in fields])
-
-#         table = Table(table_data)
-#         table.setStyle(TableStyle([
-#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-#             ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
-#         ]))
-#         elements.append(table)
-#         elements.append(Spacer(1, 24))
-
-#     # Customers Section
-#     customers = Customer.objects.all().values(
-#         'id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'
-#     )
-#     add_section("Customers", customers,
-#                 ['id', 'name', 'phone_number_primary', 'email', 'address_primary', 'is_permanent', 'is_bni_member'])
-
-#     # Products Section
-#     products = ProductAsset.objects.all().values(
-#         'id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'
-#     )
-#     add_section("Products", products,
-#                 ['id', 'asset_id', 'brand', 'model_no', 'serial_no', 'purchase_date', 'purchase_price'])
-
-#     # Rentals Section
-#     rentals = Rental.objects.all().values(
-#         'id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'
-#     )
-#     add_section("Rentals", rentals,
-#                 ['id', 'customer__name', 'asset__asset_id', 'rental_start_date', 'billing_day', 'status'])
-
-#     # Repairs Section (Fixed fields)
-#     repairs = Repair.objects.all().values(
-#         'id', 'product__asset_id', 'name', 'date', 'cost'
-#     )
-#     add_section("Repairs", repairs,
-#                 ['id', 'product__asset_id', 'name', 'date', 'cost'])
-
-#     # Build PDF
-#     doc.build(elements)
-#     response = HttpResponse(content_type='application/pdf')
-#     response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
-#     response.write(output.getvalue())
-
-#     return response
-
-
-
-# Required imports (place at top of views.py)
-
-# models (already in your file)
 
 
 # ----------------------------
@@ -2795,6 +3183,7 @@ def safe_serialize(obj):
         else:
             data[name] = str(value)
     return data
+
 def serialize_product(asset):
     """Return dict with full product details (flattened)."""
     return {
@@ -2968,7 +3357,13 @@ def export_reports_csv(request):
 
     response = HttpResponse(output.getvalue(), content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename="full_report.zip"'
-    # log_action(request.user, "Exported full report as CSV ZIP", "Report Export")
+    log_action(
+        request.user, 
+        "Exported full report", 
+        "Report Export", 
+        changes=["Format: CSV ZIP", "Scope: All Data"],
+        object_repr="Full CSV Export"
+    )
     return response
 
 # -------------------------------------------
@@ -3009,7 +3404,13 @@ def export_reports_excel(request):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="full_report.xlsx"'
     response.write(output.getvalue())
-    # log_action(request.user, "Exported full report as Excel", "Report Export")
+    log_action(
+        request.user, 
+        "Exported full report", 
+        "Report Export", 
+        changes=["Format: Excel", "Scope: All Data"],
+        object_repr="Full Excel Export"
+    )
     return response
 # ----------------------------
 # PDF export
@@ -3106,5 +3507,11 @@ def export_reports_pdf(request):
     response['Content-Disposition'] = 'attachment; filename="full_report.pdf"'
     response.write(output.getvalue())
 
-    # log_action(request.user, "Exported full report as PDF", "Report Export")
+    log_action(
+        request.user, 
+        "Exported full report", 
+        "Report Export", 
+        changes=["Format: PDF", "Scope: All Data"],
+        object_repr="Full PDF Export"
+    )
     return response

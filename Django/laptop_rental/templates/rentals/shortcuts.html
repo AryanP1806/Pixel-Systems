@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shortcut Settings{% endblock %}
+
+{% block content %}
+<style>
+  /* --- PAGE LAYOUT & INPUT STYLES --- */
+  .shortcut-grid-wrapper {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+  }
+  
+  @media (min-width: 1024px) {
+    .shortcut-grid-wrapper {
+      grid-template-columns: 1fr 1.5fr; 
+    }
+  }
+
+  /* Input Overrides */
+  .shortcut-input {
+    width: 50px !important;
+    text-align: center;
+    font-family: monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 8px !important;
+    transition: border-color 0.2s;
+  }
+  
+  /* Error State for Inputs */
+  .input-error {
+    border-color: var(--danger) !important;
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+  }
+
+  .url-input {
+    font-family: monospace;
+    font-size: 0.9rem;
+  }
+
+  /* Custom Row Styling */
+  .custom-row {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-md);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    transition: var(--transition);
+  }
+  
+  .custom-row:hover {
+    border-color: var(--primary);
+    transform: translateX(4px);
+  }
+
+  /* System Grid */
+  .system-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-md);
+  }
+
+  .system-card {
+    background: var(--surface);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  @media (max-width: 768px) {
+    .custom-row { flex-direction: column; align-items: stretch; }
+    .shortcut-input { width: 100% !important; }
+  }
+
+  /* --- STATUS MESSAGE BAR --- */
+  .status-bar {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 24px;
+    text-align: right;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .status-error { color: var(--danger); opacity: 1; }
+  .status-success { color: var(--success); opacity: 1; }
+
+</style>
+
+<div class="shortcut-grid-wrapper">
+
+  <div class="box" style="text-align: left;">
+    <h2 style="margin-bottom: var(--space-md); color: var(--text-primary);">
+      🛠️ System Navigation
+    </h2>
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-lg); font-size: 0.9rem;">
+      Core shortcuts. Hold <strong>Alt</strong> + Key.
+    </p>
+
+    <div class="system-grid" id="systemContainer">
+      <div class="system-card">
+        <span>🏠 Home</span>
+        <input type="text" class="shortcut-input system-input" data-id="home" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>📋 Rentals</span>
+        <input type="text" class="shortcut-input system-input" data-id="rental_list" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>👥 Customers</span>
+        <input type="text" class="shortcut-input system-input" data-id="customer_list" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>📦 Assets</span>
+        <input type="text" class="shortcut-input system-input" data-id="product_list" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>➕ New Rental</span>
+        <input type="text" class="shortcut-input system-input" data-id="add_rental" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>⚙️ Settings</span>
+        <input type="text" class="shortcut-input system-input" data-id="settings_home" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>📜 Rental History</span>
+        <input type="text" class="shortcut-input system-input" data-id="history" maxlength="1">
+      </div>
+      <div class="system-card">
+        <span>🔍 Search</span>
+        <input type="text" class="shortcut-input system-input" data-id="focus_search" maxlength="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="box" style="text-align: left;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
+      <div>
+        <h2 style="color: var(--text-primary); margin: 0;">🚀 Custom Quick Links</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">
+          Create shortcuts for specific actions.
+        </p>
+      </div>
+      <button type="button" class="action-btn" onclick="addCustomRow()">+ Add New</button>
+    </div>
+
+    <div id="customContainer">
+      </div>
+
+    <div style="margin-top: var(--space-xl); border-top: 1px solid var(--border); padding-top: var(--space-lg);">
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-md); align-items: center;">
+        <button type="button" onclick="resetDefaults()" style="background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); box-shadow: none;">
+          Reset Defaults
+        </button>
+        <button type="button" id="saveBtn" class="action-btn" style="padding: 10px 24px;">
+          💾 Save Changes (Enter)
+        </button>
+      </div>
+      <div id="statusMsg" class="status-bar"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const defaultSystem = {
+    'home': 'h', 'rental_list': 'r', 'customer_list': 'c',
+    'product_list': 'a', 'add_rental': 'n', 'settings_home': 's',
+    'history': 'o', 'focus_search': '/'
+  };
+
+  // --- 1. INITIALIZATION ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // Load System
+    const savedSystem = JSON.parse(localStorage.getItem('sys_shortcuts')) || defaultSystem;
+    document.querySelectorAll('.system-input').forEach(input => {
+      const id = input.dataset.id;
+      if (savedSystem[id]) input.value = savedSystem[id];
+      setupInputListeners(input);
+    });
+
+    // Load Custom
+    const savedCustom = JSON.parse(localStorage.getItem('custom_shortcuts')) || [];
+    if (savedCustom.length === 0) addCustomRow();
+    else savedCustom.forEach(item => addCustomRow(item.label, item.url, item.key));
+  });
+
+  // --- 2. ADD ROW LOGIC ---
+  function addCustomRow(label='', url='', key='') {
+    const container = document.getElementById('customContainer');
+    const div = document.createElement('div');
+    div.className = 'custom-row';
+    div.innerHTML = `
+      <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Label</label>
+        <input type="text" class="custom-label" value="${label}" placeholder="e.g. Add Laptop">
+      </div>
+      <div style="flex: 2;">
+        <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">URL Path</label>
+        <input type="text" class="custom-url url-input" value="${url}" placeholder="/products/add/">
+      </div>
+      <div style="width: 80px;">
+        <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Key</label>
+        <input type="text" class="shortcut-input custom-key" value="${key}" maxlength="1">
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+         <button type="button" onclick="this.closest('.custom-row').remove()" 
+            style="background: transparent; color: var(--danger); border: 1px solid var(--border); padding: 10px; box-shadow: none;">✕</button>
+      </div>
+    `;
+    
+    // Attach listeners to new inputs
+    div.querySelectorAll('input').forEach(setupInputListeners);
+    container.appendChild(div);
+  }
+
+  // --- 3. INPUT LISTENERS (Focus, Enter Key) ---
+  function setupInputListeners(input) {
+    // Auto-select text on click
+    input.addEventListener('focus', function() { this.select(); });
+    
+    // Clear errors when typing
+    input.addEventListener('input', function() { 
+        this.classList.remove('input-error'); 
+        showStatus('', 'none');
+    });
+
+    // Handle ENTER key to save
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault(); // Stop default form submit
+        saveShortcuts();    // Trigger our save logic
+      }
+    });
+  }
+
+  // --- 4. SAVE & VALIDATE LOGIC ---
+  document.getElementById('saveBtn').addEventListener('click', saveShortcuts);
+
+  function saveShortcuts() {
+    const usedKeys = new Set();
+    let errorMsg = null;
+    let errorInput = null;
+
+    // Reset visual styles
+    document.querySelectorAll('input').forEach(i => i.classList.remove('input-error'));
+
+    // A. Validate System Keys
+    const sysData = {};
+    const sysInputs = document.querySelectorAll('.system-input');
+    
+    for (const input of sysInputs) {
+      const val = input.value.toLowerCase().trim();
+      if (!val) continue; // Allow blanks? (Optional: change logic if mandatory)
+
+      if (usedKeys.has(val)) {
+        errorMsg = `Duplicate Key Detected: "${val.toUpperCase()}"`;
+        errorInput = input;
+        break;
+      }
+      usedKeys.add(val);
+      sysData[input.dataset.id] = val;
+    }
+
+    // B. Validate Custom Keys (if System was OK)
+    const customData = [];
+    if (!errorMsg) {
+      const customRows = document.querySelectorAll('.custom-row');
+      for (const row of customRows) {
+        const label = row.querySelector('.custom-label').value.trim();
+        const url = row.querySelector('.custom-url').value.trim();
+        const keyInput = row.querySelector('.custom-key');
+        const key = keyInput.value.toLowerCase().trim();
+
+        // Only save if complete row
+        if (label && url && key) {
+            if (usedKeys.has(key)) {
+                errorMsg = `Duplicate Key Detected: "${key.toUpperCase()}"`;
+                errorInput = keyInput;
+                break;
+            }
+            usedKeys.add(key);
+            customData.push({ label, url, key });
+        }
+      }
+    }
+
+    // C. Handle Result
+    if (errorMsg) {
+      showStatus(errorMsg, 'error');
+      if (errorInput) {
+          errorInput.classList.add('input-error');
+          errorInput.focus();
+          // Shake effect
+          errorInput.style.animation = "shake 0.3s";
+          setTimeout(() => errorInput.style.animation = "", 300);
+      }
+    } else {
+      // Success!
+      localStorage.setItem('sys_shortcuts', JSON.stringify(sysData));
+      localStorage.setItem('custom_shortcuts', JSON.stringify(customData));
+      
+      showStatus('Shortcuts Saved Successfully!', 'success');
+      
+      // Reload shortly after to apply changes
+      setTimeout(() => location.reload(), 800);
+    }
+  }
+
+  // --- 5. UTILS ---
+  function showStatus(msg, type) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    if (type === 'error') {
+      el.className = 'status-bar status-error';
+    } else if (type === 'success') {
+      el.className = 'status-bar status-success';
+    } else {
+      el.className = 'status-bar'; // hide
+    }
+  }
+
+  function resetDefaults() {
+    if(confirm("Restore default shortcuts?")) {
+      localStorage.removeItem('sys_shortcuts');
+      localStorage.removeItem('custom_shortcuts');
+      location.reload();
+    }
+  }
+</script>
+
+<style>
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+</style>
+{% endblock %}

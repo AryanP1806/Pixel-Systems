@@ -23,6 +23,7 @@ urlpatterns = [
     path('settings/ram/', views.manage_ram_Options, name='manage_ram_Options'),
     path('settings/display/', views.manage_display_size_Options, name='manage_display_size_Options'),
     path('settings/graphics/', views.manage_graphics_Options, name='manage_graphics_Options'),
+    path('settings/shortcuts/', views.shortcuts, name='shortcuts'),
 
     path('asset-types/', views.asset_type_list, name='asset_type_list'),
     path('asset-types/add/', views.add_asset_type, name='add_asset_type'),

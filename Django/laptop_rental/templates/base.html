@@ -165,26 +165,29 @@
       <div class="modal-content">
         <span class="close-btn">&times;</span>
         <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 10px">
-          System Version 2.0.0
+          System Version 2.1.0
         </h2>
 
         <div style="margin-top: 20px">
-          <h3>✨ What's New:</h3>
+          <h3>🚀 Major Updates (v2.1):</h3>
           <ul class="version-list">
             <li>
-              <strong>New Feature:</strong> Added specific Customer Detail pages
-              with rental history.
+              <strong>🛡️ Smart Audit Logs:</strong> Complete system-wide tracking. Every "Create," "Edit," and "Approval" now logs exactly <em>what</em> changed (e.g., "RAM: 4GB → 8GB").
             </li>
             <li>
-              <strong>Improvement:</strong> Enhanced Rental History with Date
-              Filters and Edit actions.
+              <strong>🔍 Smart Search:</strong> Added <a href="{% url 'smart_asset_search' %}" style="color: #6366f1; text-decoration: none;">Smart Asset Search</a> to filter stock by specific specs (SSD, CPU, etc.) and a powerful Global Search for Suppliers & Repairs.
             </li>
             <li>
-              <strong>Feature:</strong> Added Revenue Calculation logic for
-              filtered customers in reports.
+              <strong>⚡ Approval System:</strong> Admins can now see a "Diff" view (Before vs. After) for all pending edits before approving them.
             </li>
             <li>
-              <strong>UI:</strong> Added New HomePage design
+              <strong>📊 Dashboard 2.0:</strong> Added "Overdue" alerts, "Recent System Logs," and real-time "Monthly Revenue" tracking.
+            </li>
+            <li>
+              <strong>📂 Shortcut Keys:</strong> Added Shortcut keys for more accessibility
+            </li>
+             <li>
+              <strong>🔧 Logic Fixes:</strong> Optimized Revenue Calculator and Bulk Rental creation flows.
             </li>
           </ul>
         </div>
@@ -199,9 +202,8 @@
           "
         >
           <strong>Developer Note:</strong><br />
-          This system is built using Django. If you encounter any bugs, please
-          report them to the administrator.
-          <br /><em>Last Updated: January 19, 2026</em>
+          This update focuses on <strong>Security & Transparency</strong>. The new logging system ensures no data change goes unnoticed.
+          <br /><em>Last Updated: January 28, 2026</em>
         </div>
 
         <div style="text-align: center; margin-top: 20px; color: #888">
@@ -211,7 +213,7 @@
     </div>
 
     <footer style="z-index: 1000" class="version-footer" id="versionTrigger">
-      Made By AP (v2.0.0)
+      Made By AP (v2.1.0)
     </footer>
 
     <script>
@@ -286,5 +288,77 @@
         };
       })();
     </script>
+<script>
+  /* --- DYNAMIC SHORTCUT MANAGER (v2) --- */
+  document.addEventListener("keydown", function (e) {
+    // Only proceed if Alt is held and it's a valid key
+    if (!e.altKey || e.ctrlKey || e.shiftKey) return;
+    
+    const pressed = e.key.toLowerCase();
+    
+    // 1. MAP DJANGO URLS (Server-Side to Client-Side)
+    // We render these so the JS knows where to go for system actions
+    const djangoUrls = {
+      'home': "{% url 'home' %}",
+      'rental_list': "{% url 'rental_list' %}",
+      'customer_list': "{% url 'customer_list' %}",
+      'product_list': "{% url 'product_list' %}",
+      'add_rental': "{% url 'add_rental' %}",
+      'settings_home': "{% url 'settings_home' %}",
+      // Use 'sold_assets' as History/Sold if you don't have a specific history URL yet
+      'history': "{% url 'sold_assets' %}", 
+    };
+
+    // 2. LOAD PREFERENCES
+    const defaults = {
+      'home': 'h', 'rental_list': 'r', 'customer_list': 'c', 
+      'product_list': 'a', 'add_rental': 'n', 'focus_search': '/'
+    };
+    
+    const sysPrefs = JSON.parse(localStorage.getItem('sys_shortcuts')) || defaults;
+    const customPrefs = JSON.parse(localStorage.getItem('custom_shortcuts')) || [];
+
+    // 3. CHECK SYSTEM MATCHES
+    for (const [actionId, keyChar] of Object.entries(sysPrefs)) {
+      if (pressed === keyChar) {
+        e.preventDefault();
+        
+        // Special Case: Search Bar
+        // --- SEARCH BAR FIX START ---
+        if (actionId === 'focus_search') {
+          // Priority 1: Try to find a standard search input (name="q") used in your lists
+          let searchInput = document.querySelector('input[name="q"]');
+          
+          // Priority 2: Try specific ID if name="q" not found
+          if (!searchInput) {
+            searchInput = document.getElementById("global-search-input");
+          }
+
+          // Execute Focus
+          if (searchInput) { 
+            searchInput.focus(); 
+            searchInput.select(); // Highlight text so you can type immediately
+          }
+          return;
+        }
+        // --- SEARCH BAR FIX END ---
+
+        // Standard Navigation
+        if (djangoUrls[actionId]) {
+          window.location.href = djangoUrls[actionId];
+          return;
+        }
+      }
+    }
+
+    // 4. CHECK CUSTOM MATCHES
+    // These are raw URLs the user typed in (e.g. "/products/add/")
+    const customMatch = customPrefs.find(item => item.key === pressed);
+    if (customMatch) {
+      e.preventDefault();
+      window.location.href = customMatch.url;
+    }
+  });
+</script>
   </body>
 </html>
