@@ -1,0 +1,403 @@
+view.py
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from .api_service import shoonya_service
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .api_service import shoonya_service
+
+def login_view(request):
+    if request.method == 'POST':
+        totp = request.POST.get('totp')
+        
+        if not totp:
+            messages.error(request, "Please enter the TOTP.")
+            return render(request, 'trading/login.html')
+
+        # Attempt Shoonya Login
+        res = shoonya_service.login_with_totp(totp)
+
+        if res and res.get('stat') == 'Ok':
+            # Store essential data in session
+            request.session['shoonya_token'] = res.get('susertoken')
+            request.session['user_id'] = res.get('uid')
+            
+            messages.success(request, f"Logged in as {res.get('uname')}")
+            return redirect('dashboard')
+        else:
+            error_emsg = res.get('emsg', 'Invalid TOTP or Credentials') if res else "Connection Error"
+            messages.error(request, f"Login Failed: {error_emsg}")
+
+    return render(request, 'trading/login.html')
+
+def dashboard(request):
+    token = request.session.get('shoonya_token')
+    if not token:
+        return redirect('login')
+
+    # Pass the session token into the service to ensure the SDK object is 're-hydrated'
+    nifty_data = shoonya_service.get_nifty_price('26000', session_token=token)
+    
+    if not nifty_data:
+        messages.warning(request, "Market data currently unavailable. Ensure NSE exchange is enabled.")
+
+    context = {
+        'user_id': request.session.get('user_id'),
+        'nifty': nifty_data,
+    }
+    return render(request, 'trading/dashboard.html', context)
+
+
+import json
+from .advanced_backtest import AdvancedBacktester # Assuming updated name
+import numpy as np
+import json
+import numpy as np
+import pandas as pd
+from django.shortcuts import render, redirect
+from .api_service import shoonya_service
+
+def backtest_view(request):
+    if 'shoonya_token' not in request.session:
+        return redirect('login')
+
+    token = request.session.get('shoonya_token')
+    # Re-initialize the Shoonya singleton for this thread/request
+    shoonya_service.get_nifty_price('26000', session_token=token)
+
+    engine = AdvancedBacktester(token='26000')
+    df = engine.get_enriched_data(days=5, interval=5)
+
+    if df is None or df.empty:
+        return render(request, 'trading/backtest.html', {'error_msg': 'No data returned. Check Shoonya API status.'})
+
+    # MANDATORY: Sort ascending for TradingView (Lightweight Charts crashes on unsorted data)
+    df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y %H:%M:%S')
+    df = df.sort_values('time_dt').reset_index(drop=True)
+    df['unix_time'] = df['time_dt'].astype(int) // 10**9
+
+    std_candles, ha_candles, ema_data, super_data, rsi_data = [], [], [], [], []
+
+    for _, row in df.iterrows():
+        t = int(row['unix_time'])
+        # Ensure all types are vanilla floats for Javascript
+        std_candles.append({'time': t, 'open': float(row['open']), 'high': float(row['high']), 'low': float(row['low']), 'close': float(row['close'])})
+        ha_candles.append({'time': t, 'open': float(row['ha_open']), 'high': float(row['ha_high']), 'low': float(row['ha_low']), 'close': float(row['ha_close'])})
+        
+        if not np.isnan(row['EMA_20']):
+            ema_data.append({'time': t, 'value': float(row['EMA_20'])})
+        if not np.isnan(row['SUPERTREND']):
+            super_data.append({'time': t, 'value': float(row['SUPERTREND'])})
+        if not np.isnan(row['RSI']):
+            rsi_data.append({'time': t, 'value': float(row['RSI'])})
+
+    context = {
+        'std_candles': json.dumps(std_candles),
+        'ha_candles': json.dumps(ha_candles),
+        'ema_data': json.dumps(ema_data),
+        'super_data': json.dumps(super_data),
+        'rsi_data': json.dumps(rsi_data),
+    }
+    return render(request, 'trading/backtest.html', context)
+
+
+def logout_user(request):
+    logout(request)
+    return redirect('login')
+backtest.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo Lab | Strategy Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { background-color: #0c0e14; margin: 0; padding: 0; overflow: hidden; }
+        /* Force height to prevent collapsing to zero */
+        #main-chart { height: 65vh; min-height: 400px; width: 100%; }
+        #rsi-chart { height: 150px; width: 100%; border-top: 1px solid #1e222d; }
+        .active-btn { background-color: #2563eb !important; color: white !important; box-shadow: 0 0 10px rgba(37, 99, 235, 0.4); }
+    </style>
+</head>
+<body class="flex flex-col h-screen text-slate-300">
+
+    <header class="h-16 bg-[#12151e] border-b border-[#1e222d] flex items-center justify-between px-6 shrink-0 z-10">
+        <div class="flex items-center gap-8">
+            <h1 class="font-black text-blue-500 tracking-tighter text-2xl uppercase">Algo<span class="text-white">Pro</span></h1>
+            
+            <div class="flex bg-black/40 p-1 rounded-lg border border-white/5 gap-1">
+                <button onclick="setCandleType('std')" id="btn-std" class="px-5 py-1.5 text-[10px] font-bold uppercase rounded-md active-btn">Standard</button>
+                <button onclick="setCandleType('ha')" id="btn-ha" class="px-5 py-1.5 text-[10px] font-bold uppercase rounded-md text-slate-500 hover:text-white transition-all">Heikin Ashi</button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="toggleIndicator('ema')" id="ind-ema" class="px-4 py-1.5 text-[10px] font-bold uppercase border border-[#2a2e39] rounded-md hover:border-amber-500 transition-all">EMA 20</button>
+                <button onclick="toggleIndicator('super')" id="ind-super" class="px-4 py-1.5 text-[10px] font-bold uppercase border border-[#2a2e39] rounded-md hover:border-pink-500 transition-all">Supertrend</button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6 font-mono text-[11px]">
+            <div id="price-legend" class="bg-black/20 px-4 py-2 rounded border border-white/5">
+                <span class="text-slate-500">NIFTY 50:</span> <span id="price-vals" class="text-white">HOVER TO VIEW</span>
+            </div>
+            <a href="/" class="text-slate-500 hover:text-white transition-colors uppercase font-bold tracking-widest text-[10px]">Exit</a>
+        </div>
+    </header>
+
+    {% if error_msg %}
+    <div class="flex-1 flex items-center justify-center p-10 text-center">
+        <div class="bg-red-500/10 border border-red-500/20 p-8 rounded-2xl max-w-sm">
+            <p class="text-red-400 font-bold mb-4">API SYNC FAILED</p>
+            <p class="text-xs text-slate-500 mb-6">{{ error_msg }}</p>
+            <a href="/" class="bg-slate-800 px-6 py-2 rounded-full text-[10px] font-bold uppercase">Back to Dashboard</a>
+        </div>
+    </div>
+    {% else %}
+    <main id="chart-area" class="flex-1 flex flex-col bg-[#0c0e14]">
+        <div id="main-chart"></div>
+        <div id="rsi-chart"></div>
+    </main>
+    {% endif %}
+
+    <script>
+        const stdData = {{ std_candles|safe }};
+        const haData = {{ ha_candles|safe }};
+        const emaData = {{ ema_data|safe }};
+        const superData = {{ super_data|safe }};
+        const rsiData = {{ rsi_data|safe }};
+
+        const chartOptions = {
+            layout: { background: { color: '#0c0e14' }, textColor: '#787b86', fontSize: 12 },
+            grid: { vertLines: { color: '#161a25' }, horzLines: { color: '#161a25' } },
+            crosshair: { mode: 0, vertLine: { labelBackgroundColor: '#2563eb' }, horzLine: { labelBackgroundColor: '#2563eb' } },
+            rightPriceScale: { borderColor: '#1e222d', autoScale: true, scaleMargins: { top: 0.1, bottom: 0.2 } },
+            timeScale: { borderColor: '#1e222d', timeVisible: true, secondsVisible: false },
+            handleScroll: true,
+            handleScale: true,
+        };
+
+        const mainContainer = document.getElementById('main-chart');
+        if (mainContainer) {
+            const chart = LightweightCharts.createChart(mainContainer, chartOptions);
+            const candleSeries = chart.addCandlestickSeries({
+                upColor: '#089981', downColor: '#f23645', borderVisible: false,
+                wickUpColor: '#089981', wickDownColor: '#f23645'
+            });
+            
+            candleSeries.setData(stdData);
+            
+            // RSI Initialize
+            const rsiContainer = document.getElementById('rsi-chart');
+            const rsiChart = LightweightCharts.createChart(rsiContainer, {
+                ...chartOptions,
+                rightPriceScale: { ...chartOptions.rightPriceScale, scaleMargins: { top: 0.1, bottom: 0.1 } }
+            });
+            const rsiLine = rsiChart.addLineSeries({ color: '#8b5cf6', lineWidth: 2 });
+            rsiLine.setData(rsiData);
+
+            // Sync Logic
+            chart.timeScale().subscribeVisibleTimeRangeChange(range => {
+                rsiChart.timeScale().setVisibleRange(range);
+            });
+
+            // RESIZE OBSERVER: This fixes the "too narrow" issue by forcing redraw
+            const resizeObserver = new ResizeObserver(() => {
+                chart.resize(mainContainer.clientWidth, mainContainer.clientHeight);
+                rsiChart.resize(rsiContainer.clientWidth, rsiContainer.clientHeight);
+                // Spread candles across full width
+                chart.timeScale().fitContent();
+                rsiChart.timeScale().fitContent();
+            });
+            resizeObserver.observe(mainContainer);
+
+            let emaSeries = null;
+            let superSeries = null;
+
+            window.setCandleType = (type) => {
+                const isHA = type === 'ha';
+                candleSeries.applyOptions({
+                    upColor: isHA ? '#3b82f6' : '#089981',
+                    downColor: isHA ? '#dc2626' : '#f23645',
+                    wickUpColor: isHA ? '#3b82f6' : '#089981',
+                    wickDownColor: isHA ? '#dc2626' : '#f23645'
+                });
+                candleSeries.setData(isHA ? haData : stdData);
+                document.getElementById('btn-ha').className = isHA ? "px-5 py-1.5 text-[10px] font-bold uppercase rounded-md active-btn" : "px-5 py-1.5 text-[10px] font-bold uppercase rounded-md text-slate-500";
+                document.getElementById('btn-std').className = !isHA ? "px-5 py-1.5 text-[10px] font-bold uppercase rounded-md active-btn" : "px-5 py-1.5 text-[10px] font-bold uppercase rounded-md text-slate-500";
+                chart.timeScale().fitContent();
+            };
+
+            window.toggleIndicator = (name) => {
+                if (name === 'ema') {
+                    if (!emaSeries) {
+                        emaSeries = chart.addLineSeries({ color: '#f59e0b', lineWidth: 1.5, priceLineVisible: false });
+                        emaSeries.setData(emaData);
+                        document.getElementById('ind-ema').style.color = "#f59e0b";
+                    } else {
+                        chart.removeSeries(emaSeries);
+                        emaSeries = null;
+                        document.getElementById('ind-ema').style.color = "inherit";
+                    }
+                }
+                if (name === 'super') {
+                    if (!superSeries) {
+                        superSeries = chart.addLineSeries({ color: '#ec4899', lineWidth: 2, priceLineVisible: false });
+                        superSeries.setData(superData);
+                        document.getElementById('ind-super').style.color = "#ec4899";
+                    } else {
+                        chart.removeSeries(superSeries);
+                        superSeries = null;
+                        document.getElementById('ind-super').style.color = "inherit";
+                    }
+                }
+            };
+
+            chart.subscribeCrosshairMove(param => {
+                if (param.time) {
+                    const data = param.seriesData.get(candleSeries);
+                    if (data) {
+                        document.getElementById('price-vals').innerHTML = 
+                            `O: <span class="text-white">${data.open.toFixed(1)}</span> ` +
+                            `H: <span class="text-emerald-400">${data.high.toFixed(1)}</span> ` +
+                            `L: <span class="text-rose-400">${data.low.toFixed(1)}</span> ` +
+                            `C: <span class="text-white">${data.close.toFixed(1)}</span>`;
+                    }
+                }
+            });
+            
+            // Initial Spread
+            setTimeout(() => {
+                chart.timeScale().fitContent();
+                rsiChart.timeScale().fitContent();
+            }, 100);
+        }
+    </script>
+</body>
+</html>
+advance_backtest
+import pandas as pd
+import pandas_ta as ta
+import numpy as np
+import datetime
+from .api_service import shoonya_service
+
+class AdvancedBacktester:
+    def __init__(self, token='26000', exchange='NSE'):
+        self.token = token
+        self.exchange = exchange
+
+    def get_enriched_data(self, days=5, interval=5):
+        """Fetches data and calculates all requested indicators with robust key handling"""
+        end_time = datetime.datetime.now()
+        start_time = end_time - datetime.timedelta(days=days)
+        
+        ret = shoonya_service.api.get_time_price_series(
+            exchange=self.exchange, 
+            token=self.token, 
+            starttime=int(start_time.timestamp()), 
+            endtime=int(end_time.timestamp()),
+            interval=interval
+        )
+        
+        if not ret or not isinstance(ret, list):
+            return None
+
+        # Convert to DataFrame
+        df = pd.DataFrame(ret)
+        df = df.iloc[::-1].reset_index(drop=True)
+        
+        # Convert types
+        for col in ['into', 'inth', 'intl', 'intc', 'intv']:
+            df[col] = pd.to_numeric(df[col])
+            
+        df.rename(columns={'into': 'open', 'inth': 'high', 'intl': 'low', 'intc': 'close', 'intv': 'volume'}, inplace=True)
+
+        # 1. Technical Indicators
+        df['EMA_20'] = ta.ema(df['close'], length=20)
+        df['SMA_50'] = ta.sma(df['close'], length=50)
+        df['RSI'] = ta.rsi(df['close'], length=14)
+        
+        # 2. Supertrend - Robust Column Access
+        # Length 10, Multiplier 3.0
+        st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3)
+        if st is not None:
+            # Instead of hardcoded keys, we find columns by position or partial name
+            # st usually has 4 columns: [Supertrend, Direction, Long, Short]
+            df['SUPERTREND'] = st.iloc[:, 0] 
+            df['ST_DIR'] = st.iloc[:, 1]
+        else:
+            df['SUPERTREND'] = np.nan
+            df['ST_DIR'] = 0
+
+        # 3. Heikin Ashi
+        ha_df = ta.ha(df['open'], df['high'], df['low'], df['close'])
+        df['ha_open'] = ha_df.iloc[:, 0]
+        df['ha_high'] = ha_df.iloc[:, 1]
+        df['ha_low'] = ha_df.iloc[:, 2]
+        df['ha_close'] = ha_df.iloc[:, 3]
+
+        return df
+api_service
+import os
+import logging
+from .api_helper import NorenApiPy
+
+logger = logging.getLogger(__name__)
+
+class ShoonyaService:
+    def __init__(self):
+        self.api = NorenApiPy()
+        self.user_id = os.getenv('SHOONYA_USER_ID')
+        self.password = os.getenv('SHOONYA_PASSWORD')
+        self.api_key = os.getenv('SHOONYA_API_KEY')
+        self.imei = os.getenv('SHOONYA_IMEI')
+        self.vendor_code = os.getenv('SHOONYA_VENDOR_CODE')
+
+    def login_with_totp(self, totp):
+        try:
+            res = self.api.login(
+                userid=self.user_id,
+                password=self.password,
+                twoFA=totp,
+                vendor_code=self.vendor_code,
+                api_secret=self.api_key,
+                imei=self.imei
+            )
+            return res
+        except Exception as e:
+            logger.error(f"Login Exception: {e}")
+            return None
+
+    def get_nifty_price(self, token_id, session_token=None):
+        """
+        Fetches LTP. 
+        Note: We explicitly check if we are 'logged in' to the SDK object.
+        """
+        try:
+            # If the object lost session, re-inject the token from Django session
+            if session_token and not getattr(self.api, '_NorenApi__susertoken', None):
+                self.api.set_session(self.user_id, self.password, session_token)
+
+            # Get Quote
+            quote = self.api.get_quotes(exchange='NSE', token=token_id)
+            
+            if quote and quote.get('stat') == 'Ok':
+                return {
+                    'lp': quote.get('lp'),
+                    'pc': quote.get('pc'),
+                    'h': quote.get('h'),
+                    'l': quote.get('l'),
+                }
+            else:
+                logger.warning(f"Quote Stat Not Ok: {quote}")
+                return None
+        except Exception as e:
+            # This catches the 'attribute' error and logs it without crashing the page
+            logger.error(f"Error fetching Nifty Price: {e}")
+            return None
+
+shoonya_service = ShoonyaService()

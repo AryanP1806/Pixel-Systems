@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Backtest | Strategy Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body class="bg-[#0b0e14] text-slate-300 min-h-screen">
+    
+    <nav class="border-b border-slate-800 p-4 bg-[#121720]">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="font-bold text-xl text-blue-500">BACKTEST<span class="text-white">LAB</span></h1>
+            <a href="{% url 'dashboard' %}" class="text-xs bg-slate-800 px-4 py-2 rounded hover:bg-slate-700">Back to Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Sidebar Controls -->
+            <div class="bg-[#121720] p-6 rounded-xl border border-slate-800 h-fit">
+                <h3 class="text-white font-bold mb-4 uppercase text-xs tracking-widest">Strategy Settings</h3>
+                <form class="space-y-4">
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-bold">SELECT STRATEGY</label>
+                        <select name="strategy" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm mt-1 outline-none">
+                            <option value="MA_CROSS">MA Crossover (9/21)</option>
+                            <option value="RSI_OB">RSI Overbought/Oversold</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-bold">ASSET</label>
+                        <input type="text" value="NIFTY 50" disabled class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm mt-1 opacity-50">
+                    </div>
+                    <button class="w-full bg-blue-600 py-2 rounded font-bold text-white text-sm hover:bg-blue-500 transition-colors">Run Backtest</button>
+                </form>
+            </div>
+
+            <!-- Chart Area -->
+            <div class="lg:col-span-3 bg-[#121720] p-6 rounded-xl border border-slate-800">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold text-white">Strategy Performance Chart</h2>
+                    <div class="flex gap-4">
+                        <span class="text-[10px] flex items-center gap-1"><div class="w-2 h-2 bg-emerald-500 rounded-full"></div> Buy Signal</span>
+                        <span class="text-[10px] flex items-center gap-1"><div class="w-2 h-2 bg-rose-500 rounded-full"></div> Sell Signal</span>
+                    </div>
+                </div>
+                <div id="backtest-chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartData = {{ chart_data|safe }};
+        const buySignals = {{ buy_signals|safe }};
+        const sellSignals = {{ sell_signals|safe }};
+
+        var options = {
+            series: [
+                { name: 'Price', type: 'line', data: chartData },
+                { name: 'Buy', type: 'scatter', data: buySignals },
+                { name: 'Sell', type: 'scatter', data: sellSignals }
+            ],
+            chart: { height: 450, type: 'line', toolbar: { show: false }, background: 'transparent' },
+            colors: ['#3b82f6', '#10b981', '#f43f5e'],
+            stroke: { width: [2, 0, 0], curve: 'smooth' },
+            markers: { size: [0, 6, 6] },
+            theme: { mode: 'dark' },
+            grid: { borderColor: '#1e293b' },
+            xaxis: { type: 'category', labels: { show: false } },
+            tooltip: { theme: 'dark', x: { show: true } }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#backtest-chart"), options);
+        chart.render();
+    </script>
+</body>
+</html>

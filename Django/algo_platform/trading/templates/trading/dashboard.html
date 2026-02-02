@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Algo Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans min-h-screen">
+
+    <!-- Nav -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="font-bold text-xl text-blue-400">ALGO<span class="text-white">DASH</span></h1>
+            <div class="flex items-center gap-4 text-sm text-slate-400">
+                <span>UID: <span class="text-white font-mono">{{ user_id }}</span></span>
+                <a href="{% url 'logout' %}" class="bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Nifty 50 Card -->
+        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Market Index</h3>
+                    <h2 class="text-xl font-bold">NIFTY 50</h2>
+                </div>
+                <div class="bg-blue-500/10 text-blue-400 p-2 rounded-lg">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+
+            {% if nifty %}
+                <div class="flex items-baseline gap-2">
+                    <span class="text-4xl font-black text-white">{{ nifty.lp }}</span>
+                    <span class="text-sm font-semibold {% if '-' in nifty.pc %} text-rose-500 {% else %} text-emerald-500 {% endif %}">
+                        {{ nifty.pc }}%
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-6 text-xs text-slate-500">
+                    <div class="bg-black/20 p-2 rounded">HIGH: <span class="text-slate-300 ml-1">{{ nifty.h }}</span></div>
+                    <div class="bg-black/20 p-2 rounded">LOW: <span class="text-slate-300 ml-1">{{ nifty.l }}</span></div>
+                </div>
+            {% else %}
+                <div class="py-4 text-slate-600 italic text-sm">Waiting for market data...</div>
+            {% endif %}
+        </div>
+
+        <!-- Strategy Controls Placeholder -->
+        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
+            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Algo Status</h3>
+            <div class="flex items-center justify-center h-32 border-2 border-dashed border-slate-800 rounded-xl">
+                <p class="text-slate-600 text-sm">System Ready. No active trades.</p>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>
