@@ -49,49 +49,61 @@ def dashboard(request):
     return render(request, 'trading/dashboard.html', context)
 
 
-# Add these imports to your existing views.py
+def logout_user(request):
+    logout(request)
+    return redirect('login')
+
+
 import json
+import numpy as np
+from django.shortcuts import render, redirect
 from .backtest_engine import Backtester
+from .api_service import shoonya_service
 
 def backtest_view(request):
     if 'shoonya_token' not in request.session:
         return redirect('login')
 
-    strategy = request.GET.get('strategy', 'MA_CROSS')
-    
-    # Initialize Shoonya session for the SDK
+    # Defaults
+    timeframe = request.GET.get('timeframe', 'D')
+    timeline = int(request.GET.get('timeline', '365'))
+
     token = request.session.get('shoonya_token')
+    # Refresh API session
     shoonya_service.get_nifty_price('26000', session_token=token)
 
     engine = Backtester(token='26000')
-    df = engine.get_history(days=3)
+    df = engine.get_history(timeframe=timeframe, days=timeline)
     
-    chart_data = []
-    buy_signals = []
-    sell_signals = []
+    if df is None or df.empty:
+        return render(request, 'trading/backtest.html', {'error': 'Broker returned empty data. Check if symbols are correct.'})
 
-    if df is not None:
-        results = engine.run_strategy(df)
+    candles, sma50, sma200, buy_marks, sell_marks = [], [], [], [], []
+
+    for _, row in df.iterrows():
+        t = row['time']
+        close_p = float(row['close'])
         
-        # Prepare data for ApexCharts
-        for _, row in results.iterrows():
-            timestamp = row['time'] # Shoonya format: 'DD-MM-YYYY HH:MM:SS'
-            price = float(row['intc'])
-            chart_data.append({'x': timestamp, 'y': price})
-            
-            if row['signal'] == 'BUY':
-                buy_signals.append({'x': timestamp, 'y': price})
-            elif row['signal'] == 'SELL':
-                sell_signals.append({'x': timestamp, 'y': price})
+        # ApexCharts Format
+        candles.append({'x': t, 'y': [row['open'], row['high'], row['low'], close_p]})
+        
+        # Line Indicators
+        sma50.append({'x': t, 'y': float(row['sma50']) if not np.isnan(row['sma50']) else None})
+        sma200.append({'x': t, 'y': float(row['sma200']) if not np.isnan(row['sma200']) else None})
+        
+        # Signals as scatter points on price
+        if row['signal'] == 'BUY':
+            buy_marks.append({'x': t, 'y': close_p})
+        elif row['signal'] == 'SELL':
+            sell_marks.append({'x': t, 'y': close_p})
 
     context = {
-        'chart_data': json.dumps(chart_data),
-        'buy_signals': json.dumps(buy_signals),
-        'sell_signals': json.dumps(sell_signals),
-        'strategy': strategy
+        'candles_json': json.dumps(candles),
+        'sma50_json': json.dumps(sma50),
+        'sma200_json': json.dumps(sma200),
+        'buy_marks_json': json.dumps(buy_marks),
+        'sell_marks_json': json.dumps(sell_marks),
+        'current_tf': timeframe,
+        'current_tl': timeline
     }
     return render(request, 'trading/backtest.html', context)
-
-def logout_user(request):
-    logout(request)
-    return redirect('login')

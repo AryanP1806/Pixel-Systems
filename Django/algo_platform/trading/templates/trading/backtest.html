@@ -2,77 +2,82 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Backtest | Strategy Analyzer</title>
+    <title>AlgoPro | Strategy Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
-<body class="bg-[#0b0e14] text-slate-300 min-h-screen">
-    
-    <nav class="border-b border-slate-800 p-4 bg-[#121720]">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="font-bold text-xl text-blue-500">BACKTEST<span class="text-white">LAB</span></h1>
-            <a href="{% url 'dashboard' %}" class="text-xs bg-slate-800 px-4 py-2 rounded hover:bg-slate-700">Back to Dashboard</a>
-        </div>
-    </nav>
+<body class="bg-[#020617] text-slate-300 min-h-screen">
 
-    <div class="max-w-7xl mx-auto p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-            <!-- Sidebar Controls -->
-            <div class="bg-[#121720] p-6 rounded-xl border border-slate-800 h-fit">
-                <h3 class="text-white font-bold mb-4 uppercase text-xs tracking-widest">Strategy Settings</h3>
-                <form class="space-y-4">
-                    <div>
-                        <label class="text-[10px] text-slate-500 font-bold">SELECT STRATEGY</label>
-                        <select name="strategy" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm mt-1 outline-none">
-                            <option value="MA_CROSS">MA Crossover (9/21)</option>
-                            <option value="RSI_OB">RSI Overbought/Oversold</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] text-slate-500 font-bold">ASSET</label>
-                        <input type="text" value="NIFTY 50" disabled class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm mt-1 opacity-50">
-                    </div>
-                    <button class="w-full bg-blue-600 py-2 rounded font-bold text-white text-sm hover:bg-blue-500 transition-colors">Run Backtest</button>
-                </form>
-            </div>
+    <header class="p-4 border-b border-white/5 flex justify-between items-center bg-[#0f172a] sticky top-0 z-50">
+        <h1 class="font-black text-2xl text-blue-500 italic">ALGO<span class="text-white">PRO</span></h1>
+        
+        <form class="flex gap-4">
+            <select name="timeframe" onchange="this.form.submit()" class="bg-slate-900 text-xs border border-slate-700 px-3 py-1.5 rounded outline-none">
+                <option value="D" {% if current_tf == 'D' %}selected{% endif %}>Daily</option>
+                <option value="60" {% if current_tf == '60' %}selected{% endif %}>1 Hour</option>
+                <option value="15" {% if current_tf == '15' %}selected{% endif %}>15 Min</option>
+            </select>
+            <select name="timeline" onchange="this.form.submit()" class="bg-slate-900 text-xs border border-slate-700 px-3 py-1.5 rounded outline-none">
+                <option value="180" {% if current_tl == 180 %}selected{% endif %}>6 Months</option>
+                <option value="365" {% if current_tl == 365 %}selected{% endif %}>1 Year</option>
+                <option value="730" {% if current_tl == 730 %}selected{% endif %}>2 Years</option>
+            </select>
+        </form>
 
-            <!-- Chart Area -->
-            <div class="lg:col-span-3 bg-[#121720] p-6 rounded-xl border border-slate-800">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-bold text-white">Strategy Performance Chart</h2>
-                    <div class="flex gap-4">
-                        <span class="text-[10px] flex items-center gap-1"><div class="w-2 h-2 bg-emerald-500 rounded-full"></div> Buy Signal</span>
-                        <span class="text-[10px] flex items-center gap-1"><div class="w-2 h-2 bg-rose-500 rounded-full"></div> Sell Signal</span>
-                    </div>
-                </div>
-                <div id="backtest-chart"></div>
+        <a href="{% url 'dashboard' %}" class="bg-slate-800 px-4 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700">Exit</a>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-6 space-y-6">
+        {% if error %}
+            <div class="bg-red-500/10 border border-red-500/20 p-10 rounded-2xl text-center text-red-400">
+                <h2 class="font-bold text-xl mb-2">Sync Error</h2>
+                <p>{{ error }}</p>
             </div>
-        </div>
-    </div>
+        {% else %}
+            <div class="bg-[#0f172a] border border-white/5 p-4 rounded-3xl">
+                <div id="chart"></div>
+            </div>
+        {% endif %}
+    </main>
 
     <script>
-        const chartData = {{ chart_data|safe }};
-        const buySignals = {{ buy_signals|safe }};
-        const sellSignals = {{ sell_signals|safe }};
+        const candles = {{ candles_json|safe }};
+        const sma50 = {{ sma50_json|safe }};
+        const sma200 = {{ sma200_json|safe }};
+        const buySignals = {{ buy_marks_json|safe }};
+        const sellSignals = {{ sell_marks_json|safe }};
 
         var options = {
             series: [
-                { name: 'Price', type: 'line', data: chartData },
-                { name: 'Buy', type: 'scatter', data: buySignals },
-                { name: 'Sell', type: 'scatter', data: sellSignals }
+                { name: 'Candles', type: 'candlestick', data: candles },
+                { name: 'SMA 50', type: 'line', data: sma50 },
+                { name: 'SMA 200', type: 'line', data: sma200 },
+                { name: 'BUY', type: 'scatter', data: buySignals },
+                { name: 'SELL', type: 'scatter', data: sellSignals }
             ],
-            chart: { height: 450, type: 'line', toolbar: { show: false }, background: 'transparent' },
-            colors: ['#3b82f6', '#10b981', '#f43f5e'],
-            stroke: { width: [2, 0, 0], curve: 'smooth' },
-            markers: { size: [0, 6, 6] },
-            theme: { mode: 'dark' },
-            grid: { borderColor: '#1e293b' },
+            chart: {
+                height: 700,
+                type: 'line',
+                background: 'transparent',
+                toolbar: { show: true },
+                animations: { enabled: false }
+            },
+            colors: ['#3b82f6', '#10b981', '#3b82f6', '#10b981', '#f43f5e'],
+            stroke: { width: [1, 2, 2, 0, 0], curve: 'smooth' },
+            markers: { 
+                size: [0, 0, 0, 10, 10],
+                shape: ["circle", "circle", "circle", "triangle", "square"],
+                strokeWidth: 0
+            },
             xaxis: { type: 'category', labels: { show: false } },
-            tooltip: { theme: 'dark', x: { show: true } }
+            theme: { mode: 'dark' },
+            plotOptions: {
+                candlestick: { colors: { upward: '#10b981', downward: '#f43f5e' } }
+            },
+            tooltip: { shared: true, theme: 'dark' }
         };
 
-        var chart = new ApexCharts(document.querySelector("#backtest-chart"), options);
+        var chart = new ApexCharts(document.querySelector("#chart"), options);
         chart.render();
     </script>
 </body>
