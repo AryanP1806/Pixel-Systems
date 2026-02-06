@@ -4,42 +4,88 @@
     <meta charset="UTF-8">
     <title>AlgoPro Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- DO NOT UPGRADE: Code strictly uses v3 API -->
     <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #131722; color: #d1d4dc; }
-        .toolbar-btn { background: #2a2e39; border-radius: 4px; padding: 4px 12px; font-size: 11px; font-weight: bold; transition: all 0.2s; }
-        .active-btn { background: #2962ff !important; color: white; }
+        .toolbar-btn { background: #2a2e39; border-radius: 4px; padding: 4px 10px; font-size: 10px; font-weight: bold; transition: all 0.2s; border: 1px solid transparent; }
+        .active-btn { background: #2962ff !important; color: white; border-color: #5d87ff; }
         #chart-container { height: calc(100vh - 64px); width: 100%; }
         #legend { position: absolute; top: 12px; left: 12px; z-index: 10; font-size: 12px; pointer-events: none; }
+        
+        /* Modal Styles */
+        .modal-overlay { background: rgba(0,0,0,0.7); display: none; position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; }
+        .modal-content { background: #171b26; border: 1px solid #2a2e39; border-radius: 8px; width: 320px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 10px; color: #848e9c; margin-bottom: 4px; text-transform: uppercase; }
+        .input-group input { background: #2a2e39; border: 1px solid #363a45; color: white; border-radius: 4px; padding: 6px; width: 100%; font-size: 12px; outline: none; }
     </style>
 </head>
 <body class="overflow-hidden">
-
-    <header class="h-16 border-b border-[#2a2e39] flex items-center justify-between px-6 bg-[#171b26]">
-        <div class="flex items-center gap-6">
-            <span class="text-blue-500 font-black text-xl tracking-tighter italic">ALGO<span class="text-white font-normal">LAB</span></span>
-            <form class="flex items-center gap-2">
-                <select name="timeframe" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded border-none text-white">
-                    <option value="D" {% if current_tf == 'D' %}selected{% endif %}>D</option>
-                    <option value="60" {% if current_tf == '60' %}selected{% endif %}>1H</option>
-                    <option value="15" {% if current_tf == '15' %}selected{% endif %}>15M</option>
-                </select>
-                <select name="timeline" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded border-none text-white">
-                    <option value="180" {% if current_tl == 180 %}selected{% endif %}>6M</option>
-                    <option value="365" {% if current_tl == 365 %}selected{% endif %}>1Y</option>
-                    <option value="730" {% if current_tl == 730 %}selected{% endif %}>2Y</option>
-                </select>
-            </form>
-            <div class="flex gap-2">
-                <button onclick="toggleSma('sma50')" id="btn-sma50" class="toolbar-btn text-emerald-400">SMA 50</button>
-                <button onclick="toggleSma('sma200')" id="btn-sma200" class="toolbar-btn text-blue-400">SMA 200</button>
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-white font-bold mb-4 text-sm">Indicator Settings</h3>
+            <div class="input-group">
+                <label>EMA 1 Period</label>
+                <input type="number" id="inp-ema9" value="9">
+            </div>
+            <div class="input-group">
+                <label>EMA 2 Period</label>
+                <input type="number" id="inp-ema21" value="21">
+            </div>
+            <div class="input-group">
+                <label>SMA 1 Period</label>
+                <input type="number" id="inp-sma20" value="20">
+            </div>
+            <div class="input-group">
+                <label>SMA 2 Period</label>
+                <input type="number" id="inp-sma50" value="50">
+            </div>
+            <div class="input-group">
+                <label>SMA 3 Period</label>
+                <input type="number" id="inp-sma200" value="200">
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="closeSettings()" class="flex-1 bg-[#2a2e39] py-2 rounded text-xs font-bold">Cancel</button>
+                <button onclick="applySettings()" class="flex-1 bg-blue-600 py-2 rounded text-xs font-bold text-white">Apply</button>
             </div>
         </div>
-        <div class="flex items-center gap-6 text-[10px] uppercase font-bold text-slate-500">
-            Strategy: <span class="text-white">50/200 Crossover</span>
-            <a href="/" class="bg-rose-500 text-white px-4 py-1.5 rounded ml-4">Exit</a>
+    </div>
+
+    <header class="h-16 border-b border-[#2a2e39] flex items-center justify-between px-4 bg-[#171b26]">
+        <div class="flex items-center gap-4">
+            <span class="text-blue-500 font-black text-xl italic">ALGO<span class="text-white font-normal">LAB</span></span>
+            <form class="flex items-center gap-2">
+                <select name="timeframe" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded text-white border-none outline-none">
+                    <option value="1" {% if current_tf == '1' %}selected{% endif %}>1m</option>
+                    <option value="3" {% if current_tf == '3' %}selected{% endif %}>3m</option>
+                    <option value="5" {% if current_tf == '5' %}selected{% endif %}>5m</option>
+                    <option value="15" {% if current_tf == '15' %}selected{% endif %}>15m</option>
+                    <option value="60" {% if current_tf == '60' %}selected{% endif %}>1h</option>
+                    <option value="240" {% if current_tf == '240' %}selected{% endif %}>4h</option>
+                    <option value="D" {% if current_tf == 'D' %}selected{% endif %}>1d</option>
+                </select>
+                <select name="timeline" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded text-white border-none outline-none">
+                    <option value="30" {% if current_tl == 30 %}selected{% endif %}>1M</option>
+                    <option value="90" {% if current_tl == 90 %}selected{% endif %}>3M</option>
+                    <option value="180" {% if current_tl == 180 %}selected{% endif %}>6M</option>
+                    <option value="365" {% if current_tl == 365 %}selected{% endif %}>1Y</option>
+                </select>
+            </form>
+            <div class="h-6 w-[1px] bg-[#2a2e39] mx-2"></div>
+            <div class="flex gap-1.5 items-center">
+                <button onclick="toggleStudy('ema9')" id="btn-ema9" class="toolbar-btn text-yellow-400">EMA</button>
+                <button onclick="toggleStudy('ema21')" id="btn-ema21" class="toolbar-btn text-orange-400">EMA</button>
+                <button onclick="toggleStudy('sma20')" id="btn-sma20" class="toolbar-btn text-purple-400">SMA</button>
+                <button onclick="toggleStudy('sma50')" id="btn-sma50" class="toolbar-btn text-emerald-400">SMA</button>
+                <button onclick="toggleStudy('sma200')" id="btn-sma200" class="toolbar-btn text-blue-400">SMA</button>
+                <button onclick="toggleStudy('rsi')" id="btn-rsi" class="toolbar-btn text-pink-400">RSI</button>
+                <button onclick="openSettings()" class="ml-2 hover:bg-[#2a2e39] p-1.5 rounded-full transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848e9c" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
         </div>
+        <a href="/" class="bg-rose-500 text-white text-[10px] px-4 py-1.5 rounded uppercase font-bold">Exit</a>
     </header>
 
     <div class="relative w-full">
@@ -51,99 +97,117 @@
     </div>
 
     <script>
-        const candlesData = {{ candles_json|default_if_none:"[]"|safe }};
-        const sma50Data   = {{ sma50_json|default_if_none:"[]"|safe }};
-        const sma200Data  = {{ sma200_json|default_if_none:"[]"|safe }};
-        const markersData = {{ markers_json|default_if_none:"[]"|safe }};
-
+        const rawData = {{ candles_json|safe }};
+        const data = {
+            candles: rawData,
+            sma50: {{ sma50_json|safe }},
+            sma200: {{ sma200_json|safe }},
+            ema9: {{ ema9_json|safe }},
+            ema21: {{ ema21_json|safe }},
+            sma20: {{ sma20_json|safe }},
+            rsi: {{ rsi14_json|safe }},
+            markers: {{ markers_json|safe }}
+        };
 
         const container = document.getElementById('chart-container');
         const chart = LightweightCharts.createChart(container, {
             layout: { background: { color: '#131722' }, textColor: '#d1d4dc', fontSize: 11 },
-            grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
-            timeScale: { borderColor: '#2a2e39', timeVisible: true, fixLeftEdge: true, fixRightEdge: true },
+            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            timeScale: { borderColor: '#2a2e39', timeVisible: true },
+            rightPriceScale: { borderColor: '#2a2e39' }
         });
 
-        const candleSeries = chart.addCandlestickSeries({ 
-            upColor: '#26a69a', 
-            downColor: '#ef5350', 
-            borderVisible: false, 
-            wickUpColor: '#26a69a', 
-            wickDownColor: '#ef5350' 
-        });
-        
-        candleSeries.setData(candlesData);
-        if (markersData.length) candleSeries.setMarkers(markersData);
+        const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+        candleSeries.setData(data.candles);
+        if (data.markers.length) candleSeries.setMarkers(data.markers);
 
-        function resizeChart() {
-            chart.resize(container.clientWidth, container.clientHeight);
+        let seriesMap = {};
+        const colors = { ema9: '#fbbf24', ema21: '#f97316', sma20: '#a855f7', sma50: '#10b981', sma200: '#3b82f6', rsi: '#ec4899' };
+
+        // Helper: Calculate SMA/EMA locally for live customization
+        function calculateSMA(data, period) {
+            let res = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) continue;
+                let sum = 0;
+                for (let j = 0; j < period; j++) sum += data[i - j].close;
+                res.push({ time: data[i].time, value: sum / period });
+            }
+            return res;
         }
 
-        // ✅ FIX: Immediate resize call on load
-        resizeChart();
+        function calculateEMA(data, period) {
+            let res = [];
+            let k = 2 / (period + 1);
+            let ema = data[0].close;
+            for (let i = 0; i < data.length; i++) {
+                ema = (data[i].close - ema) * k + ema;
+                if (i >= period) res.push({ time: data[i].time, value: ema });
+            }
+            return res;
+        }
 
-        // ✅ FIX: Unified Lifecycle Timeout (Replacing multiple conflicting timeouts)
-        setTimeout(() => {
+        window.toggleStudy = function(name) {
+            const btn = document.getElementById('btn-' + name);
+            if (seriesMap[name]) {
+                chart.removeSeries(seriesMap[name]);
+                delete seriesMap[name];
+                btn.classList.remove('active-btn');
+            } else {
+                seriesMap[name] = chart.addLineSeries({ 
+                    color: colors[name], 
+                    lineWidth: 2, 
+                    priceLineVisible: false,
+                    pane: name === 'rsi' ? 1 : 0
+                });
+                
+                // Fetch period from settings input
+                const period = parseInt(document.getElementById('inp-' + name)?.value || 14);
+                let studyData = data[name]; // Default from server
 
-    // 🛡️ Guard: Prevent crash when no data is returned
-    if (!candlesData || candlesData.length === 0) {
-
-        console.warn("No candle data received for this timeframe");
-
-        document.getElementById('price-line').innerText =
-            "No data available for selected timeframe.";
-
-        return;
-    }
-
-
-    // Reset cached scale to prevent unstable zoom
-    chart.timeScale().resetTimeScale();
-    
-    chart.timeScale().setVisibleRange({
-        from: candlesData[0].time,
-        to: candlesData[candlesData.length - 1].time,
-    });
-
-    chart.timeScale().fitContent();
-
-    document.getElementById('price-line').innerText =
-        "Move mouse over candles to view O-H-L-C";
-
-}, 200);
-
-
-        let sma50Series = null, sma200Series = null;
-        window.toggleSma = function(name) {
-            if (name === 'sma50') {
-                if (!sma50Series) {
-                    sma50Series = chart.addLineSeries({ color: '#10b981', lineWidth: 2, priceLineVisible: false });
-                    sma50Series.setData(sma50Data);
-                    document.getElementById('btn-sma50').classList.add('active-btn');
-                } else {
-                    chart.removeSeries(sma50Series); sma50Series = null;
-                    document.getElementById('btn-sma50').classList.remove('active-btn');
+                // If user changed period, recalculate
+                if (name.startsWith('sma') && period !== parseInt(name.replace('sma', ''))) {
+                   studyData = calculateSMA(data.candles, period);
+                } else if (name.startsWith('ema') && period !== parseInt(name.replace('ema', ''))) {
+                   studyData = calculateEMA(data.candles, period);
                 }
-            } else if (name === 'sma200') {
-                if (!sma200Series) {
-                    sma200Series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, priceLineVisible: false });
-                    sma200Series.setData(sma200Data);
-                    document.getElementById('btn-sma200').classList.add('active-btn');
-                } else {
-                    chart.removeSeries(sma200Series); sma200Series = null;
-                    document.getElementById('btn-sma200').classList.remove('active-btn');
-                }
+
+                seriesMap[name].setData(studyData);
+                btn.classList.add('active-btn');
+                btn.innerText = `${name.toUpperCase().substring(0,3)} ${period}`;
             }
         };
 
-        chart.subscribeCrosshairMove(param => {
-            if (!param.time) return;
-            const data = param.seriesData.get(candleSeries);
-            if (!data) return;
-            document.getElementById('price-line').innerHTML = `O <span class="text-white">${data.open.toFixed(2)}</span> H <span class="text-emerald-400">${data.high.toFixed(2)}</span> L <span class="text-rose-400">${data.low.toFixed(2)}</span> C <span class="text-white">${data.close.toFixed(2)}</span>`;
-        });
+        // Modal Logic
+        window.openSettings = () => document.getElementById('settings-modal').style.display = 'flex';
+        window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
+        window.applySettings = () => {
+            // Re-apply active series with new periods
+            Object.keys(seriesMap).forEach(name => {
+                if (name === 'rsi') return;
+                chart.removeSeries(seriesMap[name]);
+                delete seriesMap[name];
+                document.getElementById('btn-' + name).classList.remove('active-btn');
+                toggleStudy(name);
+            });
+            closeSettings();
+        };
 
-        window.addEventListener('resize', resizeChart);
+        function resize() { chart.resize(container.clientWidth, container.clientHeight); }
+        window.addEventListener('resize', resize);
+        resize();
+
+        setTimeout(() => {
+            if (!data.candles.length) { document.getElementById('price-line').innerText = "No data found."; return; }
+            chart.timeScale().fitContent();
+            document.getElementById('price-line').innerText = "Terminal Ready.";
+        }, 300);
+
+        chart.subscribeCrosshairMove(p => {
+            if (!p.time) return;
+            const d = p.seriesData.get(candleSeries);
+            if (d) document.getElementById('price-line').innerHTML = `O <span class="text-white">${d.open.toFixed(2)}</span> H <span class="text-emerald-400">${d.high.toFixed(2)}</span> L <span class="text-rose-400">${d.low.toFixed(2)}</span> C <span class="text-white">${d.close.toFixed(2)}</span>`;
+        });
     </script>
 </body>
 </html>
