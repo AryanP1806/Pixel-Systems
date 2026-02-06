@@ -28,16 +28,34 @@ class ShoonyaService:
             logger.error(f"Login Exception: {e}")
             return None
 
+
+    def ensure_session(self, session_token):
+
+        try:
+            # If SDK has no session OR token is dead
+            if not getattr(self.api, '_NorenApi__susertoken', None):
+
+                logger.warning("Shoonya session missing. Re-login required.")
+
+                raise RuntimeError("Session expired")
+
+        except Exception as e:
+
+            logger.error(f"Session invalid: {e}")
+
+
     def get_nifty_price(self, token_id, session_token=None):
         """
         Fetches LTP. 
         Note: We explicitly check if we are 'logged in' to the SDK object.
         """
+        session_token = getattr(shoonya_service, "session_token", None)
+
         try:
             # If the object lost session, re-inject the token from Django session
-            if session_token and not getattr(self.api, '_NorenApi__susertoken', None):
-                self.api.set_session(self.user_id, self.password, session_token)
-
+            # if session_token and not getattr(self.api, '_NorenApi__susertoken', None):
+            #     self.api.set_session(self.user_id, self.password, session_token)
+            self.ensure_session(session_token)
             # Get Quote
             quote = self.api.get_quotes(exchange='NSE', token=token_id)
             

@@ -2,83 +2,148 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AlgoPro | Strategy Engine</title>
+    <title>AlgoPro Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- DO NOT UPGRADE: Code strictly uses v3 API -->
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { background-color: #131722; color: #d1d4dc; }
+        .toolbar-btn { background: #2a2e39; border-radius: 4px; padding: 4px 12px; font-size: 11px; font-weight: bold; transition: all 0.2s; }
+        .active-btn { background: #2962ff !important; color: white; }
+        #chart-container { height: calc(100vh - 64px); width: 100%; }
+        #legend { position: absolute; top: 12px; left: 12px; z-index: 10; font-size: 12px; pointer-events: none; }
+    </style>
 </head>
-<body class="bg-[#020617] text-slate-300 min-h-screen">
+<body class="overflow-hidden">
 
-    <header class="p-4 border-b border-white/5 flex justify-between items-center bg-[#0f172a] sticky top-0 z-50">
-        <h1 class="font-black text-2xl text-blue-500 italic">ALGO<span class="text-white">PRO</span></h1>
-        
-        <form class="flex gap-4">
-            <select name="timeframe" onchange="this.form.submit()" class="bg-slate-900 text-xs border border-slate-700 px-3 py-1.5 rounded outline-none">
-                <option value="D" {% if current_tf == 'D' %}selected{% endif %}>Daily</option>
-                <option value="60" {% if current_tf == '60' %}selected{% endif %}>1 Hour</option>
-                <option value="15" {% if current_tf == '15' %}selected{% endif %}>15 Min</option>
-            </select>
-            <select name="timeline" onchange="this.form.submit()" class="bg-slate-900 text-xs border border-slate-700 px-3 py-1.5 rounded outline-none">
-                <option value="180" {% if current_tl == 180 %}selected{% endif %}>6 Months</option>
-                <option value="365" {% if current_tl == 365 %}selected{% endif %}>1 Year</option>
-                <option value="730" {% if current_tl == 730 %}selected{% endif %}>2 Years</option>
-            </select>
-        </form>
-
-        <a href="{% url 'dashboard' %}" class="bg-slate-800 px-4 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700">Exit</a>
+    <header class="h-16 border-b border-[#2a2e39] flex items-center justify-between px-6 bg-[#171b26]">
+        <div class="flex items-center gap-6">
+            <span class="text-blue-500 font-black text-xl tracking-tighter italic">ALGO<span class="text-white font-normal">LAB</span></span>
+            <form class="flex items-center gap-2">
+                <select name="timeframe" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded border-none text-white">
+                    <option value="D" {% if current_tf == 'D' %}selected{% endif %}>D</option>
+                    <option value="60" {% if current_tf == '60' %}selected{% endif %}>1H</option>
+                    <option value="15" {% if current_tf == '15' %}selected{% endif %}>15M</option>
+                </select>
+                <select name="timeline" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded border-none text-white">
+                    <option value="180" {% if current_tl == 180 %}selected{% endif %}>6M</option>
+                    <option value="365" {% if current_tl == 365 %}selected{% endif %}>1Y</option>
+                    <option value="730" {% if current_tl == 730 %}selected{% endif %}>2Y</option>
+                </select>
+            </form>
+            <div class="flex gap-2">
+                <button onclick="toggleSma('sma50')" id="btn-sma50" class="toolbar-btn text-emerald-400">SMA 50</button>
+                <button onclick="toggleSma('sma200')" id="btn-sma200" class="toolbar-btn text-blue-400">SMA 200</button>
+            </div>
+        </div>
+        <div class="flex items-center gap-6 text-[10px] uppercase font-bold text-slate-500">
+            Strategy: <span class="text-white">50/200 Crossover</span>
+            <a href="/" class="bg-rose-500 text-white px-4 py-1.5 rounded ml-4">Exit</a>
+        </div>
     </header>
 
-    <main class="max-w-[1600px] mx-auto p-6 space-y-6">
-        {% if error %}
-            <div class="bg-red-500/10 border border-red-500/20 p-10 rounded-2xl text-center text-red-400">
-                <h2 class="font-bold text-xl mb-2">Sync Error</h2>
-                <p>{{ error }}</p>
-            </div>
-        {% else %}
-            <div class="bg-[#0f172a] border border-white/5 p-4 rounded-3xl">
-                <div id="chart"></div>
-            </div>
-        {% endif %}
-    </main>
+    <div class="relative w-full">
+        <div id="legend">
+            <div class="font-bold text-white mb-1">NIFTY 50 • NSE • <span id="tf-label">{{ current_tf }}</span></div>
+            <div id="price-line" class="text-slate-500 text-[11px]">Initializing Terminal...</div>
+        </div>
+        <div id="chart-container"></div>
+    </div>
 
     <script>
-        const candles = {{ candles_json|safe }};
-        const sma50 = {{ sma50_json|safe }};
-        const sma200 = {{ sma200_json|safe }};
-        const buySignals = {{ buy_marks_json|safe }};
-        const sellSignals = {{ sell_marks_json|safe }};
+        const candlesData = {{ candles_json|default_if_none:"[]"|safe }};
+        const sma50Data   = {{ sma50_json|default_if_none:"[]"|safe }};
+        const sma200Data  = {{ sma200_json|default_if_none:"[]"|safe }};
+        const markersData = {{ markers_json|default_if_none:"[]"|safe }};
 
-        var options = {
-            series: [
-                { name: 'Candles', type: 'candlestick', data: candles },
-                { name: 'SMA 50', type: 'line', data: sma50 },
-                { name: 'SMA 200', type: 'line', data: sma200 },
-                { name: 'BUY', type: 'scatter', data: buySignals },
-                { name: 'SELL', type: 'scatter', data: sellSignals }
-            ],
-            chart: {
-                height: 700,
-                type: 'line',
-                background: 'transparent',
-                toolbar: { show: true },
-                animations: { enabled: false }
-            },
-            colors: ['#3b82f6', '#10b981', '#3b82f6', '#10b981', '#f43f5e'],
-            stroke: { width: [1, 2, 2, 0, 0], curve: 'smooth' },
-            markers: { 
-                size: [0, 0, 0, 10, 10],
-                shape: ["circle", "circle", "circle", "triangle", "square"],
-                strokeWidth: 0
-            },
-            xaxis: { type: 'category', labels: { show: false } },
-            theme: { mode: 'dark' },
-            plotOptions: {
-                candlestick: { colors: { upward: '#10b981', downward: '#f43f5e' } }
-            },
-            tooltip: { shared: true, theme: 'dark' }
+
+        const container = document.getElementById('chart-container');
+        const chart = LightweightCharts.createChart(container, {
+            layout: { background: { color: '#131722' }, textColor: '#d1d4dc', fontSize: 11 },
+            grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
+            timeScale: { borderColor: '#2a2e39', timeVisible: true, fixLeftEdge: true, fixRightEdge: true },
+        });
+
+        const candleSeries = chart.addCandlestickSeries({ 
+            upColor: '#26a69a', 
+            downColor: '#ef5350', 
+            borderVisible: false, 
+            wickUpColor: '#26a69a', 
+            wickDownColor: '#ef5350' 
+        });
+        
+        candleSeries.setData(candlesData);
+        if (markersData.length) candleSeries.setMarkers(markersData);
+
+        function resizeChart() {
+            chart.resize(container.clientWidth, container.clientHeight);
+        }
+
+        // ✅ FIX: Immediate resize call on load
+        resizeChart();
+
+        // ✅ FIX: Unified Lifecycle Timeout (Replacing multiple conflicting timeouts)
+        setTimeout(() => {
+
+    // 🛡️ Guard: Prevent crash when no data is returned
+    if (!candlesData || candlesData.length === 0) {
+
+        console.warn("No candle data received for this timeframe");
+
+        document.getElementById('price-line').innerText =
+            "No data available for selected timeframe.";
+
+        return;
+    }
+
+
+    // Reset cached scale to prevent unstable zoom
+    chart.timeScale().resetTimeScale();
+    
+    chart.timeScale().setVisibleRange({
+        from: candlesData[0].time,
+        to: candlesData[candlesData.length - 1].time,
+    });
+
+    chart.timeScale().fitContent();
+
+    document.getElementById('price-line').innerText =
+        "Move mouse over candles to view O-H-L-C";
+
+}, 200);
+
+
+        let sma50Series = null, sma200Series = null;
+        window.toggleSma = function(name) {
+            if (name === 'sma50') {
+                if (!sma50Series) {
+                    sma50Series = chart.addLineSeries({ color: '#10b981', lineWidth: 2, priceLineVisible: false });
+                    sma50Series.setData(sma50Data);
+                    document.getElementById('btn-sma50').classList.add('active-btn');
+                } else {
+                    chart.removeSeries(sma50Series); sma50Series = null;
+                    document.getElementById('btn-sma50').classList.remove('active-btn');
+                }
+            } else if (name === 'sma200') {
+                if (!sma200Series) {
+                    sma200Series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, priceLineVisible: false });
+                    sma200Series.setData(sma200Data);
+                    document.getElementById('btn-sma200').classList.add('active-btn');
+                } else {
+                    chart.removeSeries(sma200Series); sma200Series = null;
+                    document.getElementById('btn-sma200').classList.remove('active-btn');
+                }
+            }
         };
 
-        var chart = new ApexCharts(document.querySelector("#chart"), options);
-        chart.render();
+        chart.subscribeCrosshairMove(param => {
+            if (!param.time) return;
+            const data = param.seriesData.get(candleSeries);
+            if (!data) return;
+            document.getElementById('price-line').innerHTML = `O <span class="text-white">${data.open.toFixed(2)}</span> H <span class="text-emerald-400">${data.high.toFixed(2)}</span> L <span class="text-rose-400">${data.low.toFixed(2)}</span> C <span class="text-white">${data.close.toFixed(2)}</span>`;
+        });
+
+        window.addEventListener('resize', resizeChart);
     </script>
 </body>
 </html>
