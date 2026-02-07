@@ -70,11 +70,11 @@ class Backtester:
             df = df.iloc[::-1].reset_index(drop=True)
 
             mapping = {
-                'into': 'open', 'ss_o': 'open',
-                'inth': 'high', 'ss_h': 'high',
-                'intl': 'low',  'ss_l': 'low',
-                'intc': 'close','ss_c': 'close',
-                'time': 'time', 'ss_t': 'time'
+                'into': 'open', 'ss_o': 'open', 'o': 'open',
+                'inth': 'high', 'ss_h': 'high', 'h': 'high',
+                'intl': 'low',  'ss_l': 'low',  'l': 'low',
+                'intc': 'close','ss_c': 'close', 'c': 'close',
+                'time': 'time', 'ss_t': 'time', 'trandate': 'time'
             }
             df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
 
@@ -108,7 +108,7 @@ class Backtester:
                 elif df['sma50'][i] < df['sma200'][i] and df['sma50'][i-1] >= df['sma200'][i-1]:
                     df.at[i, 'signal'] = 'SELL'
 
-            return df.tail(days + 50)
+            return df.tail(days + 50).copy().reset_index(drop=True)
 
         except Exception as e:
             logger.exception("Engine Failure")

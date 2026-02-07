@@ -79,29 +79,69 @@ def backtest_view(request):
         messages.error(request, "Unable to fetch market data.")
         return render(request, 'trading/backtest.html', {'candles_json': '[]', 'current_tf': timeframe, 'current_tl': timeline})
 
-    df['time_dt'] = pd.to_datetime(df['time'], dayfirst=True)
-    df = df.sort_values("time_dt").reset_index(drop=True)
+    # 1. Define explicit formats to handle Shoonya's inconsistent API responses
+    if timeframe == 'D':
+        # Try primary daily format: 07-02-2026
+        df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y', errors='coerce')
+        
+        # Fallback 1: Shoonya sometimes uses 2026-02-07
+        if df['time_dt'].isna().all():
+            df['time_dt'] = pd.to_datetime(df['time'], format='%Y-%m-%d', errors='coerce')
+        
+        # Fallback 2: Shoonya sometimes uses 07-Feb-2026
+        if df['time_dt'].isna().all():
+            df['time_dt'] = pd.to_datetime(df['time'], format='%d-%b-%Y', errors='coerce')
+    else:
+        # Intraday format: 07-02-2026 15:30:00
+        df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y %H:%M:%S', errors='coerce')
 
+    # 2. Final safety: If all explicit formats failed, use a fast, warning-free catch-all
+    # We remove 'dayfirst' and use 'format' as None to let pandas use its C-engine if possible
+    if df['time_dt'].isna().all():
+        df['time_dt'] = pd.to_datetime(df['time'], errors='coerce')
+
+    # 3. Clean and sort
+    df = df.dropna(subset=['time_dt', 'open', 'close'])
+    df = df.sort_values("time_dt").reset_index(drop=True)
     # Prepare Data Packs
     candles, sma50, sma200, ema9, ema21, sma20, rsi14, markers = [], [], [], [], [], [], [], []
 
-    for _, row in df.iterrows():
-        t = int(row['time_dt'].timestamp())
-        close_p = float(row['close'])
-        if np.isnan(float(row['open'])) or np.isnan(close_p): continue
+    # for _, row in df.iterrows():
+    #     t = int(row['time_dt'].timestamp())
+    #     close_p = float(row['close'])
+    #     if np.isnan(float(row['open'])) or np.isnan(close_p): continue
 
-        candles.append({'time': t, 'open': float(row['open']), 'high': float(row['high']), 'low': float(row['low']), 'close': close_p})
+    #     candles.append({'time': t, 'open': float(row['open']), 'high': float(row['high']), 'low': float(row['low']), 'close': close_p})
         
-        if not np.isnan(row['sma50']): sma50.append({'time': t, 'value': float(row['sma50'])})
-        if not np.isnan(row['sma200']): sma200.append({'time': t, 'value': float(row['sma200'])})
-        if not np.isnan(row['ema9']): ema9.append({'time': t, 'value': float(row['ema9'])})
-        if not np.isnan(row['ema21']): ema21.append({'time': t, 'value': float(row['ema21'])})
-        if not np.isnan(row['sma20']): sma20.append({'time': t, 'value': float(row['sma20'])})
-        if not np.isnan(row['rsi14']): rsi14.append({'time': t, 'value': float(row['rsi14'])})
+    #     if not np.isnan(row['sma50']): sma50.append({'time': t, 'value': float(row['sma50'])})
+    #     if not np.isnan(row['sma200']): sma200.append({'time': t, 'value': float(row['sma200'])})
+    #     if not np.isnan(row['ema9']): ema9.append({'time': t, 'value': float(row['ema9'])})
+    #     if not np.isnan(row['ema21']): ema21.append({'time': t, 'value': float(row['ema21'])})
+    #     if not np.isnan(row['sma20']): sma20.append({'time': t, 'value': float(row['sma20'])})
+    #     if not np.isnan(row['rsi14']): rsi14.append({'time': t, 'value': float(row['rsi14'])})
 
-        if row['signal'] == 'BUY':
+    #     if row['signal'] == 'BUY':
+    #         markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
+    #     elif row['signal'] == 'SELL':
+    #         markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
+    # Use itertuples for faster processing
+    for row in df.itertuples():
+        t = int(row.time_dt.timestamp())
+        close_p = float(row.close)
+        
+        candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': close_p})
+        
+        # Check attributes directly from the tuple
+        if not np.isnan(row.sma50): sma50.append({'time': t, 'value': float(row.sma50)})
+        if not np.isnan(row.sma200): sma200.append({'time': t, 'value': float(row.sma200)})
+        if not np.isnan(row.ema9): ema9.append({'time': t, 'value': float(row.ema9)})
+        if not np.isnan(row.ema21): ema21.append({'time': t, 'value': float(row.ema21)})
+        if not np.isnan(row.sma20): sma20.append({'time': t, 'value': float(row.sma20)})
+        if not np.isnan(row.rsi14): rsi14.append({'time': t, 'value': float(row.rsi14)})
+
+        if row.signal == 'BUY':
             markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-        elif row['signal'] == 'SELL':
+        elif row.signal == 'SELL':
             markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
 
     context = {
