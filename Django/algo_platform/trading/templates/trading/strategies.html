@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Strategy Builder | AlgoLab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .section-header { border-left: 4px solid #238636; padding-left: 12px; margin-bottom: 20px; }
+        .form-label { display: block; font-size: 11px; font-weight: 600; color: #8b949e; margin-bottom: 4px; text-transform: uppercase; }
+        .form-input { background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; padding: 8px 12px; font-size: 13px; width: 100%; outline: none; }
+        .form-input:focus { border-color: #58a6ff; }
+        .btn-primary { background: #238636; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .condition-row { background: #0d1117; border: 1px solid #30363d; padding: 12px; border-radius: 6px; display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        select option { background: #161b22; }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <nav class="h-16 border-b border-[#30363d] flex items-center justify-between px-8 bg-[#161b22] sticky top-0 z-50">
+        <div class="flex items-center gap-8">
+            <span class="text-blue-500 font-black text-xl italic">ALGO<span class="text-white font-normal">LAB</span></span>
+            <div class="flex gap-4 text-sm font-medium">
+                <a href="/" class="text-gray-400 hover:text-white">Dashboard</a>
+                <a href="/backtest/" class="text-gray-400 hover:text-white">Backtest</a>
+                <a href="/strategies/" class="text-blue-400">Strategies</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-xs text-gray-500">USER: {{ request.session.user_id }}</span>
+            <a href="/logout/" class="text-rose-400 text-xs font-bold uppercase">Logout</a>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto mt-10 px-6">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold text-white">Strategy Builder</h1>
+            <a href="/strategies/" class="text-sm text-gray-400 hover:underline">← View All Strategies</a>
+        </div>
+
+        <form method="POST" id="strategy-form" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Setup -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- 1. Strategy Type -->
+                    <section class="card p-5">
+                        <div class="section-header"><h2 class="text-sm font-bold text-white uppercase">Type</h2></div>
+                        <select name="strategy_type" class="form-input">
+                            <option value="indicator">Indicator Based</option>
+                            <option value="time">Time Based</option>
+                            <option value="price_action">Price Action Based</option>
+                        </select>
+                    </section>
+
+                    <!-- 2. Select Instrument -->
+                    <section class="card p-5">
+                        <div class="section-header"><h2 class="text-sm font-bold text-white uppercase">Instrument</h2></div>
+                        <label class="form-label">Search & Select</label>
+                        <select name="instrument_select" id="instrument_select" class="form-input mb-4" onchange="updateInstrumentMeta()">
+                            <option value="">-- Choose Asset --</option>
+                            <option value="26000" data-symbol="NIFTY 50" data-exch="NSE">NIFTY 50 (NSE)</option>
+                            <option value="26009" data-symbol="NIFTY BANK" data-exch="NSE">NIFTY BANK (NSE)</option>
+                            <option value="7" data-symbol="RELIANCE" data-exch="NSE">RELIANCE (NSE)</option>
+                            <option value="13" data-symbol="TATASTEEL" data-exch="NSE">TATASTEEL (NSE)</option>
+                        </select>
+                        
+                        <!-- Hidden inputs for Django Model requirements -->
+                        <input type="hidden" name="symbol" id="hidden_symbol">
+                        <input type="hidden" name="exchange" id="hidden_exch" value="NSE">
+                        <input type="hidden" name="token" id="hidden_token">
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label">Lot Size</label>
+                                <input type="number" name="lot_size" value="50" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Exchange</label>
+                                <input type="text" id="display_exch" class="form-input opacity-50" readonly value="NSE">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 3. Execution Settings -->
+                    <section class="card p-5">
+                        <div class="section-header"><h2 class="text-sm font-bold text-white uppercase">Execution</h2></div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="form-label">Start Time</label>
+                                <input type="time" name="start_time" value="09:15" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Square Off</label>
+                                <input type="time" name="square_off" value="15:15" class="form-input">
+                            </div>
+                        </div>
+                        <label class="form-label">Order Type</label>
+                        <div class="flex gap-2 mb-4">
+                            <label class="flex-1">
+                                <input type="radio" name="order_type" value="MIS" class="hidden peer" checked>
+                                <div class="peer-checked:bg-blue-600 text-center py-2 rounded border border-[#30363d] text-xs font-bold cursor-pointer">MIS</div>
+                            </label>
+                            <label class="flex-1">
+                                <input type="radio" name="order_type" value="CNC" class="hidden peer">
+                                <div class="peer-checked:bg-blue-600 text-center py-2 rounded border border-[#30363d] text-xs font-bold cursor-pointer">CNC</div>
+                            </label>
+                        </div>
+                        <label class="form-label">Interval</label>
+                        <select name="interval" class="form-input">
+                            <option value="1">1 min</option>
+                            <option value="3">3 min</option>
+                            <option value="5">5 min</option>
+                            <option value="15">15 min</option>
+                            <option value="60">1H</option>
+                        </select>
+                    </section>
+                </div>
+
+                <!-- Right Column: Logic & Conditions -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Entry Conditions Builder -->
+                    <section class="card p-6">
+                        <div class="section-header flex justify-between">
+                            <h2 class="text-lg font-bold text-white">Entry Conditions</h2>
+                            <span class="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">LIVE PREVIEW</span>
+                        </div>
+
+                        <!-- Long Entry -->
+                        <div class="mb-8">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-xs font-bold text-emerald-500 uppercase tracking-widest">Long Entry (Buy)</h3>
+                                <button type="button" onclick="addCondition('long')" class="text-[10px] text-blue-400 border border-blue-400/30 px-2 py-1 rounded hover:bg-blue-400/10">+ Add Group</button>
+                            </div>
+                            <div id="long-conditions-container">
+                                <!-- Dynamic Row -->
+                                <div class="condition-row">
+                                    <select class="form-input w-1/3" onchange="toggleIndicatorParams(this)">
+                                        <option value="ma">Moving Average</option>
+                                        <option value="rsi">RSI</option>
+                                        <option value="macd">MACD</option>
+                                        <option value="supertrend">SuperTrend</option>
+                                        <option value="candle">Candle</option>
+                                        <option value="number">Number</option>
+                                    </select>
+                                    
+                                    <!-- Dynamic Secondary Select based on MA/RSI etc -->
+                                    <select class="form-input w-1/4">
+                                        <option>EMA</option>
+                                        <option>SMA</option>
+                                        <option>TEMA</option>
+                                        <option>DEMA</option>
+                                        <option>KAMA</option>
+                                        <option>WMA</option>
+                                    </select>
+
+                                    <select class="form-input w-1/4 font-bold text-blue-400">
+                                        <option>Crosses Above</option>
+                                        <option>Greater Than</option>
+                                        <option>Less Than</option>
+                                        <option>Equal To</option>
+                                    </select>
+
+                                    <input type="number" placeholder="Value/Period" class="form-input w-1/6" value="20">
+                                    <button type="button" class="text-rose-500 px-2" onclick="this.parentElement.remove()">×</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Short Entry -->
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-xs font-bold text-rose-500 uppercase tracking-widest">Short Entry (Sell)</h3>
+                                <button type="button" onclick="addCondition('short')" class="text-[10px] text-blue-400 border border-blue-400/30 px-2 py-1 rounded hover:bg-blue-400/10">+ Add Group</button>
+                            </div>
+                            <div id="short-conditions-container">
+                                <div class="condition-row">
+                                    <select class="form-input w-1/3">
+                                        <option value="ma">Moving Average</option>
+                                        <option value="rsi">RSI</option>
+                                        <option value="candle">Candle</option>
+                                    </select>
+                                    <select class="form-input w-1/4"><option>SMA</option><option>EMA</option></select>
+                                    <select class="form-input w-1/4 font-bold text-rose-400"><option>Crosses Below</option><option>Less Than</option></select>
+                                    <input type="number" class="form-input w-1/6" value="50">
+                                    <button type="button" class="text-rose-500 px-2" onclick="this.parentElement.remove()">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Risk Management -->
+                    <section class="card p-6">
+                        <div class="section-header"><h2 class="text-lg font-bold text-white">Risk Management</h2></div>
+                        <div class="grid grid-cols-3 gap-6 mb-6">
+                            <div>
+                                <label class="form-label">Max Trade Cycle</label>
+                                <input type="number" name="max_cycle" value="3" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Stop Loss (%)</label>
+                                <input type="number" name="sl_pct" value="1" step="0.1" class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Target (%)</label>
+                                <input type="number" name="target_pct" value="2" step="0.1" class="form-input">
+                            </div>
+                        </div>
+                        <div class="p-4 bg-blue-500/5 border border-blue-500/20 rounded-md">
+                            <label class="form-label text-blue-400">Profit Trailing Strategy</label>
+                            <select name="trailing_type" class="form-input mt-1">
+                                <option value="none">No Trailing</option>
+                                <option value="lock">Lock Fix Profit (Break Even)</option>
+                                <option value="trail">Trail Profit (Active)</option>
+                                <option value="lock_trail">Lock and Trail</option>
+                            </select>
+                        </div>
+                    </section>
+
+                    <!-- Final Submission -->
+                    <section class="card p-6 border-emerald-500/30 bg-emerald-500/5">
+                        <div class="flex gap-4 items-end">
+                            <div class="flex-1">
+                                <label class="form-label">Strategy Identity Name</label>
+                                <input type="text" name="name" placeholder="e.g. RSI-EMA Scalper Pro" class="form-input py-3 text-lg border-emerald-500/50" required>
+                            </div>
+                            <button type="submit" class="btn-primary shadow-lg shadow-emerald-500/20">
+                                Save & Deploy Strategy
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        // Sync the hidden symbol/token fields when instrument is selected
+        function updateInstrumentMeta() {
+            const select = document.getElementById('instrument_select');
+            const selected = select.options[select.selectedIndex];
+            
+            if (selected.value) {
+                document.getElementById('hidden_symbol').value = selected.getAttribute('data-symbol');
+                document.getElementById('hidden_exch').value = selected.getAttribute('data-exch');
+                document.getElementById('display_exch').value = selected.getAttribute('data-exch');
+                document.getElementById('hidden_token').value = selected.value;
+            }
+        }
+
+        // Logic for Dynamic Condition Builder Rows
+        function addCondition(side) {
+            const container = document.getElementById(side + '-conditions-container');
+            const newRow = container.firstElementChild.cloneNode(true);
+            // Reset inputs
+            newRow.querySelectorAll('input').forEach(i => i.value = '');
+            container.appendChild(newRow);
+        }
+
+        function toggleIndicatorParams(select) {
+            const typeSelect = select.nextElementSibling;
+            const val = select.value;
+            
+            // Clear current options
+            typeSelect.innerHTML = '';
+            
+            if (val === 'ma') {
+                ['SMA','EMA','TEMA','DEMA','WMA','TRIMA','KAMA','MAMA','T3'].forEach(t => {
+                    let opt = document.createElement('option'); opt.text = t; typeSelect.add(opt);
+                });
+            } else if (val === 'rsi') {
+                ['Standard','Smoothed'].forEach(t => {
+                    let opt = document.createElement('option'); opt.text = t; typeSelect.add(opt);
+                });
+            } else if (val === 'candle') {
+                ['Open','High','Low','Close','Volume'].forEach(t => {
+                    let opt = document.createElement('option'); opt.text = t; typeSelect.add(opt);
+                });
+            }
+        }
+    </script>
+</body>
+</html>

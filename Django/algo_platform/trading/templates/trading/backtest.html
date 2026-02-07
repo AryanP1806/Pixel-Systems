@@ -85,7 +85,12 @@
                 </button>
             </div>
         </div>
-        <a href="/" class="bg-rose-500 text-white text-[10px] px-4 py-1.5 rounded uppercase font-bold">Exit</a>
+        <div class="flex items-center gap-4">
+            <a href="/strategies/" class="text-[10px] text-blue-400 font-bold uppercase hover:underline">Strategies</a>
+            
+                <a href="{% url 'logout' %}" class="bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded">Logout</a>
+            <a href="/" class="bg-rose-500 text-white text-[10px] px-4 py-1.5 rounded uppercase font-bold">Exit</a>
+        </div>
     </header>
 
     <div class="relative w-full">
@@ -138,6 +143,7 @@
 
         function calculateEMA(data, period) {
             let res = [];
+            if (!data.length) return res;
             let k = 2 / (period + 1);
             let ema = data[0].close;
             for (let i = 0; i < data.length; i++) {
@@ -161,11 +167,9 @@
                     pane: name === 'rsi' ? 1 : 0
                 });
                 
-                // Fetch period from settings input
                 const period = parseInt(document.getElementById('inp-' + name)?.value || 14);
-                let studyData = data[name]; // Default from server
+                let studyData = data[name];
 
-                // If user changed period, recalculate
                 if (name.startsWith('sma') && period !== parseInt(name.replace('sma', ''))) {
                    studyData = calculateSMA(data.candles, period);
                 } else if (name.startsWith('ema') && period !== parseInt(name.replace('ema', ''))) {
@@ -178,11 +182,9 @@
             }
         };
 
-        // Modal Logic
         window.openSettings = () => document.getElementById('settings-modal').style.display = 'flex';
         window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
         window.applySettings = () => {
-            // Re-apply active series with new periods
             Object.keys(seriesMap).forEach(name => {
                 if (name === 'rsi') return;
                 chart.removeSeries(seriesMap[name]);
@@ -203,10 +205,13 @@
             document.getElementById('price-line').innerText = "Terminal Ready.";
         }, 300);
 
+        // ✅ FIX: Added safety checks to prevent "undefined reading 'get'" error
         chart.subscribeCrosshairMove(p => {
-            if (!p.time) return;
+            if (!p || !p.time || !p.seriesData) return;
             const d = p.seriesData.get(candleSeries);
-            if (d) document.getElementById('price-line').innerHTML = `O <span class="text-white">${d.open.toFixed(2)}</span> H <span class="text-emerald-400">${d.high.toFixed(2)}</span> L <span class="text-rose-400">${d.low.toFixed(2)}</span> C <span class="text-white">${d.close.toFixed(2)}</span>`;
+            if (d) {
+                document.getElementById('price-line').innerHTML = `O <span class="text-white">${d.open.toFixed(2)}</span> H <span class="text-emerald-400">${d.high.toFixed(2)}</span> L <span class="text-rose-400">${d.low.toFixed(2)}</span> C <span class="text-white">${d.close.toFixed(2)}</span>`;
+            }
         });
     </script>
 </body>

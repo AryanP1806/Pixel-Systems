@@ -116,3 +116,63 @@ def backtest_view(request):
         'current_tf': timeframe, 'current_tl': timeline
     }
     return render(request, 'trading/backtest.html', context)
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import Strategy
+
+def strategy_list(request):
+    """Overall page showing all strategies."""
+    if 'shoonya_token' not in request.session:
+        return redirect('login')
+    strategies = Strategy.objects.all()
+    return render(request, 'trading/strategy_list.html', {'strategies': strategies})
+
+def strategy_upsert(request, pk=None):
+    """Handles both Creating and Editing strategies."""
+    if 'shoonya_token' not in request.session:
+        return redirect('login')
+    
+    strategy = None
+    if pk:
+        strategy = get_object_or_404(Strategy, pk=pk)
+
+    if request.method == 'POST':
+        # Extraction
+        name = request.POST.get('name')
+        symbol = request.POST.get('symbol')
+        token = request.POST.get('token')
+        exch = request.POST.get('exchange', 'NSE')
+        
+        if strategy:
+            # Update
+            strategy.name = name
+            strategy.symbol = symbol
+            strategy.token = token
+            strategy.exchange = exch
+            strategy.save()
+            messages.success(request, f"Strategy '{name}' updated.")
+        else:
+            # Create
+            Strategy.objects.create(
+                name=name,
+                symbol=symbol,
+                token=token,
+                exchange=exch,
+                is_active=False
+            )
+            messages.success(request, f"Strategy '{name}' created successfully.")
+        
+        return redirect('strategy_list')
+        
+    return render(request, 'trading/strategy_builder.html', {
+        'strategy': strategy,
+        'is_editing': strategy is not None
+    })
+
+def strategy_viewer(request, pk):
+    """Detail page for a specific strategy logic."""
+    if 'shoonya_token' not in request.session:
+        return redirect('login')
+    strategy = get_object_or_404(Strategy, pk=pk)
+    return render(request, 'trading/strategy_viewer.html', {'strat': strategy})
