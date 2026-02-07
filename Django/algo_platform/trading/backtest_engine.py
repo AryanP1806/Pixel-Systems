@@ -15,7 +15,7 @@ class Backtester:
         self.token = token
         self.exchange = exchange
 
-    def get_history(self, timeframe='D', days=180):
+    def get_history(self, timeframe='D', days=180, strategy_obj=None):
         """
         Fetches historical data and calculates SMA 50/200 crossover + customizable indicators.
         """
@@ -76,40 +76,43 @@ class Backtester:
                 'intc': 'close','ss_c': 'close', 'c': 'close',
                 'time': 'time', 'ss_t': 'time', 'trandate': 'time'
             }
+            # 1. Map and CLEAN types (Fixes the TypeError)
             df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
-
             for col in ['open', 'high', 'low', 'close']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df[col] = pd.to_numeric(df[col], errors='coerce').astype(float) # Forced float cast
 
-            # --- Indicators ---
-            # Existing Strategy SMAs
-            df['sma50']  = df['close'].rolling(window=50).mean()
-            df['sma200'] = df['close'].rolling(window=200).mean()
+            # 2. Get Periods from Strategy or Defaults
+            ema_p = getattr(strategy_obj, 'ema_period', 50)
+            sma_p = getattr(strategy_obj, 'sma_period', 200)
+            rsi_p = getattr(strategy_obj, 'rsi_period', 14)
 
-            # Customizable Indicators (Defaults)
-            df['ema9'] = df['close'].ewm(span=9, adjust=False).mean()
-            df['ema21'] = df['close'].ewm(span=21, adjust=False).mean()
-            df['sma20'] = df['close'].rolling(window=20).mean()
+            # 3. Dynamic Indicators (Using the names your chart expects)
+            df['ema50'] = df['close'].ewm(span=ema_p, adjust=False).mean()
+            df['sma200'] = df['close'].rolling(window=sma_p).mean()
             
-            # RSI Calculation (14 period)
+            # RSI Calculation
             delta = df['close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            df['rsi14'] = 100 - (100 / (1 + rs))
+            gain = (delta.where(delta > 0, 0)).rolling(window=rsi_p).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=rsi_p).mean()
+            df['rsi14'] = 100 - (100 / (1 + (gain / loss)))
 
-            # --- Strategy Logic: Golden Cross (Unchanged) ---
+            # 4. Strategy Logic: Recorded Conditions
             df['signal'] = None
             for i in range(1, len(df)):
-                if pd.isna(df['sma50'][i]) or pd.isna(df['sma200'][i]):
+                if pd.isna(df['ema50'][i]) or pd.isna(df['sma200'][i]) or pd.isna(df['rsi14'][i]):
                     continue
-                if df['sma50'][i] > df['sma200'][i] and df['sma50'][i-1] <= df['sma200'][i-1]:
+                
+                # LONG ENTRY: EMA crosses above SMA AND RSI < 30
+                cross_above = df['ema50'][i] > df['sma200'][i] and df['ema50'][i-1] <= df['sma200'][i-1]
+                if cross_above and df['rsi14'][i] < 30:
                     df.at[i, 'signal'] = 'BUY'
-                elif df['sma50'][i] < df['sma200'][i] and df['sma50'][i-1] >= df['sma200'][i-1]:
+                
+                # EXIT/SHORT: EMA crosses below SMA
+                cross_below = df['ema50'][i] < df['sma200'][i] and df['ema50'][i-1] >= df['sma200'][i-1]
+                if cross_below:
                     df.at[i, 'signal'] = 'SELL'
 
             return df.tail(days + 50).copy().reset_index(drop=True)
-
         except Exception as e:
             logger.exception("Engine Failure")
             return None

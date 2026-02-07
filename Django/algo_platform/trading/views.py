@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from .api_service import shoonya_service
-
+from django.shortcuts import render, redirect, get_object_or_404 # Ensure get_object_or_404 is here
+from .models import Strategy, Order # Ensure Strategy is imported
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .api_service import shoonya_service
@@ -72,9 +73,20 @@ def backtest_view(request):
     shoonya_service.session_token = token
     shoonya_service.get_nifty_price('26000', session_token=token)
 
-    engine = Backtester(token='26000')
-    df = engine.get_history(timeframe=timeframe, days=timeline)
+    # engine = Backtester(token='26000')
+    # df = engine.get_history(timeframe=timeframe, days=timeline)
 
+    strategy_id = request.GET.get('strategy_id')
+    strategy_obj = None
+    if strategy_id:
+        strategy_obj = get_object_or_404(Strategy, pk=strategy_id)
+        # Override chart settings with strategy settings
+        token = strategy_obj.token
+        # You could also override timeframe/timeline here if stored in model
+    
+    engine = Backtester(token=token)
+    # PASS THE STRATEGY OBJECT TO THE ENGINE
+    df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj)
     if df is None or df.empty:
         messages.error(request, "Unable to fetch market data.")
         return render(request, 'trading/backtest.html', {'candles_json': '[]', 'current_tf': timeframe, 'current_tl': timeline})
@@ -129,31 +141,48 @@ def backtest_view(request):
         t = int(row.time_dt.timestamp())
         close_p = float(row.close)
         
+        # 1. Standard Candle Data
         candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': close_p})
         
-        # Check attributes directly from the tuple
-        if not np.isnan(row.sma50): sma50.append({'time': t, 'value': float(row.sma50)})
-        if not np.isnan(row.sma200): sma200.append({'time': t, 'value': float(row.sma200)})
-        if not np.isnan(row.ema9): ema9.append({'time': t, 'value': float(row.ema9)})
-        if not np.isnan(row.ema21): ema21.append({'time': t, 'value': float(row.ema21)})
-        if not np.isnan(row.sma20): sma20.append({'time': t, 'value': float(row.sma20)})
-        if not np.isnan(row.rsi14): rsi14.append({'time': t, 'value': float(row.rsi14)})
+        # 2. Strategy Indicators (Using names from backtest_engine.py)
+        # We check hasattr because if the engine failed to calculate one, it won't crash the loop
+        if hasattr(row, 'ema50') and not np.isnan(row.ema50): 
+            ema9.append({'time': t, 'value': float(row.ema50)}) 
+            
+        if hasattr(row, 'sma200') and not np.isnan(row.sma200): 
+            sma200.append({'time': t, 'value': float(row.sma200)})
+            
+        if hasattr(row, 'rsi14') and not np.isnan(row.rsi14): 
+            rsi14.append({'time': t, 'value': float(row.rsi14)})
 
-        if row.signal == 'BUY':
-            markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-        elif row.signal == 'SELL':
-            markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
+        # 3. Strategy Signals
+        if hasattr(row, 'signal'):
+            if row.signal == 'BUY':
+                markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
+            elif row.signal == 'SELL':
+                markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
 
     context = {
-        'candles_json': json.dumps(candles),
-        'sma50_json': json.dumps(sma50),
-        'sma200_json': json.dumps(sma200),
-        'ema9_json': json.dumps(ema9),
-        'ema21_json': json.dumps(ema21),
-        'sma20_json': json.dumps(sma20),
-        'rsi14_json': json.dumps(rsi14),
-        'markers_json': json.dumps(markers),
-        'current_tf': timeframe, 'current_tl': timeline
+        # 'candles_json': json.dumps(candles),
+        # 'sma50_json': json.dumps(sma50),
+        # 'sma200_json': json.dumps(sma200),
+        # 'ema9_json': json.dumps(ema9),
+        # 'ema21_json': json.dumps(ema21),
+        # 'sma20_json': json.dumps(sma20),
+        # 'rsi14_json': json.dumps(rsi14),
+        # 'markers_json': json.dumps(markers),
+        # 'current_tf': timeframe, 'current_tl': timeline,
+
+        'candles_json': json.dumps(candles) if candles else '[]',
+        'sma50_json': json.dumps(sma50) if sma50 else '[]',
+        'sma200_json': json.dumps(sma200) if sma200 else '[]',
+        'ema9_json': json.dumps(ema9) if ema9 else '[]',
+        'ema21_json': json.dumps(ema21) if ema21 else '[]',
+        'sma20_json': json.dumps(sma20) if sma20 else '[]',
+        'rsi14_json': json.dumps(rsi14) if rsi14 else '[]',
+        'markers_json': json.dumps(markers) if markers else '[]',
+        'current_tf': timeframe, 
+        'current_tl': timeline
     }
     return render(request, 'trading/backtest.html', context)
 

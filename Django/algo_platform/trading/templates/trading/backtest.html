@@ -45,6 +45,10 @@
                 <label>SMA 3 Period</label>
                 <input type="number" id="inp-sma200" value="200">
             </div>
+            <div class="input-group">
+                <label>RSI Period</label>
+                <input type="number" id="inp-rsi" value="14">
+            </div>
             <div class="flex gap-2 mt-6">
                 <button onclick="closeSettings()" class="flex-1 bg-[#2a2e39] py-2 rounded text-xs font-bold">Cancel</button>
                 <button onclick="applySettings()" class="flex-1 bg-blue-600 py-2 rounded text-xs font-bold text-white">Apply</button>
@@ -104,14 +108,22 @@
     <script>
         const rawData = {{ candles_json|safe }};
         const data = {
-            candles: rawData,
-            sma50: {{ sma50_json|safe }},
-            sma200: {{ sma200_json|safe }},
-            ema9: {{ ema9_json|safe }},
-            ema21: {{ ema21_json|safe }},
-            sma20: {{ sma20_json|safe }},
-            rsi: {{ rsi14_json|safe }},
-            markers: {{ markers_json|safe }}
+            // candles: rawData,
+            // sma50: {{ sma50_json|safe }},
+            // sma200: {{ sma200_json|safe }},
+            // ema9: {{ ema9_json|safe }},
+            // ema21: {{ ema21_json|safe }},
+            // sma20: {{ sma20_json|safe }},
+            // rsi: {{ rsi14_json|safe }},
+            // markers: {{ markers_json|safe }}
+            candles: {{ candles_json|safe|default:"[]" }},
+            sma50: {{ sma50_json|safe|default:"[]" }},
+            sma200: {{ sma200_json|safe|default:"[]" }},
+            ema9: {{ ema9_json|safe|default:"[]" }},
+            ema21: {{ ema21_json|safe|default:"[]" }},
+            sma20: {{ sma20_json|safe|default:"[]" }},
+            rsi: {{ rsi14_json|safe|default:"[]" }},
+            markers: {{ markers_json|safe|default:"[]" }}
         };
 
         const container = document.getElementById('chart-container');
@@ -152,6 +164,32 @@
             }
             return res;
         }
+        
+        // Auto-load strategy indicators if they exist in the data
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isStrategy = urlParams.has('strategy_id');
+
+            if (isStrategy) {
+                document.getElementById('tf-label').innerText += " (STRATEGY ACTIVE)";
+            }
+
+            // Load Strategy Indicators ONLY if they contain data
+            if (data.ema9.length > 0) {
+                const btn = document.getElementById('btn-ema9');
+                // If it's your recorded strategy, label it correctly
+                if (isStrategy) btn.innerText = "EMA 50"; 
+                toggleStudy('ema9');
+            }
+            
+            if (data.sma200.length > 0) {
+                toggleStudy('sma200');
+            }
+            
+            if (data.rsi.length > 0) {
+                toggleStudy('rsi');
+            }
+        });
 
         window.toggleStudy = function(name) {
             const btn = document.getElementById('btn-' + name);
@@ -167,13 +205,19 @@
                     pane: name === 'rsi' ? 1 : 0
                 });
                 
-                const period = parseInt(document.getElementById('inp-' + name)?.value || 14);
+                // Fallback to 14 if input is missing
+                const periodInput = document.getElementById('inp-' + name);
+                const period = periodInput ? parseInt(periodInput.value) : 14;
+                
                 let studyData = data[name];
 
-                if (name.startsWith('sma') && period !== parseInt(name.replace('sma', ''))) {
-                   studyData = calculateSMA(data.candles, period);
-                } else if (name.startsWith('ema') && period !== parseInt(name.replace('ema', ''))) {
-                   studyData = calculateEMA(data.candles, period);
+                // If user changed the period in settings, recalculate locally
+                if (name.startsWith('sma')) {
+                   const defaultPeriod = parseInt(name.replace('sma', ''));
+                   if (period !== defaultPeriod) studyData = calculateSMA(data.candles, period);
+                } else if (name.startsWith('ema')) {
+                   const defaultPeriod = parseInt(name.replace('ema', ''));
+                   if (period !== defaultPeriod) studyData = calculateEMA(data.candles, period);
                 }
 
                 seriesMap[name].setData(studyData);
@@ -181,20 +225,17 @@
                 btn.innerText = `${name.toUpperCase().substring(0,3)} ${period}`;
             }
         };
-
         window.openSettings = () => document.getElementById('settings-modal').style.display = 'flex';
         window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
         window.applySettings = () => {
             Object.keys(seriesMap).forEach(name => {
-                if (name === 'rsi') return;
                 chart.removeSeries(seriesMap[name]);
                 delete seriesMap[name];
                 document.getElementById('btn-' + name).classList.remove('active-btn');
-                toggleStudy(name);
+                toggleStudy(name); // Re-trigger with new period values
             });
             closeSettings();
         };
-
         function resize() { chart.resize(container.clientWidth, container.clientHeight); }
         window.addEventListener('resize', resize);
         resize();

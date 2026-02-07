@@ -9,7 +9,8 @@ class Strategy(models.Model):
     is_active = models.BooleanField(default=False)
     
     # Strategy Parameters
-    ema_period = models.IntegerField(default=20)
+    ema_period = models.IntegerField(default=50) # Set default to your recorded 50
+    sma_period = models.IntegerField(default=200) # NEW: Add this for your SMA 200 logic
     rsi_period = models.IntegerField(default=14)
     st_period = models.IntegerField(default=7)
     st_multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=3.0)
