@@ -2,257 +2,322 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AlgoPro Terminal</title>
+    <title>Strategy Analytics | AlgoLab</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background-color: #131722; color: #d1d4dc; }
-        .toolbar-btn { background: #2a2e39; border-radius: 4px; padding: 4px 10px; font-size: 10px; font-weight: bold; transition: all 0.2s; border: 1px solid transparent; }
-        .active-btn { background: #2962ff !important; color: white; border-color: #5d87ff; }
-        #chart-container { height: calc(100vh - 64px); width: 100%; }
-        #legend { position: absolute; top: 12px; left: 12px; z-index: 10; font-size: 12px; pointer-events: none; }
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        .btn-toggle { background: #21262d; border: 1px solid #30363d; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-toggle.active { background: #1f6feb; border-color: #58a6ff; color: white; }
+        .form-input { background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; padding: 8px; font-size: 13px; width: 100%; outline: none; }
+        .metric-card { padding: 16px; border-radius: 8px; background: #0d1117; border: 1px solid #30363d; }
+        .table-row:hover { background: #161b22; }
+        #chart-wrapper { height: 500px; width: 100%; position: relative; }
         
-        /* Modal Styles */
-        .modal-overlay { background: rgba(0,0,0,0.7); display: none; position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; }
-        .modal-content { background: #171b26; border: 1px solid #2a2e39; border-radius: 8px; width: 320px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .input-group { margin-bottom: 12px; }
-        .input-group label { display: block; font-size: 10px; color: #848e9c; margin-bottom: 4px; text-transform: uppercase; }
-        .input-group input { background: #2a2e39; border: 1px solid #363a45; color: white; border-radius: 4px; padding: 6px; width: 100%; font-size: 12px; outline: none; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
 </head>
-<body class="overflow-hidden">
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="text-white font-bold mb-4 text-sm">Indicator Settings</h3>
-            <div class="input-group">
-                <label>EMA 1 Period</label>
-                <input type="number" id="inp-ema9" value="9">
-            </div>
-            <div class="input-group">
-                <label>EMA 2 Period</label>
-                <input type="number" id="inp-ema21" value="21">
-            </div>
-            <div class="input-group">
-                <label>SMA 1 Period</label>
-                <input type="number" id="inp-sma20" value="20">
-            </div>
-            <div class="input-group">
-                <label>SMA 2 Period</label>
-                <input type="number" id="inp-sma50" value="50">
-            </div>
-            <div class="input-group">
-                <label>SMA 3 Period</label>
-                <input type="number" id="inp-sma200" value="200">
-            </div>
-            <div class="input-group">
-                <label>RSI Period</label>
-                <input type="number" id="inp-rsi" value="14">
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="closeSettings()" class="flex-1 bg-[#2a2e39] py-2 rounded text-xs font-bold">Cancel</button>
-                <button onclick="applySettings()" class="flex-1 bg-blue-600 py-2 rounded text-xs font-bold text-white">Apply</button>
-            </div>
-        </div>
-    </div>
+<body class="min-h-screen pb-10">
 
-    <header class="h-16 border-b border-[#2a2e39] flex items-center justify-between px-4 bg-[#171b26]">
-        <div class="flex items-center gap-4">
+    <nav class="h-16 border-b border-[#30363d] flex items-center justify-between px-8 bg-[#161b22] sticky top-0 z-50">
+        <div class="flex items-center gap-8">
             <span class="text-blue-500 font-black text-xl italic">ALGO<span class="text-white font-normal">LAB</span></span>
-            <form class="flex items-center gap-2">
-                <select name="timeframe" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded text-white border-none outline-none">
-                    <option value="1" {% if current_tf == '1' %}selected{% endif %}>1m</option>
-                    <option value="3" {% if current_tf == '3' %}selected{% endif %}>3m</option>
-                    <option value="5" {% if current_tf == '5' %}selected{% endif %}>5m</option>
-                    <option value="15" {% if current_tf == '15' %}selected{% endif %}>15m</option>
-                    <option value="60" {% if current_tf == '60' %}selected{% endif %}>1h</option>
-                    <option value="240" {% if current_tf == '240' %}selected{% endif %}>4h</option>
-                    <option value="D" {% if current_tf == 'D' %}selected{% endif %}>1d</option>
-                </select>
-                <select name="timeline" onchange="this.form.submit()" class="bg-[#2a2e39] text-[10px] px-2 py-1 rounded text-white border-none outline-none">
-                    <option value="30" {% if current_tl == 30 %}selected{% endif %}>1M</option>
-                    <option value="90" {% if current_tl == 90 %}selected{% endif %}>3M</option>
-                    <option value="180" {% if current_tl == 180 %}selected{% endif %}>6M</option>
-                    <option value="365" {% if current_tl == 365 %}selected{% endif %}>1Y</option>
-                </select>
-            </form>
-            <div class="h-6 w-[1px] bg-[#2a2e39] mx-2"></div>
-            <div class="flex gap-1.5 items-center">
-                <button onclick="toggleStudy('ema9')" id="btn-ema9" class="toolbar-btn text-yellow-400">EMA</button>
-                <button onclick="toggleStudy('ema21')" id="btn-ema21" class="toolbar-btn text-orange-400">EMA</button>
-                <button onclick="toggleStudy('sma20')" id="btn-sma20" class="toolbar-btn text-purple-400">SMA</button>
-                <button onclick="toggleStudy('sma50')" id="btn-sma50" class="toolbar-btn text-emerald-400">SMA</button>
-                <button onclick="toggleStudy('sma200')" id="btn-sma200" class="toolbar-btn text-blue-400">SMA</button>
-                <button onclick="toggleStudy('rsi')" id="btn-rsi" class="toolbar-btn text-pink-400">RSI</button>
-                <button onclick="openSettings()" class="ml-2 hover:bg-[#2a2e39] p-1.5 rounded-full transition-colors">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848e9c" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
+            <div class="flex gap-4 text-sm font-medium">
+                <a href="/" class="text-gray-400 hover:text-white">Dashboard</a>
+                <a href="/strategies/" class="text-gray-400 hover:text-white">Strategies</a>
+                <span class="text-blue-400">Backtest Analytics</span>
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <a href="/strategies/" class="text-[10px] text-blue-400 font-bold uppercase hover:underline">Strategies</a>
-            
-                <a href="{% url 'logout' %}" class="bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded">Logout</a>
-            <a href="/" class="bg-rose-500 text-white text-[10px] px-4 py-1.5 rounded uppercase font-bold">Exit</a>
+            <a href="/logout/" class="text-rose-400 text-xs font-bold uppercase">Logout</a>
         </div>
-    </header>
+    </nav>
 
-    <div class="relative w-full">
-        <div id="legend">
-            <div class="font-bold text-white mb-1">NIFTY 50 • NSE • <span id="tf-label">{{ current_tf }}</span></div>
-            <div id="price-line" class="text-slate-500 text-[11px]">Initializing Terminal...</div>
+    <main class="max-w-[1600px] mx-auto mt-8 px-6 grid grid-cols-12 gap-6">
+        
+        <!-- Sidebar: Configuration -->
+        <div class="col-span-12 lg:col-span-3 space-y-6">
+            <div class="card p-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Strategy Details</h2>
+                <div class="mb-6">
+                    <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Active Strategy</label>
+                    <div class="text-xl font-bold text-white">{{ strategy.name|default:"RSI-EMA Scalper Pro" }}</div>
+                    <div class="text-xs text-blue-400 font-mono mt-1">{{ strategy.symbol|default:"NIFTY 50" }} ({{ strategy.exchange|default:"NSE" }})</div>
+                </div>
+
+                <form method="GET" action="." id="backtest-form" class="space-y-4">
+                    <input type="hidden" name="strategy_id" value="{{ strategy.id }}">
+                    
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Select Time Range</label>
+                        <select name="timeline" id="timeline-select" class="form-input" onchange="toggleCustomRange(this.value)">
+                            <option value="30">1 Month</option>
+                            <option value="90">3 Months</option>
+                            <option value="180">6 Months</option>
+                            <option value="365" selected>1 Year</option>
+                            <option value="730">2 Years</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+
+                    <div id="custom-range-inputs" class="hidden grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] text-gray-500">From</label>
+                            <input type="date" name="from_date" class="form-input text-[11px]">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-gray-500">To</label>
+                            <input type="date" name="to_date" class="form-input text-[11px]">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-900/20 mt-4">
+                        Run Detailed Backtest
+                    </button>
+                </form>
+            </div>
+
+            <!-- Performance Snapshot -->
+            <div class="card p-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Performance Metrics</h2>
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="metric-card">
+                        <div class="text-[10px] text-gray-500 uppercase">Total Net Profit</div>
+                        <div id="metric-total-pnl" class="text-xl font-bold">--</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="metric-card">
+                            <div class="text-[10px] text-gray-500 uppercase">Win Rate</div>
+                            <div id="metric-win-rate" class="text-lg font-bold">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] text-gray-500 uppercase">Total Trades</div>
+                            <div id="metric-total-trades" class="text-lg font-bold">--</div>
+                        </div>
+                    </div>
+                    <div class="metric-card border-l-4 border-l-emerald-500">
+                        <div class="text-[10px] text-gray-500 uppercase">Profit Factor</div>
+                        <div id="metric-pf" class="text-lg font-bold">--</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div id="chart-container"></div>
-    </div>
+
+        <!-- Main Content: Chart & Trade Log -->
+        <div class="col-span-12 lg:col-span-9 space-y-6">
+            
+            <!-- Chart Section -->
+            <div class="card overflow-hidden">
+                <div class="p-4 border-b border-[#30363d] flex justify-between items-center bg-[#161b22]">
+                    <div class="flex gap-2">
+                        <button onclick="toggleStudy('ema9')" id="btn-ema9" class="btn-toggle text-yellow-500">EMA 9</button>
+                        <button onclick="toggleStudy('ema21')" id="btn-ema21" class="btn-toggle text-orange-400">EMA 21</button>
+                        <button onclick="toggleStudy('sma20')" id="btn-sma20" class="btn-toggle text-purple-400">SMA 20</button>
+                        <button onclick="toggleStudy('sma50')" id="btn-sma50" class="btn-toggle text-emerald-400">SMA 50</button>
+                        <button onclick="toggleStudy('sma200')" id="btn-sma200" class="btn-toggle text-blue-400">SMA 200</button>
+                        <button onclick="toggleStudy('rsi')" id="btn-rsi" class="btn-toggle text-pink-400">RSI 14</button>
+                    </div>
+                    <div class="text-[11px] font-mono text-gray-500" id="legend-text">
+                        Click indicators to overlay on chart
+                    </div>
+                </div>
+                <div id="chart-wrapper">
+                    <div id="chart-container" class="w-full h-full"></div>
+                </div>
+            </div>
+
+            <!-- Trade Journal -->
+            <div class="card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold text-white">Trade Execution Journal</h2>
+                    <div class="flex gap-4 text-xs font-mono">
+                        <span class="text-emerald-500">Wins: <span id="count-wins">0</span></span>
+                        <span class="text-rose-500">Losses: <span id="count-losses">0</span></span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="text-gray-500 border-b border-[#30363d]">
+                                <th class="pb-3 font-medium">Type</th>
+                                <th class="pb-3 font-medium">Entry Date / Price</th>
+                                <th class="pb-3 font-medium">Exit Date / Price</th>
+                                <th class="pb-3 font-medium text-right">Points P&L</th>
+                                <th class="pb-3 font-medium text-center">Outcome</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trade-log-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script>
-        const rawData = {{ candles_json|safe }};
+        // Data input from Django Template
         const data = {
-            // candles: rawData,
-            // sma50: {{ sma50_json|safe }},
-            // sma200: {{ sma200_json|safe }},
-            // ema9: {{ ema9_json|safe }},
-            // ema21: {{ ema21_json|safe }},
-            // sma20: {{ sma20_json|safe }},
-            // rsi: {{ rsi14_json|safe }},
-            // markers: {{ markers_json|safe }}
             candles: {{ candles_json|safe|default:"[]" }},
-            sma50: {{ sma50_json|safe|default:"[]" }},
-            sma200: {{ sma200_json|safe|default:"[]" }},
-            ema9: {{ ema9_json|safe|default:"[]" }},
-            ema21: {{ ema21_json|safe|default:"[]" }},
-            sma20: {{ sma20_json|safe|default:"[]" }},
-            rsi: {{ rsi14_json|safe|default:"[]" }},
-            markers: {{ markers_json|safe|default:"[]" }}
+            markers: {{ markers_json|safe|default:"[]" }},
+            trades: {{ trades_json|safe|default:"[]" }},
+            studies: {
+                ema9: {{ ema9_json|safe|default:"[]" }},
+                ema21: {{ ema21_json|safe|default:"[]" }},
+                sma20: {{ sma20_json|safe|default:"[]" }},
+                sma50: {{ sma50_json|safe|default:"[]" }},
+                sma200: {{ sma200_json|safe|default:"[]" }},
+                rsi: {{ rsi_json|safe|default:"[]" }}
+            }
         };
 
+        const colors = {
+            ema9: '#eab308', 
+            ema21: '#fb923c', 
+            sma20: '#a855f7', 
+            sma50: '#10b981', 
+            sma200: '#3b82f6', 
+            rsi: '#f472b6'
+        };
+
+        let activeSeries = {};
+
+        // 1. Initialize Chart
         const container = document.getElementById('chart-container');
         const chart = LightweightCharts.createChart(container, {
-            layout: { background: { color: '#131722' }, textColor: '#d1d4dc', fontSize: 11 },
-            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-            timeScale: { borderColor: '#2a2e39', timeVisible: true },
-            rightPriceScale: { borderColor: '#2a2e39' }
+            layout: { background: { color: '#0d1117' }, textColor: '#8b949e', fontSize: 11 },
+            grid: { vertLines: { color: '#161b22' }, horzLines: { color: '#161b22' } },
+            timeScale: { borderColor: '#30363d', timeVisible: true },
+            rightPriceScale: { borderColor: '#30363d' },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
         });
 
-        const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-        candleSeries.setData(data.candles);
-        if (data.markers.length) candleSeries.setMarkers(data.markers);
-
-        let seriesMap = {};
-        const colors = { ema9: '#fbbf24', ema21: '#f97316', sma20: '#a855f7', sma50: '#10b981', sma200: '#3b82f6', rsi: '#ec4899' };
-
-        // Helper: Calculate SMA/EMA locally for live customization
-        function calculateSMA(data, period) {
-            let res = [];
-            for (let i = 0; i < data.length; i++) {
-                if (i < period - 1) continue;
-                let sum = 0;
-                for (let j = 0; j < period; j++) sum += data[i - j].close;
-                res.push({ time: data[i].time, value: sum / period });
-            }
-            return res;
-        }
-
-        function calculateEMA(data, period) {
-            let res = [];
-            if (!data.length) return res;
-            let k = 2 / (period + 1);
-            let ema = data[0].close;
-            for (let i = 0; i < data.length; i++) {
-                ema = (data[i].close - ema) * k + ema;
-                if (i >= period) res.push({ time: data[i].time, value: ema });
-            }
-            return res;
-        }
-        
-        // Auto-load strategy indicators if they exist in the data
-        window.addEventListener('load', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const isStrategy = urlParams.has('strategy_id');
-
-            if (isStrategy) {
-                document.getElementById('tf-label').innerText += " (STRATEGY ACTIVE)";
-            }
-
-            // Load Strategy Indicators ONLY if they contain data
-            if (data.ema9.length > 0) {
-                const btn = document.getElementById('btn-ema9');
-                // If it's your recorded strategy, label it correctly
-                if (isStrategy) btn.innerText = "EMA 50"; 
-                toggleStudy('ema9');
-            }
-            
-            if (data.sma200.length > 0) {
-                toggleStudy('sma200');
-            }
-            
-            if (data.rsi.length > 0) {
-                toggleStudy('rsi');
-            }
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#238636', downColor: '#da3633', 
+            borderVisible: false, wickUpColor: '#238636', wickDownColor: '#da3633'
         });
 
+        // Load Initial Data
+        if (data.candles.length) {
+            candleSeries.setData(data.candles);
+            if (data.markers.length) candleSeries.setMarkers(data.markers);
+            setTimeout(() => chart.timeScale().fitContent(), 100);
+        }
+
+        // 2. Toggle Indicators (Off by Default)
         window.toggleStudy = function(name) {
             const btn = document.getElementById('btn-' + name);
-            if (seriesMap[name]) {
-                chart.removeSeries(seriesMap[name]);
-                delete seriesMap[name];
-                btn.classList.remove('active-btn');
+            
+            if (activeSeries[name]) {
+                chart.removeSeries(activeSeries[name]);
+                delete activeSeries[name];
+                btn.classList.remove('active');
             } else {
-                seriesMap[name] = chart.addLineSeries({ 
-                    color: colors[name], 
-                    lineWidth: 2, 
+                const isRsi = name === 'rsi';
+                activeSeries[name] = chart.addLineSeries({
+                    color: colors[name],
+                    lineWidth: 1.5,
                     priceLineVisible: false,
-                    pane: name === 'rsi' ? 1 : 0
+                    pane: isRsi ? 1 : 0
                 });
                 
-                // Fallback to 14 if input is missing
-                const periodInput = document.getElementById('inp-' + name);
-                const period = periodInput ? parseInt(periodInput.value) : 14;
-                
-                let studyData = data[name];
+                activeSeries[name].setData(data.studies[name]);
+                btn.classList.add('active');
+            }
+        };
 
-                // If user changed the period in settings, recalculate locally
-                if (name.startsWith('sma')) {
-                   const defaultPeriod = parseInt(name.replace('sma', ''));
-                   if (period !== defaultPeriod) studyData = calculateSMA(data.candles, period);
-                } else if (name.startsWith('ema')) {
-                   const defaultPeriod = parseInt(name.replace('ema', ''));
-                   if (period !== defaultPeriod) studyData = calculateEMA(data.candles, period);
+        // 3. Populate Trade Log & Analytics
+        function processAnalytics() {
+            const logBody = document.getElementById('trade-log-body');
+            let totalPnl = 0;
+            let wins = 0;
+            let losses = 0;
+            let grossProfit = 0;
+            let grossLoss = 0;
+
+            data.trades.forEach(trade => {
+                totalPnl += trade.pnl;
+                const isWin = trade.pnl >= 0;
+                if (isWin) {
+                    wins++;
+                    grossProfit += trade.pnl;
+                } else {
+                    losses++;
+                    grossLoss += Math.abs(trade.pnl);
                 }
 
-                seriesMap[name].setData(studyData);
-                btn.classList.add('active-btn');
-                btn.innerText = `${name.toUpperCase().substring(0,3)} ${period}`;
-            }
-        };
-        window.openSettings = () => document.getElementById('settings-modal').style.display = 'flex';
-        window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
-        window.applySettings = () => {
-            Object.keys(seriesMap).forEach(name => {
-                chart.removeSeries(seriesMap[name]);
-                delete seriesMap[name];
-                document.getElementById('btn-' + name).classList.remove('active-btn');
-                toggleStudy(name); // Re-trigger with new period values
+                const row = `
+                    <tr class="table-row border-b border-[#161b22]">
+                        <td class="py-4 font-bold ${trade.side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}">${trade.side}</td>
+                        <td class="py-4">
+                            <div class="text-white">${trade.entry_price}</div>
+                            <div class="text-[10px] text-gray-500">${trade.entry_time}</div>
+                        </td>
+                        <td class="py-4">
+                            <div class="text-white">${trade.exit_price}</div>
+                            <div class="text-[10px] text-gray-500">${trade.exit_time}</div>
+                        </td>
+                        <td class="py-4 text-right font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${isWin ? '+' : ''}${trade.pnl.toFixed(2)}
+                        </td>
+                        <td class="py-4 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
+                                ${isWin ? 'Profit' : 'Loss'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                logBody.insertAdjacentHTML('beforeend', row);
             });
-            closeSettings();
-        };
-        function resize() { chart.resize(container.clientWidth, container.clientHeight); }
+
+            // Update Metrics UI
+            const totalTrades = data.trades.length;
+            const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : 0;
+            const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : grossProfit;
+
+            document.getElementById('metric-total-pnl').innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
+            document.getElementById('metric-total-pnl').className = `text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            document.getElementById('metric-win-rate').innerText = winRate + '%';
+            document.getElementById('metric-total-trades').innerText = totalTrades;
+            document.getElementById('metric-pf').innerText = profitFactor;
+            document.getElementById('count-wins').innerText = wins;
+            document.getElementById('count-losses').innerText = losses;
+        }
+
+        // 4. UI Helpers
+        function toggleCustomRange(val) {
+            const container = document.getElementById('custom-range-inputs');
+            if (val === 'custom') container.classList.remove('hidden');
+            else container.classList.add('hidden');
+        }
+
+        function resize() {
+            chart.resize(container.clientWidth, container.clientHeight);
+        }
+
         window.addEventListener('resize', resize);
-        resize();
+        window.onload = () => {
+            processAnalytics();
+            resize();
+        };
 
-        setTimeout(() => {
-            if (!data.candles.length) { document.getElementById('price-line').innerText = "No data found."; return; }
-            chart.timeScale().fitContent();
-            document.getElementById('price-line').innerText = "Terminal Ready.";
-        }, 300);
-
-        // ✅ FIX: Added safety checks to prevent "undefined reading 'get'" error
-        chart.subscribeCrosshairMove(p => {
-            if (!p || !p.time || !p.seriesData) return;
-            const d = p.seriesData.get(candleSeries);
-            if (d) {
-                document.getElementById('price-line').innerHTML = `O <span class="text-white">${d.open.toFixed(2)}</span> H <span class="text-emerald-400">${d.high.toFixed(2)}</span> L <span class="text-rose-400">${d.low.toFixed(2)}</span> C <span class="text-white">${d.close.toFixed(2)}</span>`;
+        // Crosshair Tooltip
+        chart.subscribeCrosshairMove(param => {
+            if (!param.time || !param.seriesData.get(candleSeries)) {
+                document.getElementById('legend-text').innerText = "Hover over chart for details";
+                return;
             }
+            const d = param.seriesData.get(candleSeries);
+            document.getElementById('legend-text').innerHTML = `
+                O: <span class="text-white">${d.open}</span> 
+                H: <span class="text-emerald-500">${d.high}</span> 
+                L: <span class="text-rose-500">${d.low}</span> 
+                C: <span class="text-white">${d.close}</span>
+            `;
         });
     </script>
 </body>

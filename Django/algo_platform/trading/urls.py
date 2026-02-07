@@ -14,4 +14,5 @@ urlpatterns = [
     path('strategies/create/', views.strategy_upsert, name='strategy_create'),
     path('strategies/edit/<int:pk>/', views.strategy_upsert, name='strategy_edit'),
     path('strategies/<int:pk>/', views.strategy_viewer, name='strategy_viewer'),
+    # path('strategies/analytics/<int:pk>/', views.strategy_backtest_view, name='strategy_analytics'),
 ]
