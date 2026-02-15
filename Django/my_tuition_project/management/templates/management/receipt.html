@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt_{{ receipt_no }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- html2canvas allows saving HTML as image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { background: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .receipt-container {
+            width: 800px;
+            margin: 40px auto;
+            background: white;
+            padding: 40px;
+            border: 2px solid #333;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header-section { border-bottom: 2px solid #333; margin-bottom: 20px; padding-bottom: 10px; }
+        .academy-name { font-size: 42px; font-weight: 800; color: #1a1a1a; margin-bottom: 0; }
+        .address-text { font-size: 14px; color: #444; margin-bottom: 0; }
+        
+        .receipt-label {
+            background: #333;
+            color: white;
+            padding: 5px 25px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+            letter-spacing: 2px;
+        }
+
+        .meta-info { font-weight: bold; font-size: 18px; }
+        .field-row { margin-bottom: 25px; border-bottom: 1px dotted #999; display: flex; align-items: flex-end; }
+        .field-label { font-weight: 700; text-transform: uppercase; font-size: 13px; color: #555; white-space: nowrap; margin-right: 10px; padding-bottom: 5px; }
+        .field-value { font-size: 18px; font-family: 'Courier New', Courier, monospace; color: #000; flex-grow: 1; padding-bottom: 2px; }
+        
+        .amount-box {
+            border: 2px solid #333;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            font-size: 24px;
+            font-weight: 800;
+            border-radius: 50px;
+        }
+        .footer-sign { margin-top: 50px; }
+        .no-print { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px; }
+        
+        @media print { .no-print { display: none; } .receipt-container { margin: 0; border: none; box-shadow: none; } }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <button class="btn btn-primary shadow" onclick="shareReceipt()">
+            <i class="bi bi-whatsapp me-2"></i>Share on WhatsApp
+        </button>
+        <button class="btn btn-dark shadow" onclick="downloadImage()">
+            <i class="bi bi-download me-2"></i>Download Image
+        </button>
+        <button class="btn btn-outline-dark shadow" onclick="window.print()">
+            <i class="bi bi-printer me-2"></i>Print
+        </button>
+    </div>
+
+    <div id="receipt-capture" class="receipt-container">
+        <div class="header-section text-center">
+            <h1 class="academy-name">Deekshant Academy</h1>
+            <p class="address-text">Pratibha Residency, Near SBI Bank, Sasane Nagar, Hadapsar, Pune - 411028</p>
+            <p class="address-text fw-bold">Mob.: 9665686332 / 9822302613</p>
+            <div class="receipt-label">RECEIPT</div>
+        </div>
+
+        <div class="d-flex justify-content-between mb-4 mt-2">
+            <div class="meta-info">NO. <span class="text-danger">{{ receipt_no }}</span></div>
+            <div class="meta-info">DATE: <span>{{ t.payment_date|date:"d / m / Y" }}</span></div>
+        </div>
+
+        <div class="field-row">
+            <span class="field-label">NAME OF STUDENT</span>
+            <span class="field-value text-uppercase">{{ student.get_full_name|default:student.username }}</span>
+            <span class="field-label ms-3">STD</span>
+            <span class="field-value" style="flex-grow: 0; min-width: 100px;">{{ student.year_of_study }}</span>
+        </div>
+
+        <div class="field-row">
+            <span class="field-label">BY CASH / BY UPI</span>
+            <span class="field-value">{{ t.note|default:"Digital Payment" }}</span>
+            <span class="field-label ms-3">SUBJECTS</span>
+            <span class="field-value" style="flex-grow: 0; min-width: 150px; font-weight: 800; letter-spacing: 2px;">
+                {{ subject_display }}
+            </span>
+        </div>
+
+        <div class="field-row">
+            <span class="field-label">IN WORDS</span>
+            <span class="field-value">{{ amount_words }} Rupees Only</span>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-5">
+            <div class="amount-box">
+                <span class="me-2">₹</span> {{ t.amount_paid }}
+            </div>
+            <div class="text-center">
+                <div style="border-bottom: 1px solid #333; min-width: 200px; margin-bottom: 5px;">₹ {{ fee.balance_due }}</div>
+                <div class="small fw-bold">BALANCE DUE</div>
+            </div>
+        </div>
+
+        <div class="row footer-sign text-center small mt-5">
+            <div class="col-6">
+                <div class="border-top pt-2">SIGN. OF STUDENT / PARENTS</div>
+            </div>
+            <div class="col-6">
+                <div class="fw-bold">FOR DEEKSHANT ACADEMY</div>
+                <div class="mt-4 border-top pt-2 small">AUTHORIZED SIGNATORY</div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <p style="font-size: 10px; color: #777; font-style: italic;">
+                The amount once paid is non refundable in case of whatsoever
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Universal function to capture the receipt area
+        async function captureReceipt() {
+            const receipt = document.getElementById('receipt-capture');
+            return await html2canvas(receipt, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: "#ffffff"
+            });
+        }
+
+        async function downloadImage() {
+            const canvas = await captureReceipt();
+            const link = document.createElement('a');
+            link.download = 'Receipt_{{ receipt_no }}_{{ student.username }}.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        async function shareReceipt() {
+            const canvas = await captureReceipt();
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'Receipt_{{ receipt_no }}.png', { type: 'image/png' });
+                
+                // Check if browser supports native sharing
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Payment Receipt - Deekshant Academy',
+                            text: 'Payment received for student: {{ student.username }}',
+                        });
+                    } catch (err) {
+                        if (err.name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                        }
+                    }
+                } else {
+                    // Fallback to manual download if sharing isn't supported (e.g. desktop Chrome)
+                    alert("Native sharing is not supported on this device. The image will be downloaded instead.");
+                    downloadImage();
+                }
+            }, 'image/png');
+        }
+    </script>
+</body>
+</html>

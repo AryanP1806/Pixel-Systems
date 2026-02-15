@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark">My Attendance Report</h2>
+            <p class="text-muted">Track your presence across all enrolled batches.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge {% if percentage >= 75 %}bg-success{% else %}bg-danger{% endif %} fs-5 px-3 py-2 shadow-sm">
+                {{ percentage }}% Attendance
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="row mb-4 text-center">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-start border-primary border-4">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase small fw-bold">Total Sessions</h6>
+                    <h2 class="fw-bold mb-0">{{ total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-start border-success border-4">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase small fw-bold">Days Present</h6>
+                    <h2 class="fw-bold mb-0 text-success">{{ present }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-start border-danger border-4">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase small fw-bold">Days Absent</h6>
+                    <h2 class="fw-bold mb-0 text-danger">{{ absent }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold">Session History</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Date</th>
+                            <th>Batch</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ record.date|date:"D, d M Y" }}</td>
+                            <td>{{ record.batch.name }}</td>
+                            <td class="text-center">
+                                {% if record.is_present %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 rounded-pill">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Present
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 rounded-pill">
+                                        <i class="bi bi-x-circle-fill me-1"></i> Absent
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-5 text-muted">
+                                <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                                No attendance records found yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -75,18 +75,20 @@ def backtest_view(request):
 
     # engine = Backtester(token='26000')
     # df = engine.get_history(timeframe=timeframe, days=timeline)
-
     strategy_id = request.GET.get('strategy_id')
     strategy_obj = None
     if strategy_id:
         strategy_obj = get_object_or_404(Strategy, pk=strategy_id)
-        # Override chart settings with strategy settings
+        # Use the strategy's specific token and exchange
         token = strategy_obj.token
-        # You could also override timeframe/timeline here if stored in model
-    
-    engine = Backtester(token=token)
-    # PASS THE STRATEGY OBJECT TO THE ENGINE
+        exchange = strategy_obj.exchange 
+    else:
+        token = '26000'
+        exchange = 'NSE'
+
+    engine = Backtester(token=token, exchange=exchange)
     df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj)
+
     if df is None or df.empty:
         messages.error(request, "Unable to fetch market data.")
         return render(request, 'trading/backtest.html', {'candles_json': '[]', 'current_tf': timeframe, 'current_tl': timeline})
@@ -116,71 +118,75 @@ def backtest_view(request):
     df = df.dropna(subset=['time_dt', 'open', 'close'])
     df = df.sort_values("time_dt").reset_index(drop=True)
     # Prepare Data Packs
+
+    trades = []
+    active_trade = None
     candles, sma50, sma200, ema9, ema21, sma20, rsi14, markers = [], [], [], [], [], [], [], []
 
-    # for _, row in df.iterrows():
-    #     t = int(row['time_dt'].timestamp())
-    #     close_p = float(row['close'])
-    #     if np.isnan(float(row['open'])) or np.isnan(close_p): continue
-
-    #     candles.append({'time': t, 'open': float(row['open']), 'high': float(row['high']), 'low': float(row['low']), 'close': close_p})
-        
-    #     if not np.isnan(row['sma50']): sma50.append({'time': t, 'value': float(row['sma50'])})
-    #     if not np.isnan(row['sma200']): sma200.append({'time': t, 'value': float(row['sma200'])})
-    #     if not np.isnan(row['ema9']): ema9.append({'time': t, 'value': float(row['ema9'])})
-    #     if not np.isnan(row['ema21']): ema21.append({'time': t, 'value': float(row['ema21'])})
-    #     if not np.isnan(row['sma20']): sma20.append({'time': t, 'value': float(row['sma20'])})
-    #     if not np.isnan(row['rsi14']): rsi14.append({'time': t, 'value': float(row['rsi14'])})
-
-    #     if row['signal'] == 'BUY':
-    #         markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-    #     elif row['signal'] == 'SELL':
-    #         markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
-    # Use itertuples for faster processing
     for row in df.itertuples():
         t = int(row.time_dt.timestamp())
-        close_p = float(row.close)
+        curr_close = float(row.close)
         
         # 1. Standard Candle Data
-        candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': close_p})
+        candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': curr_close})
         
         # 2. Strategy Indicators (Using names from backtest_engine.py)
         # We check hasattr because if the engine failed to calculate one, it won't crash the loop
         if hasattr(row, 'ema50') and not np.isnan(row.ema50): 
-            ema9.append({'time': t, 'value': float(row.ema50)}) 
+            ema_data.append({'time': t, 'value': float(row.ema50)}) 
             
         if hasattr(row, 'sma200') and not np.isnan(row.sma200): 
-            sma200.append({'time': t, 'value': float(row.sma200)})
+            sma200_data.append({'time': t, 'value': float(row.sma200)})
             
         if hasattr(row, 'rsi14') and not np.isnan(row.rsi14): 
-            rsi14.append({'time': t, 'value': float(row.rsi14)})
-
+            rsi_data.append({'time': t, 'value': float(row.rsi14)})
+            
         # 3. Strategy Signals
-        if hasattr(row, 'signal'):
-            if row.signal == 'BUY':
-                markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-            elif row.signal == 'SELL':
-                markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
-
+        # if hasattr(row, 'signal'):
+        #     if row.signal == 'BUY':
+        #         markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
+        #     elif row.signal == 'SELL':
+        #         markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
+        signal = getattr(row, 'signal', None)
+        if signal == 'BUY' and not active_trade:
+            active_trade = {
+                'entry_price': curr_close, 
+                'entry_time': row.time_dt.strftime('%Y-%m-%d %H:%M'), 
+                'side': 'BUY'
+            }
+            markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
+        
+        elif signal == 'SELL' and active_trade:
+            pnl = curr_close - active_trade['entry_price']
+            trades.append({
+                'side': active_trade['side'],
+                'entry_price': active_trade['entry_price'],
+                'exit_price': curr_close,
+                'entry_time': active_trade['entry_time'],
+                'exit_time': row.time_dt.strftime('%Y-%m-%d %H:%M'),
+                'pnl': round(pnl, 2)
+            })
+            markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
+            active_trade = None
+    
     context = {
-        # 'candles_json': json.dumps(candles),
-        # 'sma50_json': json.dumps(sma50),
-        # 'sma200_json': json.dumps(sma200),
-        # 'ema9_json': json.dumps(ema9),
-        # 'ema21_json': json.dumps(ema21),
-        # 'sma20_json': json.dumps(sma20),
-        # 'rsi14_json': json.dumps(rsi14),
-        # 'markers_json': json.dumps(markers),
-        # 'current_tf': timeframe, 'current_tl': timeline,
-
-        'candles_json': json.dumps(candles) if candles else '[]',
-        'sma50_json': json.dumps(sma50) if sma50 else '[]',
-        'sma200_json': json.dumps(sma200) if sma200 else '[]',
-        'ema9_json': json.dumps(ema9) if ema9 else '[]',
-        'ema21_json': json.dumps(ema21) if ema21 else '[]',
-        'sma20_json': json.dumps(sma20) if sma20 else '[]',
-        'rsi14_json': json.dumps(rsi14) if rsi14 else '[]',
-        'markers_json': json.dumps(markers) if markers else '[]',
+        # 'candles_json': json.dumps(candles) if candles else '[]',
+        # 'sma50_json': json.dumps(sma50) if sma50 else '[]',
+        # 'sma200_json': json.dumps(sma200) if sma200 else '[]',
+        # 'ema9_json': json.dumps(ema9) if ema9 else '[]',
+        # 'ema21_json': json.dumps(ema21) if ema21 else '[]',
+        # 'sma20_json': json.dumps(sma20) if sma20 else '[]',
+        # 'rsi14_json': json.dumps(rsi14) if rsi14 else '[]',
+        # 'markers_json': json.dumps(markers) if markers else '[]',
+        # 'current_tf': timeframe, 
+        # 'current_tl': timeline
+        'strategy': strategy_obj,
+        'candles_json': json.dumps(candles),
+        'ema9_json': json.dumps(ema_data),     # This feeds the 'EMA 9' button on UI
+        'sma200_json': json.dumps(sma200_data), # This feeds the 'SMA 200' button on UI
+        'rsi_json': json.dumps(rsi_data),       # This feeds the 'RSI 14' button on UI
+        'markers_json': json.dumps(markers),
+        'trades_json': json.dumps(trades),      # This populates the Trade Journal table
         'current_tf': timeframe, 
         'current_tl': timeline
     }

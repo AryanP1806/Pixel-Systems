@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-danger text-white p-4">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Academic Year Transition</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="fw-bold text-danger">Warning: This action is permanent and should only be done at the end of the academic year.</p>
+                    
+                    <h6 class="fw-bold mt-4 mb-3">What will happen?</h6>
+                    <ul class="list-group list-group-flush mb-4 small">
+                        <li class="list-group-item"><i class="bi bi-arrow-up-circle text-success me-2"></i><strong>9th Graders:</strong> Promoted to 10th grade + New Fee Structure created.</li>
+                        <li class="list-group-item"><i class="bi bi-door-open text-danger me-2"></i><strong>10th Graders:</strong> Marked as 'Finished' (since 11th is not taught).</li>
+                        <li class="list-group-item"><i class="bi bi-mortarboard text-danger me-2"></i><strong>12th Graders:</strong> Marked as 'Alumni/Finished'.</li>
+                        <li class="list-group-item"><i class="bi bi-archive text-muted me-2"></i><strong>Current Batches:</strong> Renamed to '[Archived]' and students removed.</li>
+                    </ul>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg shadow">Proceed with Promotion</button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-light border">Cancel & Go Back</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

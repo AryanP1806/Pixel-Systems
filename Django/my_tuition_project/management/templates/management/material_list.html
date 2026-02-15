@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-folder2-open me-2 text-primary"></i>Study Repository</h2>
+        {% if not user.is_student %}
+        <a href="{% url 'upload_material' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Upload</a>
+        {% endif %}
+    </div>
+
+    <div class="row g-4">
+        {% for mat in materials %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-light text-primary border border-primary-subtle small">{{ mat.subject.name }}</span>
+                        <small class="text-muted">{{ mat.uploaded_at|date:"d M" }}</small>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-3">{{ mat.title }}</h5>
+                    
+                    {% if mat.material_type == 'TEXT' %}
+                        <div class="p-3 bg-light rounded small mb-3 border" style="max-height: 150px; overflow-y: hidden; text-overflow: ellipsis;">
+                            {{ mat.text_content|linebreaks|truncatewords:30 }}
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#modal{{ mat.id }}">
+                            Read Full Note
+                        </button>
+                    {% elif mat.material_type == 'IMAGE' %}
+                        <img src="{{ mat.file.url }}" class="img-fluid rounded border mb-3" style="max-height: 150px; width: 100%; object-fit: cover;">
+                        <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">View Full Image</a>
+                    {% else %}
+                        <div class="text-center py-4 bg-light rounded mb-3 border">
+                            <i class="bi bi-file-earmark-pdf display-6 text-danger"></i>
+                        </div>
+                        <a href="{{ mat.file.url }}" download class="btn btn-sm btn-primary w-100">Download PDF</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Text Notes -->
+        {% if mat.material_type == 'TEXT' %}
+        <div class="modal fade" id="modal{{ mat.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">{{ mat.title }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light" style="white-space: pre-wrap; font-family: 'Courier New', Courier, monospace;">
+                        {{ mat.text_content }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <p class="text-muted">No materials available for your batch yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

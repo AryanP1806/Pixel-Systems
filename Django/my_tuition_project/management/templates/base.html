@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Deekshant Academy</title>
+    
+    <!-- PWA & Mobile Optimization -->
+     <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a1d20">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- CSS Dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root { --sidebar-width: 280px; }
+        body { background: #f4f7f6; min-height: 100vh; margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+
+        /* Mobile Top Header (Visible only on Mobile) */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: #1a1d20;
+            color: white;
+            z-index: 2500; /* Extremely high z-index */
+            padding: 0 15px;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Sidebar Styling */
+        #sidebarNav {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0;
+            background: #1a1d20;
+            z-index: 3000; /* Higher than mobile header */
+            overflow-y: auto;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            scrollbar-width: thin;
+            scrollbar-color: #343a40 transparent;
+        }
+
+        /* Sidebar Links Styling */
+        .nav-link { color: #adb5bd; padding: 12px 20px; border-radius: 8px; margin: 2px 10px; display: block; text-decoration: none; transition: 0.2s; }
+        .nav-link:hover, .nav-link.active { background: #0d6efd; color: #fff !important; }
+        .sidebar-header { font-size: 0.65rem; text-transform: uppercase; color: #6c757d; font-weight: 800; padding: 25px 25px 10px; letter-spacing: 1.2px; }
+
+        /* Main Content Container */
+        main { 
+            margin-left: var(--sidebar-width); 
+            padding: 30px; 
+            min-height: 100vh;
+            transition: 0.3s;
+        }
+
+        /* Mobile View Overrides */
+        @media (max-width: 991.98px) {
+            .mobile-header { display: flex; }
+            #sidebarNav { transform: translateX(-100%); width: 280px; box-shadow: none; }
+            #sidebarNav.show { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+            main { margin-left: 0; padding: 80px 15px 30px; } /* 80px top padding to clear mobile header */
+            
+            /* The Dimmer/Overlay */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0,0,0,0.6);
+                z-index: 2800;
+                backdrop-filter: blur(2px);
+            }
+            .sidebar-overlay.show { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Persistent Mobile Header -->
+    <div class="mobile-header d-lg-none">
+        <h5 class="mb-0 fw-bold text-primary">DEEKSHANT</h5>
+        <button class="btn btn-outline-light border-0 p-2" onclick="toggleMenu()">
+            <i class="bi bi-list fs-2"></i>
+        </button>
+    </div>
+
+    <!-- Dark Overlay for Mobile -->
+    <div class="sidebar-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+
+    <!-- Fixed Sidebar -->
+    <nav id="sidebarNav">
+        <div class="p-4 border-bottom border-secondary text-center">
+            <h4 class="fw-bold text-primary mb-0" style="letter-spacing: 2px;">DEEKSHANT</h4>
+            <small class="text-white-50 text-uppercase" style="font-size: 0.6rem;">Academy Management</small>
+        </div>
+        <div class="py-3">
+            {% include "management/_nav_links.html" %}
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        {% if messages %}
+            <div class="container-fluid px-0">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm mb-4">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // PWA Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log("SW Registered at Root:", reg.scope))
+                .catch(err => console.log("SW Error:", err));
+            });
+        }
+
+        // Sidebar Toggle Logic
+        function toggleMenu() {
+            const nav = document.getElementById('sidebarNav');
+            const overlay = document.getElementById('menuOverlay');
+            nav.classList.toggle('show');
+            overlay.classList.toggle('show');
+            
+            // Lock body scroll when menu is open
+            if (nav.classList.contains('show')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'auto';
+            }
+        }
+    </script>
+</body>
+</html>

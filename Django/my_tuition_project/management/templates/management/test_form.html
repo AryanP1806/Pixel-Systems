@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white p-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2"></i>Schedule New Test</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Subject</label>
+                            {% if batch.subjects.all %}
+                                <select name="subject" class="form-select border-primary" required>
+                                    {% for s in batch.subjects.all %}
+                                        <option value="{{ s.id }}">{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                <div class="alert alert-warning py-2 small">
+                                    <i class="bi bi-exclamation-triangle me-2"></i> No subjects assigned to this batch. 
+                                    <a href="{% url 'batch_list' %}" class="alert-link">Edit Batch</a> first.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Test Title</label>
+                            <input type="text" name="test_name" class="form-control" placeholder="e.g. MCQ Quiz 1" required>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Exam Date</label>
+                                <input type="date" name="date" class="form-control" required value="{{ today }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Max Marks</label>
+                                <input type="number" name="max_marks" class="form-control border-success" placeholder="100" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" {% if not batch.subjects.all %}disabled{% endif %}>
+                                Save & Open Grade Sheet
+                            </button>
+                            <a href="{% url 'batch_detail' batch.id %}" class="btn btn-link text-muted">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0">
+            <div class="card-body p-5">
+                <h3 class="text-center mb-4">Tuition Login</h3>
+                
+                {% if form.errors %}
+                <div class="alert alert-danger p-2 small text-center">
+                    Invalid username or password.
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="Enter username" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer bg-white text-center py-3 border-0">
+                <small class="text-muted">Contact Owner if you forgot password</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

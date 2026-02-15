@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark"><i class="bi bi-safe2 me-2 text-primary"></i>Financial Intelligence</h2>
+        <div class="text-muted small">Month-to-Date Collection: <span class="fw-bold text-success">₹{{ monthly_collection }}</span></div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Revenue Expected</h6>
+                    <h2 class="fw-bold mb-0">₹{{ total_expected }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-success text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Fees Collected</h6>
+                    <h2 class="fw-bold mb-0">₹{{ total_collected }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Outstanding Balance</h6>
+                    <h2 class="fw-bold mb-0">₹{{ total_pending }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Defaulters Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-octagon me-2"></i>Fee Defaulters (Overdue)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Student</th>
+                            <th>Fee Description</th>
+                            <th>Due Date</th>
+                            <th>Pending Amount</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in defaulters %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ d.student.get_full_name|default:d.student.username }}</div>
+                                <div class="small text-muted">Parent: {{ d.parent_phone }}</div>
+                            </td>
+                            <td>{{ d.fee.description }}</td>
+                            <td><span class="text-danger fw-bold">{{ d.fee.due_date|date:"d M Y" }}</span></td>
+                            <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">₹{{ d.balance }}</span></td>
+                            <td class="text-end pe-4">
+                                <a href="https://wa.me/91{{ d.parent_phone }}?text=Hello, this is Deekshant Academy. A reminder that fee payment for {{ d.student.username }} (₹{{ d.balance }}) was due on {{ d.fee.due_date }}. Please ignore if already paid." 
+                                   target="_blank" class="btn btn-sm btn-success">
+                                    <i class="bi bi-whatsapp"></i> Remind
+                                </a>
+                                <a href="{% url 'manage_fees' d.student.id %}" class="btn btn-sm btn-outline-primary ms-1">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-check-circle display-4 d-block mb-3 text-success opacity-50"></i>
+                                Great! No overdue payments at the moment.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Active Academic Batches</h2>
+    {% if user.is_owner %}
+    <a href="{% url 'batch_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>Create New Batch
+    </a>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% for batch in batches %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm border-0 border-top border-primary border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="fw-bold mb-0">{{ batch.name }}</h5>
+                    <span class="badge bg-dark">Grade {{ batch.grade }}</span>
+                </div>
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-person-badge me-1"></i> Lead: {{ batch.teacher.username }}
+                </p>
+                
+                <div class="mb-3">
+                    {% for assignment in batch.subject_assignments.all %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle small me-1">
+                            {{ assignment.subject.name }}
+                        </span>
+                    {% endfor %}
+                </div>
+                
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{% url 'batch_detail' batch.id %}" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-eye"></i> Details
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'take_attendance' batch.id %}" class="btn btn-outline-success btn-sm w-100">
+                            <i class="bi bi-calendar-check"></i> Attendance
+                        </a>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <a href="{% url 'create_test' batch.id %}" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-journal-plus me-1"></i> Schedule Test
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <p class="text-muted">No batches configured. Start by creating your first batch.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header with Test Meta Data -->
+    <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="text-uppercase text-info mb-1" style="letter-spacing: 1px;">Marks Entry Portal</h6>
+                <h2 class="fw-bold mb-0">{{ test.test_name }}</h2>
+                <div class="mt-2">
+                    <span class="badge bg-primary me-2"><i class="bi bi-book me-1"></i> {{ test.subject.name }}</span>
+                    <span class="badge bg-secondary me-2"><i class="bi bi-people me-1"></i> {{ test.batch.name }}</span>
+                    <span class="badge bg-light text-dark"><i class="bi bi-calendar-event me-1"></i> {{ test.date_held }}</span>
+                </div>
+            </div>
+            <div class="text-end">
+                <div class="display-6 fw-bold text-info">{{ test.max_marks }}</div>
+                <div class="small text-uppercase text-white-50">Maximum Marks</div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="card shadow-sm border-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Student Details</th>
+                            <th class="text-center">Marks Obtained</th>
+                            <th class="text-center">Percentage</th>
+                            <th>Status</th>
+                            <th class="pe-4">Progress Bar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in test.batch.students.all %}
+                        {% with score=existing_marks|get_item:student.id %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">{{ student.username }}</div>
+                                <div class="small text-muted">ID: #{{ student.id|add:"1000" }} | {{ student.year_of_study }}</div>
+                            </td>
+                            <td class="text-center" style="width: 200px;">
+                                <div class="input-group">
+                                    <input type="number" step="0.5" max="{{ test.max_marks }}" 
+                                           name="marks_{{ student.id }}" 
+                                           id="m_{{ student.id }}"
+                                           class="form-control text-center fw-bold border-primary" 
+                                           value="{{ score|default:'' }}"
+                                           oninput="updateUI('{{ student.id }}', {{ test.max_marks }})">
+                                    <span class="input-group-text">/{{ test.max_marks }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span id="p_{{ student.id }}" class="fw-bold">0%</span>
+                            </td>
+                            <td id="s_{{ student.id }}">
+                                <span class="badge bg-secondary">Pending</span>
+                            </td>
+                            <td class="pe-4" style="width: 250px;">
+                                <div class="progress" style="height: 8px;">
+                                    <div id="b_{{ student.id }}" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white border-0 d-flex justify-content-between py-3">
+                <a href="{% url 'batch_detail' test.batch.id %}" class="btn btn-outline-secondary px-4">Discard Changes</a>
+                <button type="submit" class="btn btn-primary px-5 fw-bold shadow">
+                    <i class="bi bi-cloud-upload me-2"></i>Finalize & Save Marks
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateUI(id, max) {
+    const val = parseFloat(document.getElementById('m_' + id).value) || 0;
+    const perc = ((val / max) * 100).toFixed(1);
+    const pLabel = document.getElementById('p_' + id);
+    const sLabel = document.getElementById('s_' + id);
+    const bBar = document.getElementById('b_' + id);
+
+    pLabel.innerText = perc + '%';
+    bBar.style.width = perc + '%';
+
+    if (perc < 40) {
+        bBar.className = 'progress-bar bg-danger';
+        sLabel.innerHTML = '<span class="badge bg-danger">Fail</span>';
+    } else if (perc < 75) {
+        bBar.className = 'progress-bar bg-warning';
+        sLabel.innerHTML = '<span class="badge bg-warning text-dark">Pass</span>';
+    } else {
+        bBar.className = 'progress-bar bg-success';
+        sLabel.innerHTML = '<span class="badge bg-success">Distinction</span>';
+    }
+}
+
+// Initial update on page load
+window.onload = function() {
+    {% for student in test.batch.students.all %}
+        updateUI('{{ student.id }}', {{ test.max_marks }});
+    {% endfor %}
+};
+</script>
+{% endblock %}

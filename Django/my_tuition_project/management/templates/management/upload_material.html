@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-cloud-upload me-2"></i>Post Study Material</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Material Title</label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Physics Chapter 2 Formulas" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Material Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="material_type" id="type_file" value="FILE" checked onclick="toggleInputs('FILE')">
+                                <label class="btn btn-outline-primary" for="type_file"><i class="bi bi-file-earmark-pdf"></i> File</label>
+
+                                <input type="radio" class="btn-check" name="material_type" id="type_image" value="IMAGE" onclick="toggleInputs('IMAGE')">
+                                <label class="btn btn-outline-primary" for="type_image"><i class="bi bi-camera"></i> Photo</label>
+
+                                <input type="radio" class="btn-check" name="material_type" id="type_text" value="TEXT" onclick="toggleInputs('TEXT')">
+                                <label class="btn btn-outline-primary" for="type_text"><i class="bi bi-pencil-square"></i> Text Note</label>
+                            </div>
+                        </div>
+
+                        <div id="file_input_section" class="mb-4">
+                            <label class="form-label fw-bold small" id="file_label">Select PDF/Document</label>
+                            <input type="file" name="file" class="form-control" id="file_field">
+                        </div>
+
+                        <div id="text_input_section" class="mb-4 d-none">
+                            <label class="form-label fw-bold small">Write Your Notes</label>
+                            <textarea name="text_content" class="form-control" rows="10" placeholder="Type or paste your notes here..."></textarea>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Subject</label>
+                                <select name="subject" class="form-select" required>
+                                    {% for sub in subjects %}<option value="{{ sub.id }}">{{ sub.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Batch (Optional)</label>
+                                <select name="batch" class="form-select">
+                                    <option value="">All Batches</option>
+                                    {% for b in batches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm">Publish Material</button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-light text-muted">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleInputs(type) {
+    const fileSection = document.getElementById('file_input_section');
+    const textSection = document.getElementById('text_input_section');
+    const fileLabel = document.getElementById('file_label');
+    const fileField = document.getElementById('file_field');
+
+    if (type === 'TEXT') {
+        fileSection.classList.add('d-none');
+        textSection.classList.remove('d-none');
+        fileField.required = false;
+    } else {
+        fileSection.classList.remove('d-none');
+        textSection.classList.add('d-none');
+        fileField.required = true;
+        fileLabel.innerText = type === 'IMAGE' ? 'Select Image/Photo' : 'Select PDF/Document';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white p-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-layer-forward me-2"></i>Configure Academic Batch</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Batch Identifier (Name)</label>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. 12th PCM - Evening" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Standard / Grade</label>
+                                <input type="number" name="grade" class="form-control" min="1" max="13" placeholder="12" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Primary Class Teacher</label>
+                            <select name="main_teacher" class="form-select border-primary" required>
+                                <option value="">-- Choose Lead Faculty --</option>
+                                {% for t in teachers %}
+                                    <option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="border rounded p-3 bg-light">
+                            <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-mortarboard me-2"></i>Subject-Faculty Mapping</h6>
+                            <table class="table table-sm align-middle" id="assignmentTable">
+                                <thead>
+                                    <tr class="small text-muted text-uppercase">
+                                        <th>Subject</th>
+                                        <th>Assigned Teacher</th>
+                                        <th width="40"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="assignmentBody">
+                                    <!-- Rows added via JS -->
+                                </tbody>
+                            </table>
+                            <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none p-0" onclick="addRow()">
+                                <i class="bi bi-plus-circle-fill me-1"></i> Add Subject Assignment
+                            </button>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg shadow">Create Batch & Finalize Faculty</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row Template (Hidden) -->
+<div id="rowTemplate" style="display:none;">
+    <table>
+        <tr>
+            <td>
+                <select name="subjects[]" class="form-select form-select-sm" required>
+                    <option value="">Subject...</option>
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="subject_teachers[]" class="form-select form-select-sm" required>
+                    <option value="">Teacher...</option>
+                    {% for t in teachers %}<option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>{% endfor %}
+                </select>
+            </td>
+            <td class="text-end">
+                <button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove()">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<script>
+function addRow() {
+    const body = document.getElementById('assignmentBody');
+    const template = document.querySelector('#rowTemplate tr');
+    const clone = template.cloneNode(true);
+    body.appendChild(clone);
+}
+// Initial row
+window.onload = addRow;
+</script>
+{% endblock %}

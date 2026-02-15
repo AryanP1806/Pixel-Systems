@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <h2 class="fw-bold mb-4">Mark Attendance: {{ batch.name }} ({{ date }})</h2>
+
+    <form method="POST" class="card shadow-sm border-0">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ date }}">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Student Name</th>
+                        <th class="text-center">Present?</th>
+                        <th class="text-end pe-4">Parent Notification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in batch.students.all %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ s.username }}</td>
+                        <td class="text-center">
+                            <input class="form-check-input h4 mb-0" type="checkbox" name="attendance" 
+                                   value="{{ s.id }}" id="check_{{ s.id }}"
+                                   {% if not has_records or s.id in present_ids %}checked{% endif %}
+                                   onchange="toggleNotify('{{ s.id }}')">
+                        </td>
+                        <td class="text-end pe-4">
+                            <!-- This link only appears if the student is UNCHECKED (absent) -->
+                            <a id="wa_{{ s.id }}" 
+                               href="https://wa.me/91{{ s.parent_phone }}?text=Hello Parent, this is Deekshant Academy. {{ s.username }} is ABSENT for today's class ({{ date }}). Kindly acknowledge."
+                               target="_blank" 
+                               class="btn btn-sm btn-success {% if s.id in present_ids or not has_records %}d-none{% endif %}">
+                                <i class="bi bi-whatsapp me-1"></i> Alert Parent
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white text-end py-3">
+            <button type="submit" class="btn btn-primary px-5">Save Attendance</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleNotify(id) {
+    const check = document.getElementById('check_' + id);
+    const waLink = document.getElementById('wa_' + id);
+    // Show WhatsApp button only if student is NOT present
+    if (check.checked) {
+        waLink.classList.add('d-none');
+    } else {
+        waLink.classList.remove('d-none');
+    }
+}
+</script>
+{% endblock %}

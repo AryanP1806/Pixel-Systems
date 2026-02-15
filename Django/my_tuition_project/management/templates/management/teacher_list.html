@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <h2 class="fw-bold">Faculty Management</h2>
+    <a href="{% url 'add_teacher' %}" class="btn btn-primary">
+        <i class="bi bi-person-plus-fill me-2"></i>Add New Teacher
+    </a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Teacher Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Assignments</th>
+                    <th class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in teachers %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold">{{ t.username }}</div>
+                        <div class="small text-muted">Joined {{ t.date_joined|date:"M Y" }}</div>
+                    </td>
+                    <td>{{ t.email|default:"--" }}</td>
+                    <td>{{ t.phone|default:"--" }}</td>
+                    <td>
+                        <span class="badge bg-info text-dark">
+                            {{ t.batches_taught.count|add:t.batchsubjectteacher_set.count }} Classes
+                        </span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-5 text-muted">No teachers registered.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

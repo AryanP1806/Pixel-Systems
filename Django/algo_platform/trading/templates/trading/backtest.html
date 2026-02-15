@@ -167,11 +167,12 @@
             trades: {{ trades_json|safe|default:"[]" }},
             studies: {
                 ema9: {{ ema9_json|safe|default:"[]" }},
-                ema21: {{ ema21_json|safe|default:"[]" }},
-                sma20: {{ sma20_json|safe|default:"[]" }},
-                sma50: {{ sma50_json|safe|default:"[]" }},
                 sma200: {{ sma200_json|safe|default:"[]" }},
-                rsi: {{ rsi_json|safe|default:"[]" }}
+                rsi: {{ rsi_json|safe|default:"[]" }},
+                // Initialize others as empty if not provided by this strategy
+                ema21: [],
+                sma20: [],
+                sma50: []
             }
         };
 

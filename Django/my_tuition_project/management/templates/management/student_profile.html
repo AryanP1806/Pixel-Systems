@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">{{ student.get_full_name|default:student.username }}</h2>
+            <span class="badge bg-primary">Grade {{ student.current_grade }}</span>
+            <span class="text-muted ms-2">{{ student.year_of_study }}</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'report_card' student.id %}" target="_blank" class="btn btn-dark shadow-sm">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Generate Report Card
+            </a>
+            <a href="https://wa.me/91{{ student.phone }}" target="_blank" class="btn btn-success shadow-sm">
+                <i class="bi bi-whatsapp"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Academic Summary -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-graph-up me-2 text-primary"></i>Test Performance</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th class="ps-4">Test Name</th>
+                                <th>Subject</th>
+                                <th class="text-center">Marks</th>
+                                <th class="text-center">Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in marks %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold">{{ m.test.test_name }}</div>
+                                    <div class="small text-muted">{{ m.test.date_held }}</div>
+                                </td>
+                                <td>{{ m.test.subject.name }}</td>
+                                <td class="text-center">{{ m.marks_obtained }} / {{ m.test.max_marks }}</td>
+                                <td class="text-center">
+                                    <span class="fw-bold">
+                                        {{ m.marks_obtained|multiply:100|divide:m.test.max_marks|floatformat:1 }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-5 text-muted">No test marks recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Attendance Mini Table -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-calendar-check me-2 text-success"></i>Recent Attendance</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <tbody>
+                            {% for record in attendance_history %}
+                            <tr>
+                                <td class="ps-4">{{ record.date|date:"d M Y" }}</td>
+                                <td>{{ record.batch.name }}</td>
+                                <td class="text-end pe-4">
+                                    {% if record.is_present %}
+                                    <span class="text-success small fw-bold">Present</span>
+                                    {% else %}
+                                    <span class="text-danger small fw-bold">Absent</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-md-4">
+            <!-- Finance Quick Card -->
+            <div class="card shadow-sm border-0 bg-danger text-white mb-4">
+                <div class="card-body">
+                    <h6 class="text-white-50 small fw-bold text-uppercase">Total Outstanding</h6>
+                    <h2 class="fw-bold mb-0">₹{{ total_balance }}</h2>
+                    <hr class="bg-white">
+                    <a href="{% url 'manage_fees' student.id %}" class="btn btn-sm btn-light w-100 fw-bold text-danger">Manage Fees</a>
+                </div>
+            </div>
+
+            <!-- Attendance Stats -->
+            <div class="card shadow-sm border-0 mb-4 p-3 text-center">
+                <h6 class="text-muted small fw-bold text-uppercase mb-2">Attendance Score</h6>
+                <div class="display-5 fw-bold text-primary">{{ attendance_pct }}%</div>
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar bg-primary" style="width: {{ attendance_pct }}%"></div>
+                </div>
+            </div>
+
+            <!-- Contact Details -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold">Contact & Identity</div>
+                <div class="card-body small">
+                    <p class="mb-2"><strong>Phone:</strong> {{ student.phone|default:"Not Provided" }}</p>
+                    <p class="mb-2"><strong>Parent:</strong> {{ student.parent_phone|default:"Not Provided" }}</p>
+                    <p class="mb-0 text-muted">{{ student.address }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add this script in your head or at the bottom of student_profile.html -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Add this card into your student_profile.html, likely above the Academic Records table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Learning Progress (Trends)</h6>
+    </div>
+    <div class="card-body">
+        <div style="height: 300px;">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const rawData = {{ chart_data_json|safe }};
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    const datasets = Object.keys(rawData).map((subject, index) => {
+        const colors = ['#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1'];
+        return {
+            label: subject,
+            data: rawData[subject].scores,
+            borderColor: colors[index % colors.length],
+            backgroundColor: colors[index % colors.length] + '22',
+            tension: 0.3,
+            fill: true
+        };
+    });
+
+    // We use the labels from the first subject found as the X-axis
+    const firstSubject = Object.keys(rawData)[0];
+    const labels = firstSubject ? rawData[firstSubject].labels : [];
+
+    new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+</script>
+{% endblock %}

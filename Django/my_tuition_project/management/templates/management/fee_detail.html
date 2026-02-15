@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark">Fee Ledger: {{ student.get_full_name|default:student.username }}</h2>
+            <p class="text-muted">Detailed breakdown of installments and payments.</p>
+        </div>
+        <div class="text-end">
+            {% if total_balance > 0 %}
+                <span class="badge bg-danger fs-5 px-3 py-2 shadow-sm">Total Due: ₹{{ total_balance }}</span>
+            {% else %}
+                <span class="badge bg-success fs-5 px-3 py-2 shadow-sm">All Fees Paid</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <hr class="mb-4">
+
+    {% for fee in fees %}
+    <div class="card mb-4 shadow-sm border-0 {% if fee.balance_due > 0 and fee.due_date < today %}border-start border-danger border-4{% endif %}">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h5 class="fw-bold mb-1 text-primary">{{ fee.description }}</h5>
+                    <span class="text-muted small"><i class="bi bi-calendar-event me-1"></i>Due Date: {{ fee.due_date|date:"d M Y" }}</span>
+                </div>
+                <div>
+                    {% if fee.balance_due == 0 %}
+                        <span class="badge bg-success px-3 py-2">FULLY PAID</span>
+                    {% elif fee.due_date < today %}
+                        <span class="badge bg-danger px-3 py-2">OVERDUE</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark px-3 py-2">PARTIAL PAYMENT</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-4">
+                    <div class="p-3 bg-light rounded text-center border">
+                        <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Total Fees</div>
+                        <div class="fs-4 fw-bold text-dark">₹{{ fee.total_amount }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4">
+                    <div class="p-3 bg-light rounded text-center border">
+                        <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Amount Paid</div>
+                        <div class="fs-4 fw-bold text-success">₹{{ fee.total_paid }}</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="p-3 bg-light rounded text-center border border-danger-subtle" style="background-color: #fff5f5;">
+                        <div class="small text-danger text-uppercase fw-bold" style="font-size: 0.7rem;">Balance Due</div>
+                        <div class="fs-4 fw-bold text-danger">₹{{ fee.balance_due }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-muted"></i>Payment History</h6>
+                {% if user.is_owner and fee.balance_due > 0 %}
+                    <a href="{% url 'add_payment' fee.id %}" class="btn btn-primary btn-sm px-3 shadow-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Add Payment
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="small text-muted">
+                            <th class="ps-2">Date</th>
+                            <th>Amount</th>
+                            <th>Note</th>
+                            <th class="text-end pe-2">Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in fee.payments.all %}
+                        <tr>
+                            <td class="ps-2 small">{{ payment.payment_date|date:"d M Y" }}</td>
+                            <td><span class="fw-bold text-success">₹{{ payment.amount_paid }}</span></td>
+                            <td><span class="text-muted small">{{ payment.note|default:"--" }}</span></td>
+                            <td class="text-end pe-2">
+                                <a href="{% url 'view_receipt' payment.id %}" target="_blank" class="btn btn-sm btn-outline-dark" style="font-size: 0.75rem;">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>View Receipt
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted small">
+                                No transactions recorded for this structure.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5">
+        <div class="bg-light d-inline-block rounded-circle p-4 mb-3">
+            <i class="bi bi-wallet2 display-4 text-muted opacity-50"></i>
+        </div>
+        <h5 class="text-dark">No Fees Assigned</h5>
+        <p class="text-muted">This student does not have any fee structures set up yet.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,.01);
+    }
+</style>
+{% endblock %}

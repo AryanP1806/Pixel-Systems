@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0">
+                <div class="card-header bg-warning text-dark py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-megaphone me-2"></i>Post New Broadcast</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Notice Title</label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Sunday Holiday / Test Postponed" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Message Content</label>
+                            <textarea name="content" class="form-control" rows="4" placeholder="Write your announcement here..." required></textarea>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-dark fw-bold">Broadcast to All</button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-link text-muted small">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
