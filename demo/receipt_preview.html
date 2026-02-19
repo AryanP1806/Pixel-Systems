@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt Preview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #e9ecef; padding: 40px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .receipt-card {
+            width: 700px;
+            background: #fff;
+            padding: 40px;
+            border: 2px solid #000;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .header { border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; text-align: center; }
+        .label-box { background: #000; color: #fff; display: inline-block; padding: 5px 20px; font-weight: bold; margin-top: 10px; }
+        .line-item { border-bottom: 1px dotted #888; display: flex; align-items: flex-end; margin-bottom: 15px; }
+        .label { font-weight: bold; text-transform: uppercase; font-size: 11px; white-space: nowrap; margin-right: 10px; }
+        .value { font-family: 'Courier New', Courier, monospace; flex-grow: 1; font-size: 16px; }
+        .amount-stamp { border: 2px solid #000; padding: 10px 20px; font-size: 24px; font-weight: bold; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div class="receipt-card">
+        <div class="header">
+            <h1 class="fw-bold mb-0">DEEKSHANT ACADEMY</h1>
+            <p class="small mb-0">Hadapsar, Pune - 411028 | Mob: 9822302613</p>
+            <div class="label-box">OFFICIAL RECEIPT</div>
+        </div>
+
+        <div class="d-flex justify-content-between mb-4">
+            <div>NO: <span class="fw-bold text-danger">REC-09822</span></div>
+            <div>DATE: <span class="fw-bold">15-Feb-2026</span></div>
+        </div>
+
+        <div class="line-item">
+            <span class="label">Received from</span>
+            <span class="value">Vihaan Kulkarni (ID: #4012)</span>
+        </div>
+        <div class="line-item">
+            <span class="label">Sum of Rupees</span>
+            <span class="value">Twelve Thousand Five Hundred Only</span>
+        </div>
+        <div class="line-item">
+            <span class="label">Being payment of</span>
+            <span class="value">Installment 2 - 12th PCM Evening Batch</span>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <div class="amount-stamp">₹ 12,500.00</div>
+            <div class="text-center">
+                <div style="border-bottom: 1px solid #000; min-width: 150px;">₹ 4,000.00</div>
+                <div class="small fw-bold">BALANCE DUE</div>
+            </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-top text-center opacity-50 small">
+            SYSTEM GENERATED - NO SIGNATURE REQUIRED
+        </div>
+    </div>
+
+</body>
+</html> 

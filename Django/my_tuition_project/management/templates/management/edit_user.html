@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container py-4">
+<div class="row justify-content-center">
+<div class="col-md-7 col-lg-6">
+<div class="card shadow-sm border-0">
+<div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+<div>
+<h5 class="mb-0 fw-bold">Edit Profile</h5>
+<small class="text-white-50">Updating details for <strong>{{ u.username }}</strong></small>
+</div>
+<span class="badge {% if u.is_student %}bg-primary{% else %}bg-success{% endif %}">
+{{ u.is_student|yesno:"Student,Faculty" }}
+</span>
+</div>
+<div class="card-body p-4">
+<form method="POST">
+{% csrf_token %}
+
+                    <!-- Core Identity -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Full Name / Username</label>
+                        <input type="text" name="username" class="form-control form-control-lg bg-light" value="{{ u.username }}" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Email Address</label>
+                            <input type="email" name="email" class="form-control" value="{{ u.email|default:'' }}">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Personal Phone</label>
+                            <input type="text" name="phone" class="form-control" value="{{ u.phone|default:'' }}">
+                        </div>
+                    </div>
+
+                    <!-- Student Specific Section -->
+                    {% if u.is_student %}
+                    <div class="border-start border-primary border-4 ps-3 mb-4 mt-4">
+                        <h6 class="fw-bold text-primary small text-uppercase">Student Information</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Parent / Guardian Contact</label>
+                            <input type="text" name="parent_phone" class="form-control" value="{{ u.parent_phone|default:'' }}" placeholder="Emergency Number">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Residential Address</label>
+                            <textarea name="address" class="form-control" rows="2">{{ u.address|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Teacher Specific Section -->
+                    <div class="border-start border-success border-4 ps-3 mb-4 mt-4">
+                        <h6 class="fw-bold text-success small text-uppercase">Faculty Information</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Office/Home Address</label>
+                            <textarea name="address" class="form-control" rows="2">{{ u.address|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Security Section -->
+                    <div class="bg-light p-3 rounded mb-4 border border-warning-subtle">
+                        <label class="form-label small fw-bold text-warning-emphasis">
+                            <i class="bi bi-shield-lock me-1"></i> Account Security
+                        </label>
+                        <input type="password" name="password" class="form-control form-control-sm" placeholder="Type new password ONLY to reset it" autocomplete="new-password">
+                        <div class="form-text mt-1" style="font-size: 0.75rem;">Leave blank if you don't want to change the password.</div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">Save All Changes</button>
+                        <a href="javascript:history.back()" class="btn btn-link text-muted text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i> Cancel and Go Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="mt-5 pt-3 border-top text-center">
+            <p class="text-muted small mb-2">Manage Account Status</p>
+            <a href="{% url 'delete_user' u.id %}" class="btn btn-sm btn-outline-danger px-4" onclick="return confirm('CRITICAL: This will permanently delete this account and all associated records (marks, attendance, fees). This cannot be undone. Are you absolutely sure?')">
+                <i class="bi bi-trash3 me-1"></i> Delete This Account
+            </a>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
+
+{% endblock %}

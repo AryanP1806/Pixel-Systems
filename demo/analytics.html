@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student 360 Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; padding-top: 40px; }
+        .dev-overlay { background: rgba(0,0,0,0.05); pointer-events: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; background-image: url('https://www.transparenttextures.com/patterns/grid.png'); }
+        .card { border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-radius: 12px; }
+        .profile-header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border-radius: 12px; padding: 30px; }
+        .badge-score { font-size: 2rem; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+    <div class="dev-overlay"></div>
+    <div class="text-center bg-dark text-white py-1 small fw-bold fixed-top" style="letter-spacing: 2px;">
+        DATA ANALYTICS MODULE - MILESTONE: PERFORMANCE MAPPING v2.1
+    </div>
+
+    <div class="container py-5">
+        <div class="profile-header mb-4 shadow">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2.5rem; font-weight: 900;">
+                        VK
+                    </div>
+                </div>
+                <div class="col">
+                    <h2 class="fw-bold mb-0">Vihaan Kulkarni</h2>
+                    <p class="mb-0 opacity-75">Standard: 12th PCM | Batch: Evening Super-30</p>
+                </div>
+                <div class="col-auto text-end">
+                    <div class="small opacity-75">OVERALL ATTENDANCE</div>
+                    <div class="h3 fw-bold mb-0">92.4%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card p-4 mb-4">
+                    <h5 class="fw-bold mb-4"><i class="bi bi-graph-up text-primary me-2"></i>Subject-Wise Progress Trends</h5>
+                    <div style="height: 300px;">
+                        <canvas id="demoChart"></canvas>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-3">Recent Test Performance</h5>
+                    <table class="table align-middle">
+                        <thead class="small text-muted">
+                            <tr><th>Subject</th><th>Test Name</th><th>Score</th><th>Percent</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Physics</td><td>Unit Test 1</td><td>24/30</td><td class="fw-bold text-primary">80%</td></tr>
+                            <tr><td>Chemistry</td><td>Unit Test 1</td><td>28/30</td><td class="fw-bold text-success">93%</td></tr>
+                            <tr><td>Maths</td><td>Unit Test 1</td><td>18/30</td><td class="fw-bold text-warning">60%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card p-4 bg-white mb-4">
+                    <h6 class="fw-bold text-muted small mb-3">SYSTEM PREDICTION</h6>
+                    <div class="text-center">
+                        <div class="badge-score text-primary">A+</div>
+                        <p class="text-muted small">Academic trajectory indicates high probability of 90%+ in Boards.</p>
+                        <hr>
+                        <button class="btn btn-outline-dark w-100 fw-bold" onclick="alert('Module LOCKED: Report Card Generation engine is under security audit.')">
+                            DOWNLOAD REPORT CARD
+                        </button>
+                    </div>
+                </div>
+                <div class="card p-4 border-start border-warning border-5">
+                    <h6 class="fw-bold small mb-2 text-warning">AI OBSERVATION</h6>
+                    <p class="small mb-0">Student shows consistent performance in theory, but requires focus on Mathematics numericals based on Unit Test 1 results.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('demoChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+                datasets: [{
+                    label: 'Physics',
+                    data: [65, 78, 72, 85, 80],
+                    borderColor: '#0d6efd',
+                    tension: 0.3
+                }, {
+                    label: 'Maths',
+                    data: [50, 55, 60, 58, 60],
+                    borderColor: '#ffc107',
+                    tension: 0.3
+                }]
+            },
+            options: { maintainAspectRatio: false }
+        });
+    </script>
+</body>
+</html>

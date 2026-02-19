@@ -6,17 +6,28 @@
 </a>
 </li>
 
+
+
+
+
 <!-- Owner Only Section -->
 {% if user.is_owner %}
 
-
-
-<div class="sidebar-header">Communication</div>
+<div class="sidebar-header">Academic</div>
 <li class="nav-item mb-2">
-    <a href="{% url 'create_notice' %}" class="nav-link rounded">
-        <i class="bi bi-megaphone-fill me-2 text-warning"></i> Post Notice
+    <a href="{% url 'batch_list' %}" class="nav-link rounded">
+        <i class="bi bi-stack me-2"></i> Batches & Tests
     </a>
 </li>
+
+<!-- Teacher or Owner Section -->
+{% if user.is_teacher or user.is_owner %}
+<li class="nav-item mb-2">
+    <a href="{% url 'upload_material' %}" class="nav-link rounded">
+        <i class="bi bi-cloud-arrow-up-fill me-2 text-primary"></i> Upload Materials
+    </a>
+</li>
+{% endif %}
 
 <div class="sidebar-header">Administration</div>
 <li class="nav-item mb-2">
@@ -40,25 +51,17 @@
         <i class="bi bi-journal-bookmark-fill me-2"></i> Subjects
     </a>
 </li>
-{% endif %}
 
-<!-- Teacher or Owner Section -->
-{% if user.is_teacher or user.is_owner %}
+
+<div class="sidebar-header">Communication</div>
 <li class="nav-item mb-2">
-    <a href="{% url 'upload_material' %}" class="nav-link rounded">
-        <i class="bi bi-cloud-arrow-up-fill me-2 text-primary"></i> Upload Materials
+    <a href="{% url 'create_notice' %}" class="nav-link rounded">
+        <i class="bi bi-megaphone-fill me-2 text-warning"></i> Post Notice
     </a>
 </li>
 
-
-
-<div class="sidebar-header">Academic</div>
-<li class="nav-item mb-2">
-    <a href="{% url 'batch_list' %}" class="nav-link rounded">
-        <i class="bi bi-stack me-2"></i> Batches & Tests
-    </a>
-</li>
 {% endif %}
+
 
 <!-- Student Portal -->
 {% if user.is_student %}
@@ -89,6 +92,15 @@
     </li>
 
 <li class="nav-item mt-4"><hr class="border-secondary opacity-25"></li>
+<!-- SYSTEM ACCESS (Owner/Superuser Only) -->
+    {% if user.is_superuser or user.is_owner %}
+    <div class="sidebar-header">System</div>
+    <li class="nav-item">
+        <a href="/admin/" class="nav-link text-warning" target="_blank">
+            <i class="bi bi-shield-lock-fill me-2"></i> Database Admin
+        </a>
+    </li>
+    {% endif %}
 <li class="nav-item">
     <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
@@ -96,6 +108,7 @@
             <i class="bi bi-power me-2"></i> Logout
         </button>
     </form>
+    <p></p>
 </li>
 
 

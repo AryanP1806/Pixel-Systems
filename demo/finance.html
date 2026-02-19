@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Engine - Build 0.8.4</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { background: #f0f2f5; font-family: 'Inter', sans-serif; padding-top: 40px; }
+        .dev-banner { background: #dc3545; color: #fff; text-align: center; font-weight: bold; font-size: 11px; padding: 6px; position: fixed; top: 0; width: 100%; z-index: 9999; letter-spacing: 1px; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .stat-card { border-left: 5px solid #0d6efd; }
+        .defaulter-row { border-left: 4px solid #dc3545; margin-bottom: 10px; background: #fff; border-radius: 8px; transition: 0.2s; }
+        .defaulter-row:hover { transform: translateX(5px); }
+    </style>
+</head>
+<body>
+
+    <div class="dev-banner">FINANCIAL ENGINE - STRESS TESTING RECURRING PAYMENT LOGIC - DATA ENTRY DISABLED</div>
+
+    <div class="container py-5">
+        <div class="row mb-4 align-items-end">
+            <div class="col">
+                <h2 class="fw-bold"><i class="bi bi-bank me-2"></i>Finance Control Center</h2>
+                <p class="text-muted">Module: Automated Ledger & Defaulter Tracking</p>
+            </div>
+            <div class="col-auto">
+                <div class="badge bg-warning text-dark p-2 px-3 rounded-pill"><i class="bi bi-clock-history me-1"></i> Optimization Phase: 88%</div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-5">
+            <div class="col-md-4">
+                <div class="card stat-card p-4">
+                    <div class="small text-muted fw-bold">TOTAL REVENUE (ANNUAL)</div>
+                    <h2 class="fw-bold text-primary">₹24,50,000</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-4 border-start border-success border-5">
+                    <div class="small text-muted fw-bold">COLLECTED TO DATE</div>
+                    <h2 class="fw-bold text-success">₹18,20,500</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-4 border-start border-danger border-5">
+                    <div class="small text-muted fw-bold">PENDING RECEIVABLES</div>
+                    <h2 class="fw-bold text-danger">₹6,29,500</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card p-4 h-100">
+                    <h5 class="fw-bold mb-4">Urgent Fee Defaulters</h5>
+                    <div class="defaulter-row p-3 d-flex justify-content-between align-items-center shadow-sm">
+                        <div>
+                            <div class="fw-bold">Sameer Deshpande</div>
+                            <div class="small text-muted">Batch: 12th PCM | Parent: 9822******</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="text-danger fw-bold">₹12,500 Due</div>
+                            <div class="small text-muted">Overdue: 14 Days</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success ms-3" onclick="alert('Feature Locked: WhatsApp Gateway integration in progress.')">
+                            <i class="bi bi-whatsapp"></i>
+                        </button>
+                    </div>
+                    <div class="defaulter-row p-3 d-flex justify-content-between align-items-center shadow-sm mt-2">
+                        <div>
+                            <div class="fw-bold">Ananya Kulkarni</div>
+                            <div class="small text-muted">Batch: 10th Foundation | Parent: 9403******</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="text-danger fw-bold">₹8,000 Due</div>
+                            <div class="small text-muted">Overdue: 22 Days</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success ms-3"><i class="bi bi-whatsapp"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card p-4 bg-dark text-white h-100">
+                    <h5 class="fw-bold mb-3">Receipt Engine</h5>
+                    <p class="small opacity-75">Our custom engine auto-converts amounts to words and maps subjects to receipts.</p>
+                    <div class="bg-secondary bg-opacity-25 p-3 rounded mb-4">
+                        <div class="small fw-bold">LAST RECEIPT</div>
+                        <div class="h4 mb-0">#REC-9012</div>
+                        <div class="small text-info">Verified & Synced</div>
+                    </div>
+                    <button class="btn btn-primary w-100 fw-bold py-3" onclick="alert('Module Locked: Finalizing thermal printer and image sharing drivers.')">
+                        VIEW RECEIPT TEMPLATES
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

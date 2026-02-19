@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deekshant Academy - Demo Environment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root { --sidebar-width: 280px; }
+        body, html { height: 100%; margin: 0; overflow: hidden; background: #f8f9fa; }
+
+        /* Development Watermark Banner */
+        .dev-banner {
+            background: #1a1d20;
+            color: #ffc107;
+            text-align: center;
+            font-weight: 900;
+            font-size: 11px;
+            padding: 8px;
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            z-index: 10000;
+            letter-spacing: 3px;
+            border-bottom: 2px solid #ffc107;
+            text-transform: uppercase;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: #1a1d20;
+            position: fixed;
+            left: 0; top: 0;
+            padding-top: 80px;
+            z-index: 5000;
+            border-right: 1px solid #343a40;
+        }
+
+        .nav-link {
+            color: #adb5bd;
+            padding: 14px 25px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: 0.2s;
+            font-weight: 500;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-link.active {
+            color: #fff;
+            background: #0d6efd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .sidebar-header {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #6c757d;
+            font-weight: 800;
+            padding: 30px 25px 10px;
+            letter-spacing: 1.5px;
+        }
+
+        /* Main Viewport (The iFrame) */
+        .content-viewport {
+            margin-left: var(--sidebar-width);
+            height: 100vh;
+            padding-top: 35px; /* Space for the yellow banner */
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #f8f9fa;
+        }
+
+        /* Responsive Mobile Warning */
+        @media (max-width: 992px) {
+            .mobile-warning {
+                display: flex !important;
+                position: fixed; top:0; left:0; width:100%; height:100%;
+                background: #1a1d20; color: white;
+                z-index: 20000; justify-content: center; align-items: center; text-align: center;
+                padding: 40px;
+            }
+        }
+        .mobile-warning { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Dev Banner -->
+    <div class="dev-banner">
+        <i class="bi bi-shield-lock-fill me-2"></i> 
+        Encrypted Demo Environment - Milestone 2 Build - Offline Cache Active
+    </div>
+
+    <!-- Hidden on Desktop, shows if they try to open on mobile during demo -->
+    <div class="mobile-warning">
+        <div>
+            <i class="bi bi-laptop display-1 text-primary mb-4"></i>
+            <h3>Desktop View Required</h3>
+            <p class="text-muted">This specific architectural demo is optimized for 1920x1080 resolution to showcase the grid logic.</p>
+        </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="px-4 mb-5">
+            <h3 class="fw-bold text-white mb-0">DEEKSHANT</h3>
+            <span class="text-primary small fw-bold">PROTOTYPE ENGINE</span>
+        </div>
+
+        <div class="sidebar-header">Core Dashboard</div>
+        <a href="dashboard.html" target="contentFrame" class="nav-link active" onclick="setActive(this)">
+            <i class="bi bi-speedometer2 me-3"></i> Central Hub
+        </a>
+
+        <div class="sidebar-header">Academic Modules</div>
+        <a href="attendance.html" target="contentFrame" class="nav-link" onclick="setActive(this)">
+            <i class="bi bi-calendar-check me-3"></i> Attendance Engine
+        </a>
+        <a href="analytics.html" target="contentFrame" class="nav-link" onclick="setActive(this)">
+            <i class="bi bi-person-bounding-box me-3"></i> Student 360°
+        </a>
+                <a href="receipt_preview.html" target="contentFrame" class="nav-link" onclick="setActive(this)">
+            <i class="bi bi-file-earmark-medical me-3"></i> Receipt Engine
+        </a>
+
+        <div class="sidebar-header">Parent Access (Client Sell)</div>
+        <a href="parent_portal_demo.html" target="contentFrame" class="nav-link" onclick="setActive(this)">
+            <i class="bi bi-heart-pulse me-3"></i> Parent Portal
+        </a>
+
+
+        <div class="sidebar-header">Management</div>
+        <a href="finance.html" target="contentFrame" class="nav-link" onclick="setActive(this)">
+            <i class="bi bi-currency-rupee me-3"></i> Financial Ledger
+        </a>
+
+        <div class="mt-auto p-4 opacity-50">
+            <div class="small text-white">Version 0.8.4-beta</div>
+            <div class="small text-muted">© 2026 SysDev Labs</div>
+        </div>
+    </nav>
+
+    <!-- Main Content iFrame -->
+    <div class="content-viewport">
+        <iframe src="dashboard.html" name="contentFrame" id="contentFrame"></iframe>
+    </div>
+
+    <script>
+        function setActive(el) {
+            // Remove active class from all links
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            // Add to current
+            el.classList.add('active');
+        }
+
+        // Handle iframe height and internal scroll
+        const iframe = document.getElementById('contentFrame');
+        iframe.onload = function() {
+            console.log("Module Loaded: " + iframe.contentWindow.location.pathname);
+        };
+    </script>
+</body>
+</html>

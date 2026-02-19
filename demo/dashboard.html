@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deekshant Academy - Demo Build</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { background: #f4f7f6; font-family: 'Segoe UI', sans-serif; padding-top: 40px; }
+        .dev-banner {
+            background: #ffc107;
+            color: #000;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 5px;
+            position: fixed;
+            top: 0; width: 100%;
+            z-index: 9999;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #000;
+        }
+        .sidebar { width: 260px; height: 100vh; background: #1a1d20; position: fixed; left: 0; top: 0; color: white; padding-top: 60px; }
+        .main-content { margin-left: 260px; padding: 40px; }
+        .card { border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-radius: 12px; }
+        .nav-link { color: #adb5bd; padding: 12px 20px; text-decoration: none; display: block; }
+        .nav-link:hover { color: white; background: rgba(255,255,255,0.05); }
+        @media (max-width: 992px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="dev-banner">DEVELOPMENT BUILD - ARCHITECTURAL DEMO ONLY - DATABASE SYNC IN PROGRESS</div>
+<!-- 
+    <nav class="sidebar">
+        <div class="px-4 mb-4"><h4 class="fw-bold text-primary">DEEKSHANT</h4></div>
+        <a href="#" class="nav-link active"><i class="bi bi-grid-1x2 me-2"></i> Dashboard</a>
+        <a href="#" class="nav-link"><i class="bi bi-people me-2"></i> Student Registry</a>
+        <a href="#" class="nav-link"><i class="bi bi-stack me-2"></i> Batches</a>
+        <a href="#" class="nav-link"><i class="bi bi-cash-stack me-2"></i> Finance (Lock)</a>
+    </nav> -->
+
+    <main class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+            <div>
+                <h2 class="fw-bold mb-0">Academy Overview</h2>
+                <p class="text-muted small mb-0">Milestone 2: Multi-User Logic Testing</p>
+            </div>
+            <button class="btn btn-primary shadow-sm" onclick="alert('Module locked for server-side optimization.')">
+                <i class="bi bi-plus-lg me-1"></i> Register Student
+            </button>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-dark text-white p-3">
+                    <div class="small opacity-50">Active Students</div>
+                    <h2 class="fw-bold">142</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-primary text-white p-3">
+                    <div class="small opacity-50">Assigned Batches</div>
+                    <h2 class="fw-bold">08</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white p-3">
+                    <div class="small opacity-50">Faculty Active</div>
+                    <h2 class="fw-bold">05</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold">Batch Toppers (Mock Data)</h6></div>
+                    <div class="card-body p-0">
+                        <table class="table mb-0">
+                            <tbody>
+                                <tr><td class="ps-3 fw-bold">Rahul Sharma</td><td>12th PCM</td><td class="text-end pe-3"><span class="badge bg-success">94%</span></td></tr>
+                                <tr><td class="ps-3 fw-bold">Priya K. Patel</td><td>10th Regular</td><td class="text-end pe-3"><span class="badge bg-success">91%</span></td></tr>
+                                <tr><td class="ps-3 fw-bold">Amit S. Verma</td><td>12th PCM</td><td class="text-end pe-3"><span class="badge bg-success">89%</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-top border-danger border-4">
+                    <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold text-danger">At-Risk Performance Alerts</h6></div>
+                    <div class="card-body p-0">
+                        <table class="table mb-0">
+                            <tbody>
+                                <tr><td class="ps-3 fw-bold">Suresh Raina</td><td>10th Regular</td><td class="text-end pe-3 text-danger">34%</td></tr>
+                                <tr><td class="ps-3 fw-bold">Neha Gupta</td><td>9th Batch A</td><td class="text-end pe-3 text-danger">38%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

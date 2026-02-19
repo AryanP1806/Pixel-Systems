@@ -881,3 +881,64 @@ def study_material_list(request):
     else:
         materials = StudyMaterial.objects.all()
     return render(request, 'management/material_list.html', {'materials': materials})
+
+
+from django.contrib import messages
+from .models import StudyMaterial, Subject, User, Batch, Test, Mark
+
+# --- TEACHER & STUDENT EDIT/DELETE ---
+@login_required
+@user_passes_test(is_owner)
+def edit_user(request, user_id):
+    u = get_object_or_404(User, id=user_id)
+    if request.method == "POST":
+        u.username = request.POST.get('username')
+        u.email = request.POST.get('email')
+        u.phone = request.POST.get('phone')
+        u.parent_phone = request.POST.get('parent_phone', '')
+        u.address = request.POST.get('address')
+        if request.POST.get('password'): # Only update password if provided
+            u.set_password(request.POST.get('password'))
+        u.save()
+        messages.success(request, f"Details for {u.username} updated.")
+        return redirect('student_list' if u.is_student else 'teacher_list')
+    return render(request, 'management/edit_user.html', {'u': u})
+
+@login_required
+@user_passes_test(is_owner)
+def delete_user(request, user_id):
+    u = get_object_or_404(User, id=user_id)
+    role = "Student" if u.is_student else "Teacher"
+    u.delete()
+    messages.warning(request, f"{role} deleted successfully.")
+    return redirect('student_list' if role == "Student" else 'teacher_list')
+
+# --- SUBJECT EDIT/DELETE ---
+@login_required
+@user_passes_test(is_owner)
+def delete_subject(request, subject_id):
+    sub = get_object_or_404(Subject, id=subject_id)
+    sub.delete()
+    messages.warning(request, "Subject removed.")
+    return redirect('manage_subjects')
+
+# --- BATCH EDIT/DELETE ---
+@login_required
+@user_passes_test(is_owner)
+def delete_batch(request, batch_id):
+    batch = get_object_or_404(Batch, id=batch_id)
+    batch.delete()
+    messages.warning(request, "Batch deleted.")
+    return redirect('batch_list')
+
+# --- STUDY MATERIAL EDIT/DELETE ---
+@login_required
+def delete_material(request, material_id):
+    mat = get_object_or_404(StudyMaterial, id=material_id)
+    # SECURITY: Only owner or the uploader can delete
+    if request.user.is_owner or mat.uploaded_by == request.user:
+        mat.delete()
+        messages.warning(request, "Material removed from repository.")
+    else:
+        messages.error(request, "Permission Denied: You didn't upload this.")
+    return redirect('study_material_list')

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Demo - Subject Permission Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .dev-alert { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .card { border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 15px; }
+        .student-row:hover { background: #f1f5ff; }
+        .form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <div class="dev-alert shadow-sm d-flex align-items-center">
+        <i class="bi bi-cone-striped fs-3 me-3"></i>
+        <div>
+            <strong>INTERNAL DEMO MODE:</strong> Subject-Wise Permission Engine active. Database write-lock enabled for this build to protect concurrent faculty threads.
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card overflow-hidden">
+                <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0 fw-bold">Attendance: 12th PCM Evening</h4>
+                        <span class="small opacity-75">Subject: <strong>Physics</strong> | Faculty: <strong>Prof. K. Verma</strong></span>
+                    </div>
+                    <div class="text-end">
+                        <div class="small opacity-50">DATE</div>
+                        <div class="fw-bold">15 Feb 2026</div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light border-bottom">
+                            <tr>
+                                <th class="ps-4 py-3">Student Name</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-end pe-4">Parent Alert</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- DUMMY DATA -->
+                            <tr class="student-row">
+                                <td class="ps-4">
+                                    <div class="fw-bold">Aryan Malhotra</div>
+                                    <div class="small text-muted">ID: #4012</div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-inline-block">
+                                        <input class="form-check-input" type="checkbox" checked>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4"><i class="bi bi-whatsapp text-muted opacity-50"></i></td>
+                            </tr>
+                            <tr class="student-row">
+                                <td class="ps-4">
+                                    <div class="fw-bold">Sanjana Reddy</div>
+                                    <div class="small text-muted">ID: #4015</div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-inline-block">
+                                        <input class="form-check-input" type="checkbox" checked>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4"><i class="bi bi-whatsapp text-muted opacity-50"></i></td>
+                            </tr>
+                            <tr class="student-row">
+                                <td class="ps-4 text-danger">
+                                    <div class="fw-bold">Rohit Deshmukh</div>
+                                    <div class="small text-muted">ID: #4018</div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-inline-block">
+                                        <input class="form-check-input" type="checkbox">
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4"><span class="badge bg-success"><i class="bi bi-whatsapp"></i> Auto-Send</span></td>
+                            </tr>
+                            <tr class="student-row">
+                                <td class="ps-4">
+                                    <div class="fw-bold">Tania D'Souza</div>
+                                    <div class="small text-muted">ID: #4021</div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-inline-block">
+                                        <input class="form-check-input" type="checkbox" checked>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4"><i class="bi bi-whatsapp text-muted opacity-50"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white py-3 text-end">
+                    <button class="btn btn-primary px-5 fw-bold" onclick="alert('SYSTEM: Write-Lock is active for this demo. Data is currently processing through the Subject-Permission validation layer.')">
+                        Finalize & Sync Records
+                    </button>
+                </div>
+            </div>
+            <div class="mt-4 text-center">
+                <p class="text-muted small">Current Milestone: Integrating Multi-Subject Conflict Prevention Logic (92% Complete)</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold"><i class="bi bi-folder2-open me-2 text-primary"></i>Study Repository</h2>
-        {% if not user.is_student %}
+        {% if user.is_owner or user.is_teacher %}
         <a href="{% url 'upload_material' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Upload</a>
         {% endif %}
     </div>
@@ -11,7 +11,16 @@
     <div class="row g-4">
         {% for mat in materials %}
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-0">
+            <div class="card h-100 shadow-sm border-0 position-relative">
+                <!-- DELETE ICON FOR OWNER/UPLOADER -->
+                {% if user.is_owner or mat.uploaded_by == user %}
+                <div class="position-absolute top-0 end-1 p-2" style="z-index: 5;">
+                    <a href="{% url 'delete_material' mat.id %}" class="btn btn-sm btn-light shadow-sm text-danger border" onclick="return confirm('Delete this material?')">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </div>
+                {% endif %}
+
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <span class="badge bg-light text-primary border border-primary-subtle small">{{ mat.subject.name }}</span>
@@ -20,15 +29,13 @@
                     <h5 class="fw-bold text-dark mb-3">{{ mat.title }}</h5>
                     
                     {% if mat.material_type == 'TEXT' %}
-                        <div class="p-3 bg-light rounded small mb-3 border" style="max-height: 150px; overflow-y: hidden; text-overflow: ellipsis;">
-                            {{ mat.text_content|linebreaks|truncatewords:30 }}
+                        <div class="p-3 bg-light rounded small mb-3 border" style="max-height: 150px; overflow: hidden;">
+                            {{ mat.text_content|truncatewords:30 }}
                         </div>
-                        <button class="btn btn-sm btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#modal{{ mat.id }}">
-                            Read Full Note
-                        </button>
+                        <button class="btn btn-sm btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#modal{{ mat.id }}">Read Note</button>
                     {% elif mat.material_type == 'IMAGE' %}
                         <img src="{{ mat.file.url }}" class="img-fluid rounded border mb-3" style="max-height: 150px; width: 100%; object-fit: cover;">
-                        <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">View Full Image</a>
+                        <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">View Image</a>
                     {% else %}
                         <div class="text-center py-4 bg-light rounded mb-3 border">
                             <i class="bi bi-file-earmark-pdf display-6 text-danger"></i>
@@ -39,7 +46,6 @@
             </div>
         </div>
 
-        <!-- Modal for Text Notes -->
         {% if mat.material_type == 'TEXT' %}
         <div class="modal fade" id="modal{{ mat.id }}" tabindex="-1">
             <div class="modal-dialog modal-lg">
@@ -48,18 +54,13 @@
                         <h5 class="modal-title fw-bold">{{ mat.title }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body bg-light" style="white-space: pre-wrap; font-family: 'Courier New', Courier, monospace;">
-                        {{ mat.text_content }}
-                    </div>
+                    <div class="modal-body bg-light" style="white-space: pre-wrap;">{{ mat.text_content }}</div>
                 </div>
             </div>
         </div>
         {% endif %}
-        
         {% empty %}
-        <div class="col-12 text-center py-5">
-            <p class="text-muted">No materials available for your batch yet.</p>
-        </div>
+        <div class="col-12 text-center py-5"><p class="text-muted">No materials available yet.</p></div>
         {% endfor %}
     </div>
 </div>

@@ -10,15 +10,15 @@
                 {% if user.is_owner %}Academy Principal Dashboard{% elif user.is_teacher %}Faculty Portal{% else %}Student Progress Overview{% endif %}
             </p>
         </div>
-        {% if user.is_owner %}
+        <!-- {% if user.is_owner %}
         <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm shadow-sm">
             <i class="bi bi-plus-lg me-1"></i> Register Student
         </a>
-        {% endif %}
+        {% endif %} -->
     </div>
 
     <!-- QUICK ACTIONS (Buttons for Staff/Owner) -->
-    {% if user.is_owner or user.is_teacher %}
+    <!-- {% if user.is_owner or user.is_teacher %}
     <div class="row g-2 mb-4">
         {% if user.is_owner %}
         <div class="col-6 col-md-3">
@@ -46,10 +46,10 @@
             </a>
         </div>
     </div>
-    {% endif %}
+    {% endif %} -->
 
     <!-- BROADCAST NOTICES -->
-    {% if notices %}
+    <!-- {% if notices %}
     <div class="row mb-4">
         <div class="col-12">
             {% for notice in notices %}
@@ -64,7 +64,7 @@
             {% endfor %}
         </div>
     </div>
-    {% endif %}
+    {% endif %} -->
 
     <!-- ROLE: OWNER & TEACHER STATS -->
     {% if user.is_owner or user.is_teacher %}

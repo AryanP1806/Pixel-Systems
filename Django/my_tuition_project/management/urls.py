@@ -41,4 +41,10 @@ urlpatterns = [
     path('manifest.json', 
          TemplateView.as_view(template_name="manifest.json", content_type='application/json'), 
          name='manifest'),
+     path('user/<int:user_id>/edit/', views.edit_user, name='edit_user'),
+     path('user/<int:user_id>/delete/', views.delete_user, name='delete_user'),
+     path('subjects/<int:subject_id>/delete/', views.delete_subject, name='delete_subject'),
+     path('batches/<int:batch_id>/delete/', views.delete_batch, name='delete_batch'),
+     path('materials/<int:material_id>/delete/', views.delete_material, name='delete_material'),
+
 ]
