@@ -242,6 +242,7 @@ class ProductAsset(models.Model):
             self.asset_id = generated_id
         # --- END: REPLACEMENT LOGIC FOR ASSET ID ---
 
+
         # Final check against both tables is good practice
         # Exclude the pending being approved (if set) to avoid false positive during approval
         pending_pk_to_exclude = getattr(self, '_pending_pk', None)
@@ -249,8 +250,15 @@ class ProductAsset(models.Model):
         if pending_pk_to_exclude:
             pending_conflict_qs = pending_conflict_qs.exclude(pk=pending_pk_to_exclude)
 
-        if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or pending_conflict_qs.exists():
+        # 2. Check Main Table (CRITICAL: Must exclude self.pk if we are editing)
+        main_conflict_qs = ProductAsset.objects.filter(asset_id=self.asset_id)
+        if self.pk:
+            main_conflict_qs = main_conflict_qs.exclude(pk=self.pk)
+
+        if main_conflict_qs.exists() or pending_conflict_qs.exists():
             raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+        # if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or pending_conflict_qs.exists():
+        #     raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
 
         if self.edited_by:
             self.edited_at = timezone.now()

@@ -754,21 +754,28 @@ def approve_product(request, pk):
             changes = get_changed_fields(product, pending)
             # tell product.save() to ignore this pending record when checking PendingProduct table
             product._pending_pk = pending.pk
+            # product.asset_id = pending.asset_id   # REQUIRED FIX
 
             # copy fields (do NOT overwrite asset_id here)
             for field in [
+                "asset_id","asset_suffix",
                 "type_of_asset", "brand", "model_no", "serial_no",
                 "purchase_price", "current_value", "purchase_date",
                 "under_warranty", "warranty_duration_months",
                 "purchased_from", "condition_status", "asset_number",
                 "sold_to", "sale_price", "sale_date",
-                "date_marked_dead", "damage_narration"
+                "date_marked_dead", "damage_narration",
             ]:
                 setattr(product, field, getattr(pending, field))
 
             product.edited_by = pending.submitted_by
-            product.edited_at = pending.submitted_at
+            # product.edited_at = pending.submitted_at
+            PendingProduct.objects.filter(
+                asset_id=pending.asset_id
+            ).exclude(pk=pending.pk).delete()
+
             product.save()
+            pending.delete()
             log_action(
                 request.user, 
                 "Approved Product Edit", 
@@ -802,8 +809,9 @@ def approve_product(request, pk):
             )
 
             # tell new_product.save() to ignore this pending record when checking PendingProduct table
-            new_product._pending_pk = pending.pk
+            # new_product._pending_pk = pending.pk
             new_product.save()
+            pending.delete()
             
             # Log Creation Details
             details = [f"Asset ID: {new_product.asset_id}", f"Model: {new_product.model_no}"]
@@ -816,7 +824,7 @@ def approve_product(request, pk):
                 object_repr=new_product.asset_id
             )
         # only delete pending after successful save
-        pending.delete()
+        # pending.delete()
         messages.success(request, "✅ Product approved successfully.")
     except ValueError as e:
         # give a meaningful message and do not delete pending

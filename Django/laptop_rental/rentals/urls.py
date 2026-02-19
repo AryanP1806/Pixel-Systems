@@ -24,6 +24,8 @@ urlpatterns = [
     path('settings/display/', views.manage_display_size_Options, name='manage_display_size_Options'),
     path('settings/graphics/', views.manage_graphics_Options, name='manage_graphics_Options'),
     path('settings/shortcuts/', views.shortcuts, name='shortcuts'),
+    path('settings/resolve/', views.resolve_duplicates, name='resolve_duplicates'),
+    path('settings/duplicates/', views.global_duplicate_checker, name='global_duplicate_checker'),
 
     path('asset-types/', views.asset_type_list, name='asset_type_list'),
     path('asset-types/add/', views.add_asset_type, name='add_asset_type'),
@@ -56,8 +58,6 @@ urlpatterns = [
     # path('rentals/duplicates/', views.duplicate_rental_checker, name='duplicate_rental_checker'),
     # path('audit/duplicates/', views.global_duplicate_checker, name='global_duplicate_checker'),
     # path('audit/resolve/', views.resolve_duplicates, name='resolve_duplicates'),
-    path('rentals/resolve/', views.resolve_duplicates, name='resolve_duplicates'),
-    path('rentals/duplicates/', views.global_duplicate_checker, name='global_duplicate_checker'),
 
     path('send-billing-reminder/', views.send_billing_reminder, name='send_billing_reminder'),
     path("check-contracts/", views.check_contracts, name="check_contracts"),
