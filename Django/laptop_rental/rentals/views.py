@@ -3515,3 +3515,137 @@ def export_reports_pdf(request):
         object_repr="Full PDF Export"
     )
     return response
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def delete_rental(request, pk):
+    # Fetch the rental or return 404 if not found
+    rental = get_object_or_404(Rental, pk=pk)
+    
+    # Capture details for the log before deletion
+    customer_name = rental.customer.name if rental.customer else "Unknown"
+    asset_id = rental.asset.asset_id if rental.asset else "N/A"
+    
+    # Log the action (Highly recommended based on your instructions)
+    log_action(
+        request.user, 
+        "Deleted Rental Record", 
+        "Rental", 
+        obj_id=pk, 
+        changes=[f"Customer: {customer_name}", f"Asset: {asset_id}"],
+        object_repr=f"Rental {pk}"
+    )
+    
+    # Perform the deletion
+    rental.delete()
+    
+    # Add a success message for the UI
+    messages.success(request, f"Rental for {customer_name} has been deleted.")
+    
+    # Redirect back to the history or list page
+    return redirect('rental_history')
+
+from django.db.models import Count
+from .models import Customer, ProductAsset, Rental
+from django.db.models import Count, Q
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def global_duplicate_checker(request):
+    # 1. Duplicate Customers (Same name and phone)
+    customer_dups = Customer.objects.values('name', 'phone_number_primary') \
+        .annotate(count=Count('id')) \
+        .filter(count__gt=1)
+    
+    # 2. Duplicate Products (Same Serial - exclude empty/null)
+    product_dups = ProductAsset.objects.exclude(Q(serial_no__isnull=True) | Q(serial_no='')) \
+        .values('serial_no') \
+        .annotate(count=Count('id')) \
+        .filter(count__gt=1)
+
+    # 3. Duplicate Rentals (Grouped for Resolution)
+    # Using asset__asset_id and customer__name to pass as URL parameters later
+    rental_dups = Rental.objects.values(
+        'customer__name', 
+        'asset__asset_id', 
+        'rental_start_date'
+    ).annotate(count=Count('id')).filter(count__gt=1)
+
+    context = {
+        'customer_dups': customer_dups,
+        'product_dups': product_dups,
+        'rental_dups': rental_dups,
+    }
+    return render(request, 'rentals/global_duplicate_checker.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def resolve_duplicates(request):
+    asset_id = request.GET.get('asset_id')
+    customer_name = request.GET.get('customer')
+    start_date = request.GET.get('start_date')
+
+    # Optimized query with select_related to reduce DB hits
+    rentals = Rental.objects.select_related('customer', 'asset', 'edited_by').all()
+
+    if asset_id and customer_name and start_date:
+        rentals = rentals.filter(
+            asset__asset_id=asset_id,
+            customer__name=customer_name,
+            rental_start_date=start_date
+        )
+    else:
+        # If accessed without params, redirect back
+        return redirect('global_duplicate_checker')
+    
+    context = {
+        'rentals': rentals,
+        'asset_id': asset_id,
+        'customer_name': customer_name,
+        'start_date': start_date,
+    }
+    return render(request, 'rentals/resolve_duplicates.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def resolve_duplicates(request):
+    # Parameters for Rental Duplicates
+    asset_id = request.GET.get('asset_id')
+    customer_name = request.GET.get('customer')
+    start_date = request.GET.get('start_date')
+    
+    # Parameter for Product Duplicates
+    serial_no = request.GET.get('serial_no')
+
+    rentals = None
+    products = None
+
+    # Handle Product Duplicate Resolution
+    if serial_no:
+        products = ProductAsset.objects.filter(serial_no=serial_no).select_related('type_of_asset', 'purchased_from')
+        context = {
+            'products': products,
+            'serial_no': serial_no,
+            'mode': 'product'
+        }
+    # Handle Rental Duplicate Resolution
+    elif asset_id and customer_name and start_date:
+        rentals = Rental.objects.select_related('customer', 'asset', 'edited_by').filter(
+            asset__asset_id=asset_id,
+            customer__name=customer_name,
+            rental_start_date=start_date
+        )
+        context = {
+            'rentals': rentals,
+            'asset_id': asset_id,
+            'customer_name': customer_name,
+            'start_date': start_date,
+            'mode': 'rental'
+        }
+    else:
+        return redirect('global_duplicate_checker')
+    
+    return render(request, 'rentals/resolve_duplicates.html', context)

@@ -300,8 +300,14 @@
         <td>{{ rental.status|title }}</td>
         <td>
           <a href="{% url 'edit_rental' rental.id %}" title="Edit Rental">
-            <button style="cursor: pointer; padding: 2px 6px">✏️ EDIT</button>
+            <button style="cursor: pointer; padding: 2px 6px">✏️</button>
           </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
         </td>
       </tr>
       {% endfor %}
@@ -349,8 +355,14 @@
         {% if user.is_superuser %}
         <td>
           <a href="{% url 'edit_rental' rental.id %}" title="Edit Rental">
-            <button style="cursor: pointer; padding: 2px 6px">✏️ EDIT</button>
+            <button style="cursor: pointer; padding: 2px 6px">✏️</button>
           </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
         </td>
 
         {% endif %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Global Duplicate Audit{% endblock %}
+
+{% block content %}
+<div class="homepage-center">
+    <h1>Global Duplicate Audit</h1>
+    <p class="text-secondary">System-wide check for redundant data entries.</p>
+</div>
+
+<div class="section-grid">
+    <div class="section" style="max-width: 100%; flex: 100%;">
+        <h3>🚩 Duplicate Rentals</h3>
+        <p class="mb-md" style="font-size: 0.9em; color: var(--text-tertiary);">
+            Identified by: Same Customer + Same Asset + Same Start Date.
+        </p>
+        
+        {% if rental_dups %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Asset ID</th>
+                        <th>Start Date</th>
+                        <th>Occurrence</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dup in rental_dups %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ dup.customer__name }}</td>
+                        <td>{{ dup.asset__asset_id }}</td>
+                        <td>{{ dup.rental_start_date|date:"Y-m-d" }}</td>
+                        <td><span class="status-pending">{{ dup.count }} Entries</span></td>
+                        <td>
+                            <a href="{% url 'resolve_duplicates' %}?asset_id={{ dup.asset__asset_id }}&customer={{ dup.customer__name|urlencode }}&start_date={{ dup.rental_start_date|date:'Y-m-d' }}">
+                                <button style="padding: 4px 12px; background: var(--primary);">🛠️ Resolve</button>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p class="text-green">✅ No duplicate rentals found.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="box-grid">
+    <div class="box">
+        <h3>👥 Duplicate Customers</h3>
+        <p class="stat-sub">By Name & Phone</p>
+        {% if customer_dups %}
+            <ul class="version-list" style="text-align: left;">
+                {% for dup in customer_dups %}
+                <li class="mb-sm">
+                    <strong>{{ dup.name }}</strong> ({{ dup.phone_number_primary }})
+                    <br><span class="text-red">{{ dup.count }} duplicates found</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <a href="{% url 'customer_list' %}?q={{ customer_dups.0.name }}" class="mt-md" style="display:block;">Fix in Customers List →</a>
+        {% else %}
+            <p class="text-green mt-md">✅ Clean</p>
+        {% endif %}
+    </div>
+
+    <div class="box">
+    <h3>💻 Duplicate Serials</h3>
+    <p class="stat-sub">Identical Hardware Serials</p>
+    {% if product_dups %}
+        <ul class="version-list" style="text-align: left;">
+            {% for dup in product_dups %}
+            <li class="mb-sm" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    SN: <code>{{ dup.serial_no }}</code>
+                    <br><span class="text-red">{{ dup.count }} assets found</span>
+                </div>
+                <a href="{% url 'resolve_duplicates' %}?serial_no={{ dup.serial_no|urlencode }}">
+                    <button style="padding: 2px 8px; font-size: 10px;">🛠️ Resolve</button>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-green mt-md">✅ Clean</p>
+    {% endif %}
+</div>
+</div>
+
+<div class="text-center mt-lg" style="margin-bottom: 50px;">
+    <a href="{% url 'settings_home' %}" style="text-decoration: none; color: var(--primary);">← Back to Settings</a>
+</div>
+{% endblock %}

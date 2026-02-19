@@ -126,8 +126,15 @@
           {% if user.is_superuser %}
 
           <a href="{% url 'edit_rental' rental.id %}" title="Edit Record">
-            <button style="cursor: pointer; padding: 4px 8px">✏️ EDIT</button>
+            <button style="cursor: pointer; padding: 4px 8px">✏️</button>
           </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
+    
           {% else %}
           <p>Admins Only</p>
           {% endif %}

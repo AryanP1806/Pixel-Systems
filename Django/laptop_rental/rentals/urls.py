@@ -52,6 +52,12 @@ urlpatterns = [
     path('rentals/edit/<int:rental_id>/', views.edit_rental, name='edit_rental'),
     path('rentals/add-bulk/', views.add_bulk_rental, name='add_bulk_rental'),
     # path('rentals/check_overdue/', views.check_overdue_view, name='check_overdue'),
+    path('rental/delete/<int:pk>/', views.delete_rental, name='delete_rental'),
+    # path('rentals/duplicates/', views.duplicate_rental_checker, name='duplicate_rental_checker'),
+    # path('audit/duplicates/', views.global_duplicate_checker, name='global_duplicate_checker'),
+    # path('audit/resolve/', views.resolve_duplicates, name='resolve_duplicates'),
+    path('rentals/resolve/', views.resolve_duplicates, name='resolve_duplicates'),
+    path('rentals/duplicates/', views.global_duplicate_checker, name='global_duplicate_checker'),
 
     path('send-billing-reminder/', views.send_billing_reminder, name='send_billing_reminder'),
     path("check-contracts/", views.check_contracts, name="check_contracts"),
