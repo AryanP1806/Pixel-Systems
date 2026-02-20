@@ -46,5 +46,9 @@ urlpatterns = [
      path('subjects/<int:subject_id>/delete/', views.delete_subject, name='delete_subject'),
      path('batches/<int:batch_id>/delete/', views.delete_batch, name='delete_batch'),
      path('materials/<int:material_id>/delete/', views.delete_material, name='delete_material'),
-
+     path('teachers/<int:teacher_id>/rates/', views.manage_teacher_rates, name='manage_teacher_rates'),
+     path('batches/<int:batch_id>/log-lecture/', views.log_lecture, name='log_lecture'),
+     path('teachers/<int:teacher_id>/salary/', views.teacher_salary_report, name='teacher_salary_report'),
+     path('api/global-search/', views.global_search, name='global_search'),
+     path('teachers/<int:teacher_id>/profile/', views.teacher_profile, name='teacher_profile'),
 ]

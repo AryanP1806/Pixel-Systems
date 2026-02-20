@@ -1,1 +1,0 @@
-# This file must exist for Django to recognize the templatetags directory.

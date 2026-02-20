@@ -1,36 +1,269 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="col-md-4">
-        <div class="card shadow-lg border-0">
-            <div class="card-body p-5">
-                <h3 class="text-center mb-4">Tuition Login</h3>
-                
-                {% if form.errors %}
-                <div class="alert alert-danger p-2 small text-center">
-                    Invalid username or password.
-                </div>
-                {% endif %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Deekshant Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #1a1d20 0%, #343a40 100%);
+            --accent-color: #0d6efd;
+        }
 
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Username</label>
-                        <input type="text" name="username" class="form-control" placeholder="Enter username" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label text-muted small">Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
-                    </div>
-                </form>
+        body {
+            background-color: #f4f7f6;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+            background: white;
+        }
+
+        .login-header {
+            background: var(--primary-gradient);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .login-header h2 {
+            letter-spacing: 3px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .form-control {
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+
+        .form-control:focus {
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+            border-color: var(--accent-color);
+        }
+
+        .btn-login {
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+
+        .btn-biometric {
+            background: #fff;
+            border: 2px solid #eee;
+            color: #444;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: 0.2s;
+        }
+
+        .btn-biometric:hover {
+            border-color: var(--accent-color);
+            background: #f0f7ff;
+            color: var(--accent-color);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: #adb5bd;
+            margin: 25px 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #eee;
+        }
+
+        .divider:not(:empty)::before { margin-right: 15px; }
+        .divider:not(:empty)::after { margin-left: 15px; }
+
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            color: #1a1d20;
+            font-size: 1.8rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="login-header">
+            <div class="brand-logo">
+                <i class="bi bi-shield-lock-fill"></i>
             </div>
-            <div class="card-footer bg-white text-center py-3 border-0">
-                <small class="text-muted">Contact Owner if you forgot password</small>
+            <h2>DEEKSHANT</h2>
+            <p class="mb-0 opacity-75 small uppercase">Secure Management Portal</p>
+        </div>
+
+        <div class="p-4 p-md-5">
+            {% if form.errors %}
+            <div class="alert alert-danger py-2 small border-0 text-center mb-4">
+                Invalid username or password.
+            </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted">USERNAME</label>
+                    <input type="text" name="username" class="form-control" placeholder="Enter your ID" required autofocus>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between">
+                        <label class="form-label small fw-bold text-muted">PASSWORD</label>
+                    </div>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-primary btn-login">
+                        SIGN IN
+                    </button>
+                </div>
+            </form>
+
+            <div class="divider">OR SECURE LOGIN</div>
+
+            <div class="d-grid">
+                <button type="button" class="btn-biometric" onclick="loginWithBiometrics()">
+                    <i class="bi bi-fingerprint fs-4"></i>
+                    Sign in with Biometrics
+                </button>
+            </div>
+
+            <div class="mt-4 text-center">
+                <p class="small text-muted mb-0">Trouble logging in? <br>Contact the academy administrator.</p>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+
+    <script>
+        // Helper to convert ArrayBuffer to Base64 (Required for JSON)
+        function bufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+
+        
+// 2. REGISTRATION (Run this while logged in)
+async function registerBiometrics() {
+    if (!window.PublicKeyCredential) return alert("Not supported on this browser.");
+    
+    // Server-side challenge (Simplified for MVP)
+    const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+    const userID = new Uint8Array(16); window.crypto.getRandomValues(userID);
+
+    try {
+        const credential = await navigator.credentials.create({
+            publicKey: {
+                challenge,
+                rp: { name: "Deekshant Academy" },
+                user: { id: userID, name: "{{ u.username }}", displayName: "{{ u.username }}" },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                authenticatorSelection: { 
+                    authenticatorAttachment: "platform", // Forces Phone/Laptop biometrics
+                    userVerification: "required" 
+                },
+                timeout: 60000
+            }
+        });
+
+        const base64Id = bufferToBase64(credential.rawId);
+        const response = await fetch('/api/biometric/register/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ id: base64Id })
+        });
+
+        if (response.ok) alert("Device successfully linked! You can now login with your fingerprint.");
+    } catch (err) {
+        console.error(err);
+        alert("Registration failed. Ensure you are using HTTPS.");
+    }
+}
+
+        async function loginWithBiometrics() {
+            // Check if WebAuthn is supported
+            if (!window.PublicKeyCredential) {
+                alert("Biometrics not supported on this device/browser.");
+                return;
+            }
+
+            try {
+                // In a production app, the challenge should come from the server
+                // This is the simplified flow for your MVP
+                const assertion = await navigator.credentials.get({
+                    publicKey: {
+                        challenge: new Uint8Array(32),
+                        timeout: 60000,
+                        userVerification: "required"
+                    }
+                });
+
+                const base64Id = bufferToBase64(assertion.rawId);
+
+                // Fetch request to your login_biometric view
+                const response = await fetch('/biometric/login/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}' // Standard Django CSRF
+                    },
+                    body: JSON.stringify({ id: base64Id })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    window.location.href = "/"; // Redirect to dashboard
+                } else {
+                    alert("This device is not registered for biometric login. Please sign in with your password first and enable biometrics in your profile.");
+                }
+            } catch (err) {
+                console.error("Biometric Login Error:", err);
+                // Don't alert on cancel
+                if (err.name !== 'NotAllowedError') {
+                    alert("Biometric verification failed.");
+                }
+            }
+        }
+    </script>
+</body>
+</html>

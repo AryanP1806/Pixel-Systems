@@ -1,195 +1,306 @@
 {% extends 'base.html' %}
+{% load custom_tags %}
+
 {% block content %}
 
-<div class="container-fluid py-3">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+<style>
+    .dash-header {
+        background: linear-gradient(135deg, #1a1d20 0%, #343a40 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: transform 0.2s;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .stat-card:hover { transform: translateY(-5px); }
+    .action-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 20px;
+        font-weight: 700;
+        transition: 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    .action-btn i { font-size: 2rem; }
+    .action-btn:hover { opacity: 0.9; transform: scale(1.02); }
+    
+    .table-custom thead {
+        background: #f8f9fa;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        font-weight: 800;
+        color: #6c757d;
+    }
+    .notice-item {
+        border-left: 4px solid #ffc107;
+        background: #fff;
+        transition: 0.2s;
+    }
+    .notice-item:hover { background: #fffdf5; }
+</style>
+
+<div class="container-fluid py-2">
+    <!-- Premium Header -->
+    <div class="dash-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="fw-bold mb-0">Welcome, {{ user.username }}</h2>
-            <p class="text-muted small mb-0">
-                {% if user.is_owner %}Academy Principal Dashboard{% elif user.is_teacher %}Faculty Portal{% else %}Student Progress Overview{% endif %}
+            <h2 class="fw-bold mb-1">Welcome, {{ user.get_full_name|default:user.username }}</h2>
+            <p class="mb-0 opacity-75">
+                {% if user.is_owner %}
+                    <i class="bi bi-shield-check me-1"></i> Academy Administrator
+                {% elif user.is_teacher %}
+                    <i class="bi bi-mortarboard me-1"></i> Faculty Member
+                {% else %}
+                    <i class="bi bi-person me-1"></i> Student Portal
+                {% endif %}
             </p>
         </div>
-        <!-- {% if user.is_owner %}
-        <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm shadow-sm">
-            <i class="bi bi-plus-lg me-1"></i> Register Student
-        </a>
-        {% endif %} -->
-    </div>
-
-    <!-- QUICK ACTIONS (Buttons for Staff/Owner) -->
-    <!-- {% if user.is_owner or user.is_teacher %}
-    <div class="row g-2 mb-4">
-        {% if user.is_owner %}
-        <div class="col-6 col-md-3">
-            <a href="{% url 'create_notice' %}" class="btn btn-warning w-100 py-3 shadow-sm border-0 fw-bold text-dark">
-                <i class="bi bi-megaphone-fill d-block fs-3 mb-1"></i> Post Notice
-            </a>
-        </div>
-        {% endif %}
-
-        <div class="col-6 col-md-3">
-            <a href="{% url 'upload_material' %}" class="btn btn-primary w-100 py-3 shadow-sm border-0 fw-bold">
-                <i class="bi bi-cloud-arrow-up-fill d-block fs-3 mb-1"></i> Upload File
-            </a>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <a href="{% url 'batch_list' %}" class="btn btn-dark w-100 py-3 shadow-sm border-0 fw-bold">
-                <i class="bi bi-calendar-check d-block fs-3 mb-1"></i> Attendance
-            </a>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <a href="{% url 'study_material_list' %}" class="btn btn-info text-white w-100 py-3 shadow-sm border-0 fw-bold">
-                <i class="bi bi-folder-fill d-block fs-3 mb-1"></i> Repository
-            </a>
+        <div class="text-end d-none d-md-block">
+            <div class="small opacity-50 text-uppercase fw-bold">Current Date</div>
+            <div class="h5 fw-bold mb-0">{{ now|date:"D, d M Y" }}</div>
         </div>
     </div>
-    {% endif %} -->
 
-    <!-- BROADCAST NOTICES -->
-    <!-- {% if notices %}
-    <div class="row mb-4">
-        <div class="col-12">
+    <!-- Notices Section -->
+    {% if notices %}
+    <div class="mb-5">
+        <h6 class="fw-bold text-muted text-uppercase small mb-3">Important Announcements</h6>
+        <div class="row g-2">
             {% for notice in notices %}
-            <div class="alert alert-info border-0 shadow-sm d-flex align-items-start mb-2 py-3" role="alert">
-                <i class="bi bi-megaphone-fill fs-4 me-3 text-primary"></i>
-                <div class="flex-grow-1">
-                    <strong class="d-block">{{ notice.title }}</strong>
-                    <span class="small text-dark">{{ notice.content }}</span>
+            <div class="col-12">
+                <div class="card notice-item shadow-sm p-3 border-0 rounded-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-megaphone-fill text-warning fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold text-dark">{{ notice.title }}</div>
+                                <div class="small text-muted">{{ notice.content }}</div>
+                            </div>
+                        </div>
+                        <span class="badge bg-light text-muted fw-normal">{{ notice.created_at|timesince }} ago</span>
+                    </div>
                 </div>
-                <span class="ms-auto small text-muted">{{ notice.created_at|date:"d M" }}</span>
             </div>
             {% endfor %}
         </div>
     </div>
-    {% endif %} -->
-
-    <!-- ROLE: OWNER & TEACHER STATS -->
-    {% if user.is_owner or user.is_teacher %}
-    <div class="row g-3 mb-4">
-        <div class="col-md-4 col-6">
-            <div class="card shadow-sm border-0 bg-dark text-white p-3 h-100">
-                <div class="small text-white-50">Active Students</div>
-                <h2 class="fw-bold mb-0">{{ student_count }}</h2>
-            </div>
-        </div>
-        <div class="col-md-4 col-6">
-            <div class="card shadow-sm border-0 bg-primary text-white p-3 h-100">
-                <div class="small text-white-50">Your Batches</div>
-                <h2 class="fw-bold mb-0">{{ active_batches_count }}</h2>
-            </div>
-        </div>
-        {% if user.is_owner %}
-        <div class="col-md-4 d-none d-md-block">
-            <div class="card shadow-sm border-0 bg-success text-white p-3 h-100">
-                <div class="small text-white-50">Active Faculty</div>
-                <h2 class="fw-bold mb-0">{{ teacher_count }}</h2>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- TOPPERS & AT-RISK -->
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold text-primary">Batch Toppers</h6></div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <tbody>
-                            {% for item in toppers %}
-                            <tr>
-                                <td class="ps-3 fw-bold">{{ item.student.username }}</td>
-                                <td>{{ item.batch.name }}</td>
-                                <td class="text-end pe-3"><span class="badge bg-success">★ {{ item.avg }}</span></td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="3" class="text-center py-4 text-muted">No exam data.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100 border-top border-danger border-4">
-                <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold text-danger">At-Risk Students</h6></div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <tbody>
-                            {% for item in at_risk %}
-                            <tr>
-                                <td class="ps-3 fw-bold">{{ item.student.username }}</td>
-                                <td class="text-end pe-3 text-danger fw-bold">{{ item.avg }}%</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="3" class="text-center py-4 text-muted">No students at risk.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
     {% endif %}
 
-    <!-- ROLE: STUDENT VIEW -->
-    {% if user.is_student %}
-    <div class="row g-3 mb-4">
+    {% if user.is_owner or user.is_teacher %}
+    <!-- Staff/Owner View -->
+    <div class="row g-3 mb-5">
         <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-primary text-white p-4 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">My Attendance</div>
-                <h1 class="display-4 fw-bold mb-0">{{ attendance_pct }}%</h1>
+            <div class="card stat-card bg-white p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted small text-uppercase fw-bold">Total Students</h6>
+                        <h2 class="fw-bold mb-0">{{ student_count }}</h2>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                        <i class="bi bi-people text-primary fs-3"></i>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-dark text-white p-4 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">Latest Score</div>
-                <h1 class="display-4 fw-bold mb-0">{% if latest_test %}{{ latest_test.marks_obtained }}{% else %}N/A{% endif %}</h1>
+            <div class="card stat-card bg-white p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted small text-uppercase fw-bold">Active Batches</h6>
+                        <h2 class="fw-bold mb-0">{{ active_batches_count }}</h2>
+                    </div>
+                    <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                        <i class="bi bi-layers text-success fs-3"></i>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-danger text-white p-4 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">Pending Fees</div>
-                <h1 class="display-4 fw-bold mb-0">₹{{ pending_fees }}</h1>
-                <a href="{% url 'manage_fees' user.id %}" class="btn btn-sm btn-outline-light mt-3">View Ledger</a>
+            <div class="card stat-card bg-white p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted small text-uppercase fw-bold">Faculty Staff</h6>
+                        <h2 class="fw-bold mb-0">{{ teacher_count }}</h2>
+                    </div>
+                    <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                        <i class="bi bi-mortarboard text-info fs-3"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- STUDENT STUDY MATERIALS -->
-    {% if recent_materials %}
+    <!-- Performance Mapping (Toppers & At-Risk) -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-trophy text-primary me-2"></i>Batch Toppers</h6>
+                    <span class="badge bg-primary-subtle text-primary small">Top 3</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-custom">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Student</th>
+                                    <th>Batch</th>
+                                    <th class="text-end pe-4">Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in toppers %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ item.student.username }}</td>
+                                    <td>{{ item.batch.name }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-success">★ {{ item.avg }}%</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted small">No exam data available.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100 border-top border-danger border-4">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>At-Risk Students</h6>
+                    <span class="badge bg-danger-subtle text-danger small">< 40%</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-custom">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Student</th>
+                                    <th>Batch</th>
+                                    <th class="text-end pe-4">Recent Avg</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in at_risk %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ item.student.username }}</td>
+                                    <td>{{ item.batch.name }}</td>
+                                    <td class="text-end pe-4 text-danger fw-bold">{{ item.avg }}%</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted small">All students are above threshold.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Management Grid -->
+    <h6 class="fw-bold text-muted text-uppercase small mb-3">Management Shortcuts</h6>
+    <div class="row g-3">
+        {% if user.is_owner %}
+        <div class="col-6 col-md-3">
+            <a href="{% url 'student_list' %}" class="action-btn bg-primary text-white">
+                <i class="bi bi-person-plus"></i>
+                <span>Directory</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'finance_dashboard' %}" class="action-btn bg-success text-white">
+                <i class="bi bi-cash-stack"></i>
+                <span>Finances</span>
+            </a>
+        </div>
+        {% endif %}
+        <div class="col-6 col-md-3">
+            <a href="{% url 'batch_list' %}" class="action-btn bg-dark text-white">
+                <i class="bi bi-calendar-check"></i>
+                <span>Attendance</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'study_material_list' %}" class="action-btn bg-info text-white">
+                <i class="bi bi-folder2-open"></i>
+                <span>Materials</span>
+            </a>
+        </div>
+    </div>
+
+    {% elif user.is_student %}
+    <!-- Student Dashboard -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card stat-card bg-primary text-white p-5 text-center">
+                <div class="small text-white-50 text-uppercase fw-bold mb-2">My Attendance</div>
+                <h1 class="display-3 fw-bold mb-0">{{ attendance_pct }}%</h1>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card bg-dark text-white p-5 text-center">
+                <div class="small text-white-50 text-uppercase fw-bold mb-2">Last Score</div>
+                <h1 class="display-3 fw-bold mb-0">
+                    {% if latest_test %}
+                        {% with p=latest_test.marks_obtained|multiply:100|divide:latest_test.test.max_marks %}
+                            {{ p|floatformat:0 }}%
+                        {% endwith %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </h1>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card {% if pending_fees > 0 %}bg-danger{% else %}bg-success{% endif %} text-white p-5 text-center">
+                <div class="small text-white-50 text-uppercase fw-bold mb-2">Pending Fees</div>
+                <h1 class="display-3 fw-bold mb-0">₹{{ pending_fees }}</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Materials -->
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white py-3">
-            <h6 class="mb-0 fw-bold text-warning"><i class="bi bi-folder2-open me-2"></i>Recent Study Materials</h6>
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Recently Shared Materials</h6>
+            <a href="{% url 'study_material_list' %}" class="small text-decoration-none">View All Repository</a>
         </div>
         <div class="card-body p-0">
             <div class="list-group list-group-flush">
                 {% for mat in recent_materials %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="list-group-item d-flex justify-content-between align-items-center p-3">
                     <div>
-                        <div class="fw-bold small">{{ mat.title }}</div>
-                        <div class="text-muted" style="font-size: 0.75rem;">{{ mat.subject.name }}</div>
+                        <div class="fw-bold">{{ mat.title }}</div>
+                        <div class="small text-muted">{{ mat.subject.name }} • {{ mat.uploaded_at|date:"d M" }}</div>
                     </div>
-                    <!-- FIX: Check if file exists before calling .url -->
                     {% if mat.file %}
-                    <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-download"></i>
-                    </a>
+                        <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">Download</a>
                     {% else %}
-                    <a href="{% url 'study_material_list' %}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-eye"></i> View Note
-                    </a>
+                        <a href="{% url 'study_material_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">View Note</a>
                     {% endif %}
                 </div>
+                {% empty %}
+                <div class="p-4 text-center text-muted small">No materials shared recently.</div>
                 {% endfor %}
             </div>
         </div>
     </div>
     {% endif %}
-    {% endif %}
+
 </div>
 
 {% endblock %}

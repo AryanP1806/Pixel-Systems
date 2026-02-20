@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Log Lecture Session</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="alert alert-info py-2 small border-0">
+                        Recording session for: <strong>{{ batch.name }} (Grade {{ batch.grade }})</strong>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Subject</label>
+                            <select name="subject" class="form-select" required>
+                                {% for sub in subjects %}
+                                <option value="{{ sub.id }}">{{ sub.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {% if user.is_owner %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Recording for Teacher</label>
+                            <select name="teacher" class="form-select" required>
+                                {% for t in teachers %}
+                                <option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Date</label>
+                                <input type="date" name="date" class="form-control" value="{{ today|date:'Y-m-d'|default:now|date:'Y-m-d' }}" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Duration (Minutes)</label>
+                                <select name="duration" class="form-select" required>
+                                    <option value="30">30 Min</option>
+                                    <option value="45">45 Min</option>
+                                    <option value="60" selected>1 Hour</option>
+                                    <option value="90">1.5 Hours</option>
+                                    <option value="120">2 Hours</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">Topic Covered</label>
+                            <input type="text" name="topic" class="form-control" placeholder="e.g. Newton's Laws of Motion" required>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">Submit Lecture Log</button>
+                            <a href="{% url 'batch_detail' batch.id %}" class="btn btn-link text-muted small">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

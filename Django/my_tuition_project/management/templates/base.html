@@ -1,33 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="auto">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Deekshant Academy</title>
     
-    <!-- PWA & Mobile Optimization -->
-     <link rel="manifest" href="/manifest.json">
+    <!-- PWA & Mobile Meta -->
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1a1d20">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- CSS Dependencies -->
+    <!-- External Dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <style>
-        :root { --sidebar-width: 280px; }
-        body { background: #f4f7f6; min-height: 100vh; margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        /* --- PREMIUM THEME ENGINE --- */
+        :root { 
+            --sidebar-width: 280px; 
+            --bg-main: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #212529;
+            --border-color: #dee2e6;
+            --sidebar-bg: #1a1d20;
+            --sidebar-link: #adb5bd;
+        }
 
-        /* Mobile Top Header (Visible only on Mobile) */
+        /* AUTO DARK MODE OVERRIDES */
+        [data-bs-theme="dark"] {
+            --bg-main: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --border-color: #333333;
+            --sidebar-bg: #000000;
+            --sidebar-link: #999999;
+        }
+
+        body { 
+            background: var(--bg-main); 
+            color: var(--text-main);
+            min-height: 100vh; 
+            margin: 0; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Mobile Top Header */
         .mobile-header {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0;
             height: 60px;
-            background: #1a1d20;
+            background: var(--sidebar-bg);
             color: white;
-            z-index: 2500; /* Extremely high z-index */
+            z-index: 2500;
             padding: 0 15px;
             align-items: center;
             justify-content: space-between;
@@ -40,20 +67,17 @@
             height: 100vh;
             position: fixed;
             left: 0; top: 0;
-            background: #1a1d20;
-            z-index: 3000; /* Higher than mobile header */
+            background: var(--sidebar-bg);
+            z-index: 3000;
             overflow-y: auto;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            scrollbar-width: thin;
-            scrollbar-color: #343a40 transparent;
         }
 
-        /* Sidebar Links Styling */
-        .nav-link { color: #adb5bd; padding: 12px 20px; border-radius: 8px; margin: 2px 10px; display: block; text-decoration: none; transition: 0.2s; }
+        .nav-link { color: var(--sidebar-link); padding: 12px 20px; border-radius: 8px; margin: 2px 10px; display: block; text-decoration: none; transition: 0.2s; }
         .nav-link:hover, .nav-link.active { background: #0d6efd; color: #fff !important; }
         .sidebar-header { font-size: 0.65rem; text-transform: uppercase; color: #6c757d; font-weight: 800; padding: 25px 25px 10px; letter-spacing: 1.2px; }
 
-        /* Main Content Container */
+        /* Content Area */
         main { 
             margin-left: var(--sidebar-width); 
             padding: 30px; 
@@ -61,92 +85,178 @@
             transition: 0.3s;
         }
 
-        /* Mobile View Overrides */
+        /* Command Palette Component */
+        #cmdPalette {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            padding-top: 10vh;
+        }
+        .cmd-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            color: var(--text-main);
+        }
+        .cmd-input-group { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; }
+        .cmd-input { border: none; width: 100%; padding: 10px; font-size: 1.2rem; outline: none; background: transparent; color: inherit; }
+        .cmd-results { max-height: 400px; overflow-y: auto; }
+        .cmd-item { padding: 12px 20px; display: flex; align-items: center; text-decoration: none; color: var(--text-main); transition: 0.2s; border-bottom: 1px solid var(--border-color); }
+        .cmd-item:hover { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+        .cmd-category { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; color: #6c757d; padding: 10px 20px 5px; }
+
         @media (max-width: 991.98px) {
             .mobile-header { display: flex; }
-            #sidebarNav { transform: translateX(-100%); width: 280px; box-shadow: none; }
+            #sidebarNav { transform: translateX(-100%); width: 280px; }
             #sidebarNav.show { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
-            main { margin-left: 0; padding: 80px 15px 30px; } /* 80px top padding to clear mobile header */
-            
-            /* The Dimmer/Overlay */
-            .sidebar-overlay {
-                display: none;
-                position: fixed;
-                top: 0; left: 0; width: 100vw; height: 100vh;
-                background: rgba(0,0,0,0.6);
-                z-index: 2800;
-                backdrop-filter: blur(2px);
-            }
+            main { margin-left: 0; padding: 80px 15px 30px; }
+            .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 2800; backdrop-filter: blur(2px); }
             .sidebar-overlay.show { display: block; }
         }
     </style>
+
+    <script>
+        // --- HELPER: Binary to Base64 ---
+        const bufferToBase64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+        // --- THEME ENGINE ---
+        const setTheme = theme => {
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+        };
+
+        const initTheme = () => {
+            const stored = localStorage.getItem('theme');
+            if (stored) return setTheme(stored);
+            const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            setTheme(system);
+        };
+        initTheme();
+
+        // --- BIOMETRIC SECURITY ---
+        async function registerBiometrics() {
+            if (!window.PublicKeyCredential) return alert("Biometrics not supported on this device.");
+            const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+            const userID = new Uint8Array(16); window.crypto.getRandomValues(userID);
+            try {
+                const credential = await navigator.credentials.create({
+                    publicKey: {
+                        challenge, rp: { name: "Deekshant Academy" },
+                        user: { id: userID, name: "{{ user.username }}", displayName: "{{ user.username }}" },
+                        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                        timeout: 60000
+                    }
+                });
+                const response = await fetch('/api/biometric/register/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                    body: JSON.stringify({ id: bufferToBase64(credential.rawId) })
+                });
+                if(response.ok) alert("Device successfully linked! You can now login with your fingerprint/FaceID.");
+            } catch (err) { console.error(err); alert("Registration failed. Ensure you are on HTTPS."); }
+        }
+    </script>
 </head>
 <body>
 
-    <!-- Persistent Mobile Header -->
-    <div class="mobile-header d-lg-none">
-        <h5 class="mb-0 fw-bold text-primary">DEEKSHANT</h5>
-        <button class="btn btn-outline-light border-0 p-2" onclick="toggleMenu()">
-            <i class="bi bi-list fs-2"></i>
-        </button>
+    <!-- Mobile Header -->
+    <div class="mobile-header d-flex d-md-none">
+        <button class="btn text-white" onclick="toggleMenu()"><i class="bi bi-list fs-2"></i></button>
+        <div class="fw-bold h5 mb-0">Deekshant</div>
+        <button class="btn text-white" onclick="togglePalette()"><i class="bi bi-search fs-3"></i></button>
     </div>
 
-    <!-- Dark Overlay for Mobile -->
+    <!-- Mobile Overlay -->
     <div class="sidebar-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
 
-    <!-- Fixed Sidebar -->
+    <!-- Sidebar -->
     <nav id="sidebarNav">
-        <div class="p-4 border-bottom border-secondary text-center">
+        <div class="p-4 border-bottom border-secondary text-center text-white">
             <h4 class="fw-bold text-primary mb-0" style="letter-spacing: 2px;">DEEKSHANT</h4>
-            <small class="text-white-50 text-uppercase" style="font-size: 0.6rem;">Academy Management</small>
+            <small class="opacity-50 text-uppercase" style="font-size: 0.6rem;">Academy Management</small>
         </div>
         <div class="py-3">
             {% include "management/_nav_links.html" %}
+            <div class="sidebar-header">Preferences</div>
+            <a href="#" class="nav-link" onclick="setTheme('light')"><i class="bi bi-sun me-2"></i> Light Mode</a>
+            <a href="#" class="nav-link" onclick="setTheme('dark')"><i class="bi bi-moon me-2"></i> Dark Mode</a>
+            <p></p>
         </div>
     </nav>
 
-    <!-- Main Content -->
+    <!-- Content -->
     <main>
         {% if messages %}
-            <div class="container-fluid px-0">
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm mb-4">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    {{ message }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endfor %}
-            </div>
         {% endif %}
-
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Scripts -->
+    <!-- Command Palette -->
+    <div id="cmdPalette" onclick="closePalette(event)">
+        <div class="cmd-container" onclick="event.stopPropagation()">
+            <div class="cmd-input-group">
+                <i class="bi bi-search fs-4 me-3 text-muted"></i>
+                <input type="text" id="cmdInput" class="cmd-input" placeholder="Search (Cmd+K)" autocomplete="off">
+                <button class="btn btn-sm btn-light border" onclick="togglePalette()">ESC</button>
+            </div>
+            <div id="cmdResults" class="cmd-results">
+                <div class="p-4 text-center text-muted small">Type to search everything...</div>
+            </div>
+            <div class="py-2 text-center border-top small bg-light text-muted">
+                <kbd>↑</kbd> <kbd>↓</kbd> to navigate • <kbd>Enter</kbd> to jump
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // PWA Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                .then(reg => console.log("SW Registered at Root:", reg.scope))
-                .catch(err => console.log("SW Error:", err));
-            });
+        function toggleMenu() { document.getElementById('sidebarNav').classList.toggle('show'); document.getElementById('menuOverlay').classList.toggle('show'); }
+        function togglePalette() {
+            const p = document.getElementById('cmdPalette');
+            p.style.display = p.style.display === 'block' ? 'none' : 'block';
+            if(p.style.display === 'block') { document.getElementById('cmdInput').value = ''; setTimeout(() => document.getElementById('cmdInput').focus(), 50); }
         }
+        function closePalette() { document.getElementById('cmdPalette').style.display = 'none'; }
+        
+        document.addEventListener('keydown', e => { 
+            if((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); togglePalette(); }
+            if(e.key === 'Escape') closePalette();
+        });
 
-        // Sidebar Toggle Logic
-        function toggleMenu() {
-            const nav = document.getElementById('sidebarNav');
-            const overlay = document.getElementById('menuOverlay');
-            nav.classList.toggle('show');
-            overlay.classList.toggle('show');
-            
-            // Lock body scroll when menu is open
-            if (nav.classList.contains('show')) {
-                document.body.style.overflow = 'hidden';
-            } else {
-                document.body.style.overflow = 'auto';
-            }
-        }
+        const input = document.getElementById('cmdInput');
+        const resultsBox = document.getElementById('cmdResults');
+        let timer;
+
+        input.addEventListener('input', e => {
+            clearTimeout(timer);
+            const q = e.target.value;
+            if(q.length < 2) return;
+            timer = setTimeout(() => {
+                fetch(`/api/global-search/?q=${encodeURIComponent(q)}`)
+                    .then(r => r.json())
+                    .then(d => {
+                        if(!d.results.length) { resultsBox.innerHTML = '<div class="p-4 text-center">No matches found.</div>'; return; }
+                        let h = '', curCat = '';
+                        d.results.forEach(res => {
+                            if(res.category !== curCat) { curCat = res.category; h += `<div class="cmd-category">${curCat}</div>`; }
+                            h += `<a href="${res.url}" class="cmd-item"><i class="bi ${res.icon} me-3"></i><div><div class="fw-bold small">${res.title}</div><div class="text-muted small">${res.subtitle}</div></div></a>`;
+                        });
+                        resultsBox.innerHTML = h;
+                    });
+            }, 300);
+        });
     </script>
 </body>
 </html>

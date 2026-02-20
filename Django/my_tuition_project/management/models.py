@@ -117,3 +117,71 @@ class StudyMaterial(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self): return self.title
+
+
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator
+from django.utils import timezone
+from decimal import Decimal
+
+# ... (Previous User, Subject, Batch models remain same) ...
+
+class TeacherRate(models.Model):
+    """
+    Defines how much a teacher earns per hour for a specific grade.
+    e.g. Teacher A for 9th Grade = 500/hr, for 10th Grade = 700/hr.
+    """
+    teacher = models.ForeignKey('User', on_delete=models.CASCADE, related_name='rates', limit_choices_to={'is_teacher': True})
+    grade = models.PositiveIntegerField()
+    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('teacher', 'grade')
+
+    def __str__(self):
+        return f"{self.teacher.username} - Grade {self.grade}: {self.hourly_rate}/hr"
+
+class Lecture(models.Model):
+    """
+    Recorded sessions to calculate variable pay.
+    """
+    batch = models.ForeignKey('Batch', on_delete=models.CASCADE, related_name='lectures')
+    subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
+    teacher = models.ForeignKey('User', on_delete=models.CASCADE)
+    date = models.DateField(default=timezone.now)
+    duration_minutes = models.PositiveIntegerField(help_text="Duration in minutes (e.g. 30, 60, 90)")
+    topic_covered = models.CharField(max_length=255, blank=True)
+    
+    @property
+    def calculated_earning(self):
+        # Fetch the rate for this teacher and this batch's grade
+        rate_obj = TeacherRate.objects.filter(teacher=self.teacher, grade=self.batch.grade).first()
+        if not rate_obj:
+            return Decimal('0.00')
+        
+        # Calculation: (Duration / 60) * Hourly Rate
+        hours = Decimal(self.duration_minutes) / Decimal('60')
+        return (hours * rate_obj.hourly_rate).quantize(Decimal('0.01'))
+
+class TeacherPayment(models.Model):
+    """
+    Finalized payments made to teachers.
+    """
+    teacher = models.ForeignKey('User', on_delete=models.CASCADE, related_name='salary_payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateField(default=timezone.now)
+    month_year = models.CharField(max_length=20, help_text="e.g. July 2024")
+    transaction_id = models.CharField(max_length=100, blank=True)
+    note = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.amount} ({self.month_year})"
+    
+
+class BiometricCredential(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='biometrics')
+    credential_id = models.TextField(unique=True)
+    public_key = models.TextField()
+    sign_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)

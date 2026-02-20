@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load custom_tags %}
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -63,7 +63,8 @@
                             <td><span class="text-danger fw-bold">{{ d.fee.due_date|date:"d M Y" }}</span></td>
                             <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">₹{{ d.balance }}</span></td>
                             <td class="text-end pe-4">
-                                <a href="https://wa.me/91{{ d.parent_phone }}?text=Hello, this is Deekshant Academy. A reminder that fee payment for {{ d.student.username }} (₹{{ d.balance }}) was due on {{ d.fee.due_date }}. Please ignore if already paid." 
+                                <a href="https://wa.me/91{{ d.parent_phone }}?text=Hello, this is Deekshant Academy. A reminder that fee payment for {{ d.student.username }} (₹{{ d.balance }}) was due on {{ d.fee.due_date }}. Please ignore if already paid.
+                                नमस्कार, ही दीक्षांत अकॅडमी (Deekshant Academy) कडून एक आठवण आहे. {{ d.student.username }} यांची फी (₹{{ d.balance }}) भरण्याची शेवटची तारीख {{ d.fee.due_date }} होती. जर आपण फी आधीच भरली असेल, तर कृपया या संदेशाकडे दुर्लक्ष करा." 
                                    target="_blank" class="btn btn-sm btn-success">
                                     <i class="bi bi-whatsapp"></i> Remind
                                 </a>

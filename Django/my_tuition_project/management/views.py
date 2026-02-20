@@ -7,6 +7,14 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.utils import timezone 
 import json 
+import json
+import base64
+from django.db import models
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import login
+from .models import User
 
 # Access Control
 def is_owner(user):
@@ -18,7 +26,7 @@ def is_staff(user):
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import User, Batch, FeeStructure, PaymentTransaction, Subject, Attendance, Test, Mark, BatchSubjectTeacher
+from .models import User, Batch, FeeStructure, PaymentTransaction, Subject, Attendance, Test, Mark, BatchSubjectTeacher, BiometricCredential
 from django.db.models import Sum, Q, Avg, Count, F # Added Avg, Count, F here
 from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
@@ -32,91 +40,81 @@ def dashboard(request):
 
     context['notices'] = Notice.objects.filter(is_active=True).order_by('-created_at')[:3]
 
-    # 2. Study Material Repository (Recent files for the student's batch)
     if user.is_student:
         context['recent_materials'] = StudyMaterial.objects.filter(
             Q(batch__students=user) | Q(batch__isnull=True)
         ).order_by('-uploaded_at')[:3]
 
-    # Identify if user is staff (Owner or Teacher)
     if user.is_owner or user.is_teacher:
-        # 1. GET BATCHES
         if user.is_owner:
             batches = Batch.objects.all()
-            context['teacher_count'] = User.objects.filter(is_teacher=True).count()
         else:
-            # For Teachers: Show batches where they are Lead OR Subject Teacher
             batches = Batch.objects.filter(
                 Q(teacher=user) | Q(subject_assignments__teacher=user)
             ).distinct()
         
-        # 2. STATS
-        context['student_count'] = User.objects.filter(is_student=True).count()
         context['teacher_count'] = User.objects.filter(is_teacher=True).count()
-        context['active_batches_count'] = Batch.objects.count()
         context['active_batches_count'] = batches.count()
         context['student_count'] = User.objects.filter(
             is_student=True, 
             enrolled_batches__in=batches
         ).distinct().count()
 
-        # 3. ACADEMIC HEALTH CHECK (Toppers & At-Risk)
         toppers_list = []
         at_risk_list = []
 
         for batch in batches:
-            # TOPPERS: Average marks across all tests in THIS batch
-            # We calculate this by filtering marks belonging to tests of this batch
+            # FIX: Annotating toppers with Percentage instead of raw marks
+            # Calculation: (marks_obtained / max_marks) * 100 averaged across all tests in the batch
             batch_students = User.objects.filter(enrolled_batches=batch).annotate(
-                avg_score=Avg('mark__marks_obtained', filter=Q(mark__test__batch=batch))
-            ).filter(avg_score__isnull=False).order_by('-avg_score')[:3]
+                avg_pct=Avg(
+                    F('mark__marks_obtained') * 100.0 / F('mark__test__max_marks'), 
+                    filter=Q(mark__test__batch=batch)
+                )
+            ).filter(avg_pct__isnull=False).order_by('-avg_pct')[:3]
             
             for s in batch_students:
                 toppers_list.append({
                     'student': s, 
                     'batch': batch, 
-                    'avg': round(s.avg_score, 1)
+                    'avg': round(s.avg_pct, 1) 
                 })
 
             # AT-RISK: Dropped below 40% in last 3 tests
-            # We first find the last 3 tests for this batch
             last_3_tests = Test.objects.filter(batch=batch).order_by('-date_held')[:3]
             if last_3_tests.exists():
                 test_ids = last_3_tests.values_list('id', flat=True)
-                # Calculate the average max marks of these tests to set a threshold
-                avg_max = last_3_tests.aggregate(Avg('max_marks'))['max_marks__avg'] or 100
-                threshold = avg_max * 0.4
                 
+                # FIX: Calculating true percentage for at-risk flagging
                 flagged = User.objects.filter(enrolled_batches=batch).annotate(
-                    recent_avg=Avg('mark__marks_obtained', filter=Q(mark__test_id__in=test_ids))
-                ).filter(recent_avg__lt=threshold)
+                    recent_avg_pct=Avg(
+                        F('mark__marks_obtained') * 100.0 / F('mark__test__max_marks'), 
+                        filter=Q(mark__test_id__in=test_ids)
+                    )
+                ).filter(recent_avg_pct__lt=40.0) # Threshold set to 40%
 
                 for s in flagged:
                     at_risk_list.append({
                         'student': s, 
                         'batch': batch, 
-                        'avg': round(s.recent_avg, 1) if s.recent_avg else 0
+                        'avg': round(s.recent_avg_pct, 1) if s.recent_avg_pct else 0
                     })
 
         context['toppers'] = toppers_list
         context['at_risk'] = at_risk_list
 
-    # STUDENT SPECIFIC VIEW
     elif user.is_student:
         attendance_records = Attendance.objects.filter(student=user)
         total = attendance_records.count()
         present = attendance_records.filter(is_present=True).count()
-        
         context['attendance_pct'] = round((present / total * 100), 1) if total > 0 else 0
-        
-        # Latest performance
         latest_mark = Mark.objects.filter(student=user).select_related('test').order_by('-test__date_held').first()
         context['latest_test'] = latest_mark
-        
-        # Financials
         context['pending_fees'] = sum(f.balance_due for f in FeeStructure.objects.filter(student=user))
 
     return render(request, 'management/dashboard.html', context)
+
+
 # --- SUBJECT MANAGEMENT ---
 @login_required
 @user_passes_test(is_owner)
@@ -312,50 +310,192 @@ def add_student_to_batch(request, batch_id):
 
 # --- ATTENDANCE SYSTEM ---
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from .models import User, Batch, Attendance, Subject, Lecture, TeacherRate
+import urllib.parse
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from .models import User, Batch, Attendance, Subject, Lecture, BatchSubjectTeacher
+import urllib.parse
+
 @login_required
 def take_attendance(request, batch_id):
     batch = get_object_or_404(Batch, id=batch_id)
     
-    # 1. Determine the date (Priority: POST > GET > Today)
+    # 1. Date Logic
     date_str = request.POST.get('date') or request.GET.get('date')
-    if date_str:
-        try:
-            date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            date = timezone.now().date()
-    else:
-        date = timezone.now().date()
+    date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else timezone.now().date()
 
     if request.method == "POST":
+        subject_id = request.POST.get('subject')
+        duration = request.POST.get('duration')
+        topic = request.POST.get('topic')
         present_student_ids = request.POST.getlist('attendance')
+        
+        # --- THE TEACHER ATTRIBUTION LOGIC ---
+        # Look for the teacher assigned to this specific subject in this batch
+        assignment = BatchSubjectTeacher.objects.filter(batch=batch, subject_id=subject_id).first()
+        
+        if assignment:
+            target_teacher = assignment.teacher
+        else:
+            # Fallback to the main Class Teacher if no specific subject assignment exists
+            target_teacher = batch.teacher
+
+        # 2. Save Student Attendance
+        absent_names = []
         for student in batch.students.all():
+            is_present = str(student.id) in present_student_ids
             Attendance.objects.update_or_create(
-                student=student, 
-                batch=batch, 
-                date=date,
-                defaults={'is_present': str(student.id) in present_student_ids}
+                student=student, batch=batch, date=date,
+                defaults={'is_present': is_present}
             )
-        messages.success(request, f"Attendance updated for {date}")
-        return redirect('batch_detail', batch_id=batch_id)
-    
-    # 2. Fetch existing attendance to pre-fill the form
-    # We create a set of IDs for students who are ALREADY marked present for this date
-    present_ids = Attendance.objects.filter(
-        batch=batch, 
-        date=date, 
-        is_present=True
-    ).values_list('student_id', flat=True)
+            if not is_present:
+                absent_names.append(student.username)
 
-    # 3. Check if any attendance exists at all for this date
-    # If NO records exist, we default everyone to 'checked' for convenience
+        # 3. Save Lecture Log (Attributes money to target_teacher)
+        if subject_id and duration:
+            Lecture.objects.update_or_create(
+                batch=batch,
+                subject_id=subject_id,
+                teacher=target_teacher, # <--- THIS IS THE FIX
+                date=date,
+                defaults={
+                    'duration_minutes': duration,
+                    'topic_covered': topic or "Class Session"
+                }
+            )
+
+        # 4. Prepare WhatsApp Message
+        subject_name = Subject.objects.get(id=subject_id).name
+        wa_msg = (
+            f"*Deekshant Academy Update*\n"
+            f"Date: {date.strftime('%d %b %Y')}\n"
+            f"Batch: {batch.name}\n"
+            f"Subject: {subject_name}\n"
+            f"Topic: {topic}\n"
+            # f"Attendance: {len(present_student_ids)}/{batch.students.count()}\n"
+        )
+        if absent_names:
+            wa_msg += f"Absentees: \n{'\n'.join(absent_names)}"
+            
+        encoded_msg = urllib.parse.quote(wa_msg)
+        
+        messages.success(request, f"Attendance saved. Credit given to {target_teacher.username}.")
+        
+        return render(request, 'management/attendance_success.html', {
+            'batch': batch,
+            'wa_url': f"https://wa.me/?text={encoded_msg}"
+        })
+
+    # GET Request
+    present_ids = Attendance.objects.filter(batch=batch, date=date, is_present=True).values_list('student_id', flat=True)
     has_records = Attendance.objects.filter(batch=batch, date=date).exists()
-
+    
     return render(request, 'management/attendance_form.html', {
-        'batch': batch, 
+        'batch': batch,
         'date': date.strftime('%Y-%m-%d'),
         'present_ids': present_ids,
-        'has_records': has_records
+        'has_records': has_records,
+        'subjects': batch.subjects.all()
     })
+
+
+# @login_required
+# def take_attendance(request, batch_id):
+#     batch = get_object_or_404(Batch, id=batch_id)
+    
+#     # Check permissions (Owner or assigned teacher)
+#     if not request.user.is_owner:
+#         is_assigned = batch.teacher == request.user or batch.subject_assignments.filter(teacher=request.user).exists()
+#         if not is_assigned:
+#             messages.error(request, "Access Denied.")
+#             return redirect('batch_list')
+
+#     date_str = request.POST.get('date') or request.GET.get('date')
+#     date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else timezone.now().date()
+
+#     if request.method == "POST":
+#         subject_id = request.POST.get('subject')
+#         duration = request.POST.get('duration')
+#         topic = request.POST.get('topic')
+#         present_student_ids = request.POST.getlist('attendance')
+        
+#         # 1. Save Student Attendance
+#         absent_names = []
+#         for student in batch.students.all():
+#             is_present = str(student.id) in present_student_ids
+#             Attendance.objects.update_or_create(
+#                 student=student, 
+#                 batch=batch, 
+#                 date=date,
+#                 defaults={'is_present': is_present}
+#             )
+#             if not is_present:
+#                 absent_names.append(student.username)
+
+#         # 2. Save Lecture/Teaching Hours (for Teacher Pay)
+#         if subject_id and duration:
+#             Lecture.objects.update_or_create(
+#                 batch=batch,
+#                 subject_id=subject_id,
+#                 teacher=request.user,
+#                 date=date,
+#                 defaults={
+#                     'duration_minutes': duration,
+#                     'topic_covered': topic or "Regular Class"
+#                 }
+#             )
+
+#         # 3. Generate WhatsApp Summary Message
+#         subject_name = Subject.objects.get(id=subject_id).name if subject_id else "Class"
+#         total = batch.students.count()
+#         present_count = len(present_student_ids)
+        
+        # wa_msg = (
+        #     f"*Deekshant Academy - Attendance*\n"
+        #     f"📅 Date: {date.strftime('%d %b %Y')}\n"
+        #     f"📚 Batch: {batch.name}\n"
+        #     f"📖 Subject: {subject_name}\n"
+        #     f"📝 Topic: {topic}\n"
+        #     f"⏱ Duration: {duration} mins\n"
+        #     f"--------------------------\n"
+        #     f"✅ Present: {present_count}/{total}\n"
+        #     f"❌ Absent: {len(absent_names)}\n"
+        # )
+#         if absent_names:
+#             wa_msg += f"⚠️ Absentees: \n{'\n'.join(absent_names)}"
+        
+#         # We pass the message to a success page or back to the template
+#         encoded_msg = urllib.parse.quote(wa_msg)
+#         context = {
+#             'batch': batch,
+#             'date': date,
+#             'wa_url': f"https://wa.me/?text={encoded_msg}",
+#             'success': True
+#         }
+#         messages.success(request, f"Attendance and {duration} mins lecture saved for {date}.")
+#         return render(request, 'management/attendance_success.html', context)
+
+#     # Initial GET request logic
+#     present_ids = Attendance.objects.filter(batch=batch, date=date, is_present=True).values_list('student_id', flat=True)
+#     has_records = Attendance.objects.filter(batch=batch, date=date).exists()
+    
+#     return render(request, 'management/attendance_form.html', {
+#         'batch': batch,
+#         'date': date.strftime('%Y-%m-%d'),
+#         'present_ids': present_ids,
+#         'has_records': has_records,
+#         'subjects': batch.subjects.all()
+#     })
+
 
 # --- FEE MANAGEMENT ---
 @login_required
@@ -762,55 +902,83 @@ def promote_students(request):
     
     return render(request, 'management/promote_confirm.html')
 
+from django.db.models import Avg
+from django.utils import timezone
+import calendar
+
 
 @login_required
 @user_passes_test(is_owner)
 def student_profile(request, student_id):
     student = get_object_or_404(User, id=student_id, is_student=True)
     
-    # 1. Batches & Subjects
-    batches = student.enrolled_batches.all().prefetch_related('subjects', 'subject_assignments__teacher')
+    # --- FILTERS ---
+    now = timezone.now()
+    view_mode = request.GET.get('view_mode', 'monthly') # 'monthly' or 'all_time'
+    month = int(request.GET.get('month', now.month))
+    year = int(request.GET.get('year', now.year))
     
-    # 2. Academic Performance
-    marks = Mark.objects.filter(student=student).select_related('test', 'test__subject').order_by('-test__date_held')
-    
-    # 3. Attendance Summary
-    attendance_records = Attendance.objects.filter(student=student).order_by('-date')
+    # --- DATA FETCHING ---
+    if view_mode == 'all_time':
+        attendance_base = Attendance.objects.filter(student=student)
+        marks_base = Mark.objects.filter(student=student)
+        report_label = "All-Time Academic Standing"
+    else:
+        attendance_base = Attendance.objects.filter(student=student, date__month=month, date__year=year)
+        marks_base = Mark.objects.filter(student=student, test__date_held__month=month, test__date_held__year=year)
+        report_label = f"Monthly Report: {calendar.month_name[month]} {year}"
+
+    # 1. Attendance Calculations
+    attendance_records = attendance_base.order_by('-date')
     total_days = attendance_records.count()
     present_days = attendance_records.filter(is_present=True).count()
     attendance_pct = (present_days / total_days * 100) if total_days > 0 else 0
     
-
-    chart_data = {}
-    student_marks = Mark.objects.filter(student_id=student_id).select_related('test__subject').order_by('test__date_held')
+    # 2. Performance & Grade Logic
+    marks = marks_base.select_related('test', 'test__subject').order_by('-test__date_held')
+    avg_pct = 0
+    if marks.exists():
+        total_score_pct = sum((m.marks_obtained / m.test.max_marks) * 100 for m in marks)
+        avg_pct = total_score_pct / marks.count()
     
-    for m in student_marks:
+    # Unified Grade Logic
+    if avg_pct >= 90: system_grade, status_color = "A+", "text-primary"
+    elif avg_pct >= 75: system_grade, status_color = "A", "text-success"
+    elif avg_pct >= 60: system_grade, status_color = "B", "text-info"
+    elif avg_pct >= 40: system_grade, status_color = "C", "text-warning"
+    else: system_grade, status_color = "D", "text-danger"
+
+    # 3. Chart Data (Always Yearly Trend for visual context)
+    chart_data = {}
+    year_marks = Mark.objects.filter(student=student, test__date_held__year=year).select_related('test__subject').order_by('test__date_held')
+    for m in year_marks:
         sub_name = m.test.subject.name
         if sub_name not in chart_data:
             chart_data[sub_name] = {'labels': [], 'scores': []}
-        
         chart_data[sub_name]['labels'].append(m.test.date_held.strftime('%d %b'))
-        # Calculate percentage for uniform graphing
-        pct = (m.marks_obtained / m.test.max_marks) * 100
-        chart_data[sub_name]['scores'].append(round(pct, 1))
+        chart_data[sub_name]['scores'].append(round((m.marks_obtained / m.test.max_marks) * 100, 1))
 
-
-    # 4. Financial Ledger
-    fees = FeeStructure.objects.filter(student=student).prefetch_related('payments')
-    total_balance = sum(f.balance_due for f in fees)
-
+    # 4. Context for Template
+    months_list = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    
     return render(request, 'management/student_profile.html', {
         'student': student,
-        'batches': batches,
+        'view_mode': view_mode,
+        'report_label': report_label,
         'marks': marks,
-        'attendance_history': attendance_records[:10], # Last 10 days
+        'attendance_history': attendance_records[:10],
         'attendance_pct': round(attendance_pct, 1),
-        'fees': fees,
-        'total_balance': total_balance,
+        'total_days': total_days,
+        'present_days': present_days,
+        'system_grade': system_grade,
+        'status_color': status_color,
+        'avg_pct': round(avg_pct, 1),
         'chart_data_json': json.dumps(chart_data),
+        'selected_month': month,
+        'selected_year': year,
+        'months_list': months_list,
+        'total_balance': sum(f.balance_due for f in FeeStructure.objects.filter(student=student))
     })
-
-
 
 @login_required
 @user_passes_test(is_owner)
@@ -890,18 +1058,49 @@ from .models import StudyMaterial, Subject, User, Batch, Test, Mark
 @login_required
 @user_passes_test(is_owner)
 def edit_user(request, user_id):
+    """
+    Comprehensive profile editor for both Students and Teachers.
+    Handles all academic, personal, and security fields.
+    """
     u = get_object_or_404(User, id=user_id)
+    
     if request.method == "POST":
+        # 1. Core Identity
         u.username = request.POST.get('username')
-        u.email = request.POST.get('email')
-        u.phone = request.POST.get('phone')
-        u.parent_phone = request.POST.get('parent_phone', '')
-        u.address = request.POST.get('address')
-        if request.POST.get('password'): # Only update password if provided
-            u.set_password(request.POST.get('password'))
+        u.first_name = request.POST.get('first_name', '')
+        u.last_name = request.POST.get('last_name', '')
+        u.email = request.POST.get('email', '')
+        
+        # 2. Personal Details
+        u.phone = request.POST.get('phone', '')
+        u.address = request.POST.get('address', '')
+        u.age = request.POST.get('age') or None
+        u.gender = request.POST.get('gender', '')
+
+        # 3. Role-Specific Logic
+        if u.is_student:
+            u.parent_phone = request.POST.get('parent_phone', '')
+            u.last_year_marks = request.POST.get('last_year_marks') or None
+            
+            # Synchronize Grade and Display Label
+            raw_grade = request.POST.get('current_grade')
+            if raw_grade:
+                u.current_grade = int(raw_grade)
+                grade_labels = {
+                    '9': '9th Standard', '10': '10th Standard', 
+                    '11': '11th Standard', '12': '12th Standard', '13': 'Repeaters'
+                }
+                u.year_of_study = grade_labels.get(str(raw_grade), f"{raw_grade}th Standard")
+        
+        # 4. Security Reset
+        password = request.POST.get('password')
+        if password and len(password.strip()) > 0:
+            u.set_password(password)
+        
         u.save()
-        messages.success(request, f"Details for {u.username} updated.")
+        messages.success(request, f"Profile for {u.get_full_name() or u.username} fully synchronized.")
         return redirect('student_list' if u.is_student else 'teacher_list')
+
     return render(request, 'management/edit_user.html', {'u': u})
 
 @login_required
@@ -942,3 +1141,193 @@ def delete_material(request, material_id):
     else:
         messages.error(request, "Permission Denied: You didn't upload this.")
     return redirect('study_material_list')
+
+
+from .models import TeacherRate, Lecture, TeacherPayment
+
+@login_required
+@user_passes_test(is_owner)
+def manage_teacher_rates(request, teacher_id):
+    teacher = get_object_or_404(User, id=teacher_id, is_teacher=True)
+    if request.method == "POST":
+        grade = request.POST.get('grade')
+        rate = request.POST.get('rate')
+        TeacherRate.objects.update_or_create(
+            teacher=teacher, grade=grade,
+            defaults={'hourly_rate': rate}
+        )
+        messages.success(request, f"Rate updated for Grade {grade}")
+        return redirect('manage_teacher_rates', teacher_id=teacher.id)
+    
+    rates = TeacherRate.objects.filter(teacher=teacher)
+    return render(request, 'management/teacher_rates.html', {'teacher': teacher, 'rates': rates})
+
+@login_required
+def log_lecture(request, batch_id):
+    batch = get_object_or_404(Batch, id=batch_id)
+    # Only owner or assigned teacher can log
+    if not request.user.is_owner and batch.teacher != request.user:
+        # Check if they are a subject teacher for this batch
+        is_assigned = batch.subject_assignments.filter(teacher=request.user).exists()
+        if not is_assigned:
+            messages.error(request, "Unauthorized")
+            return redirect('dashboard')
+
+    if request.method == "POST":
+        Lecture.objects.create(
+            batch=batch,
+            subject_id=request.POST.get('subject'),
+            teacher=request.user if not request.user.is_owner else User.objects.get(id=request.POST.get('teacher')),
+            date=request.POST.get('date'),
+            duration_minutes=request.POST.get('duration'),
+            topic_covered=request.POST.get('topic')
+        )
+        messages.success(request, "Lecture logged successfully.")
+        return redirect('batch_detail', batch_id=batch.id)
+    
+    subjects = batch.subjects.all()
+    teachers = User.objects.filter(is_teacher=True)
+    return render(request, 'management/lecture_form.html', {'batch': batch, 'subjects': subjects, 'teachers': teachers})
+
+@login_required
+@user_passes_test(is_owner)
+def teacher_salary_report(request, teacher_id):
+    teacher = get_object_or_404(User, id=teacher_id, is_teacher=True)
+    month = request.GET.get('month', timezone.now().month)
+    year = request.GET.get('year', timezone.now().year)
+    
+    lectures = Lecture.objects.filter(
+        teacher=teacher, 
+        date__month=month, 
+        date__year=year
+    ).select_related('batch')
+    
+    total_earnings = sum(l.calculated_earning for l in lectures)
+    
+    return render(request, 'management/teacher_salary_report.html', {
+        'teacher': teacher,
+        'lectures': lectures,
+        'total_earnings': total_earnings,
+        'selected_month': month,
+        'selected_year': year
+    })
+
+
+
+from django.http import JsonResponse
+from django.db.models import Count, Q
+from django.urls import reverse_lazy, reverse
+
+@login_required
+def global_search(request):
+    query = request.GET.get('q', '').strip()
+    results = []
+
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+
+    # 1. Search Students
+    students = User.objects.filter(
+        Q(is_student=True) & 
+        (Q(username__icontains=query) | Q(first_name__icontains=query) | Q(phone__icontains=query))
+    )[:5]
+    for s in students:
+        results.append({
+            'category': 'Students',
+            'title': s.get_full_name() or s.username,
+            'subtitle': f"Std: {s.current_grade}th | {s.enrolled_batches.count()} Batches",
+            'url': reverse('student_profile', args=[s.id]),
+            'icon': 'bi-person-badge'
+        })
+
+    # 2. Search Teachers
+    teachers = User.objects.filter(
+        Q(is_teacher=True) & 
+        (Q(username__icontains=query) | Q(email__icontains=query))
+    )[:5]
+    for t in teachers:
+        results.append({
+            'category': 'Faculty',
+            'title': t.get_full_name() or t.username,
+            'subtitle': f"Teaching {t.batches_taught.count() + t.batchsubjectteacher_set.count()} Subjects",
+            'url': reverse('teacher_profile', args=[t.id]),
+            'icon': 'bi-mortarboard'
+        })
+
+    # 3. Search Batches (With Stats)
+    batches = Batch.objects.filter(name__icontains=query).annotate(
+        student_count=Count('students', distinct=True),
+        test_count=Count('test', distinct=True)
+    )[:5]
+    for b in batches:
+        results.append({
+            'category': 'Batches',
+            'title': b.name,
+            'subtitle': f"Gr {b.grade} | {b.student_count} Students | {b.test_count} Tests",
+            'url': reverse('batch_detail', args=[b.id]),
+            'icon': 'bi-stack'
+        })
+
+    return JsonResponse({'results': results})
+
+
+@login_required
+@user_passes_test(is_owner)
+def teacher_profile(request, teacher_id):
+    """
+    Dedicated detail view for a Teacher.
+    Shows Assignments, Rates, and Recent Activity.
+    """
+    teacher = get_object_or_404(User, id=teacher_id, is_teacher=True)
+    
+    # Assignments
+    assignments = BatchSubjectTeacher.objects.filter(teacher=teacher).select_related('batch', 'subject')
+    
+    # Financials (Last 30 days)
+    recent_lectures = Lecture.objects.filter(teacher=teacher).order_by('-date')[:10]
+    monthly_total = sum(l.calculated_earning for l in Lecture.objects.filter(teacher=teacher, date__month=timezone.now().month))
+    
+    # Rates
+    rates = TeacherRate.objects.filter(teacher=teacher)
+    
+    return render(request, 'management/teacher_profile.html', {
+        'teacher': teacher,
+        'assignments': assignments,
+        'recent_lectures': recent_lectures,
+        'monthly_total': monthly_total,
+        'rates': rates,
+    })
+
+
+
+
+@csrf_exempt
+def register_biometric(request):
+    """
+    Step 1: Save the public key from the browser.
+    Note: Real production needs 'fido2-tools' to verify, 
+    this is a simplified logic for your MVP.
+    """
+    if request.method == "POST":
+        data = json.loads(request.body)
+        BiometricCredential.objects.create(
+            user=request.user,
+            credential_id=data['id'],
+            public_key=data['publicKey']
+        )
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'failed'}, status=400)
+
+@csrf_exempt
+def login_biometric(request):
+    """
+    Step 2: Authenticate user based on credential ID.
+    In a raw implementation, we trust the device signature.
+    """
+    if request.method == "POST":
+        data = json.loads(request.body)
+        cred = BiometricCredential.objects.filter(credential_id=data['id']).first()
+        if cred:
+            login(request, cred.user)
+            return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'failed'}, status=401)

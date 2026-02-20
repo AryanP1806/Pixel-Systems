@@ -13,10 +13,9 @@
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Teacher Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
+                    <th>Email/Phone</th>
                     <th>Assignments</th>
-                    <th class="text-end pe-4">Actions</th>
+                    <th class="text-end pe-4">Pay & Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -26,19 +25,31 @@
                         <div class="fw-bold">{{ t.username }}</div>
                         <div class="small text-muted">Joined {{ t.date_joined|date:"M Y" }}</div>
                     </td>
-                    <td>{{ t.email|default:"--" }}</td>
-                    <td>{{ t.phone|default:"--" }}</td>
                     <td>
-                        <span class="badge bg-info text-dark">
+                        <div class="small text-dark">{{ t.email|default:"No Email" }}</div>
+                        <div class="small text-muted">{{ t.phone|default:"--" }}</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">
                             {{ t.batches_taught.count|add:t.batchsubjectteacher_set.count }} Classes
                         </span>
                     </td>
                     <td class="text-end pe-4">
-                        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                        <div class="btn-group">
+                            <!-- NEW PAY MANAGEMENT BUTTONS -->
+                            <a href="{% url 'manage_teacher_rates' t.id %}" class="btn btn-sm btn-outline-dark" title="Set Hourly Rates">
+                                <i class="bi bi-currency-exchange"></i> Rates
+                            </a>
+                            <a href="{% url 'teacher_salary_report' t.id %}" class="btn btn-sm btn-outline-success" title="View Earnings">
+                                <i class="bi bi-wallet2"></i> Earnings
+                            </a>
+                            <!-- EXISTING ACTIONS -->
+                            <a href="{% url 'edit_user' t.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" class="text-center py-5 text-muted">No teachers registered.</td></tr>
+                <tr><td colspan="4" class="text-center py-5 text-muted">No teachers registered.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
