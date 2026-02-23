@@ -15,7 +15,41 @@ class Backtester:
         self.token = token
         self.exchange = exchange
 
-    def get_history(self, timeframe='D', days=180, strategy_obj=None):
+
+    def to_heikin_ashi(self, df):
+        """Mathematically accurate Heikin-Ashi calculation"""
+        if df.empty: return df
+        
+        ha_df = df.copy()
+        
+        # 1. HA Close is always (Open + High + Low + Close) / 4
+        ha_df['close'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
+        
+        # 2. HA Open must be recursive. Start with the first standard open.
+        # We use .values for speed in the loop
+        ha_opens = np.zeros(len(df))
+        ha_closes = ha_df['close'].values
+        standard_opens = df['open'].values
+        standard_closes = df['close'].values
+        
+        # First HA Open is the average of the first standard candle's open and close
+        ha_opens[0] = (standard_opens[0] + standard_closes[0]) / 2
+        
+        for i in range(1, len(df)):
+            ha_opens[i] = (ha_opens[i-1] + ha_closes[i-1]) / 2
+            
+        ha_df['open'] = ha_opens
+        
+        # 3. HA High = Max(High, HA_Open, HA_Close)
+        ha_df['high'] = ha_df[['high', 'open', 'close']].max(axis=1)
+        
+        # 4. HA Low = Min(Low, HA_Open, HA_Close)
+        ha_df['low'] = ha_df[['low', 'open', 'close']].min(axis=1)
+        
+        return ha_df
+    
+
+    def get_history(self, timeframe='5', days=5, strategy_obj=None, candle_type='normal'):
         """
         Fetches historical data and calculates SMA 50/200 crossover + customizable indicators.
         """
@@ -23,7 +57,7 @@ class Backtester:
         # Buffer: Indicator stability needs history
         buffer_days = days + 400
         start_time = end_time - datetime.timedelta(days=buffer_days)
-
+            
         try:
             shoonya_service.ensure_session(
                 getattr(shoonya_service, "session_token", None)
@@ -81,6 +115,9 @@ class Backtester:
             for col in ['open', 'high', 'low', 'close']:
                 df[col] = pd.to_numeric(df[col], errors='coerce').astype(float) # Forced float cast
 
+            if candle_type == 'heikin_ashi':
+                df = self.to_heikin_ashi(df)
+        
             # 2. Get Periods from Strategy or Defaults
             ema_p = getattr(strategy_obj, 'ema_period', 50)
             sma_p = getattr(strategy_obj, 'sma_period', 200)
@@ -88,6 +125,9 @@ class Backtester:
 
             # 3. Dynamic Indicators (Using the names your chart expects)
             df['ema50'] = df['close'].ewm(span=ema_p, adjust=False).mean()
+            df['ema21'] = df['close'].ewm(span=21, adjust=False).mean()
+            df['sma20'] = df['close'].rolling(window=20).mean()
+            df['sma50'] = df['close'].rolling(window=50).mean()
             df['sma200'] = df['close'].rolling(window=sma_p).mean()
             
             # RSI Calculation
@@ -99,20 +139,54 @@ class Backtester:
             # 4. Strategy Logic: Recorded Conditions
             df['signal'] = None
             for i in range(1, len(df)):
-                if pd.isna(df['ema50'][i]) or pd.isna(df['sma200'][i]) or pd.isna(df['rsi14'][i]):
+                # Verify parameters exist for the current row
+                if pd.isna(df['sma200'][i]) or pd.isna(df['sma50'][i]):
                     continue
+                    
+                # Strategy Logic using model parameters
+                bullish_filter = (df['close'][i] > df['sma200'][i]) and (df['sma50'][i] > df['sma200'][i])
+                ema_cross_up = (df['ema21'][i] > df['sma50'][i]) and (df['ema21'][i-1] <= df['sma50'][i-1])
                 
-                # LONG ENTRY: EMA crosses above SMA AND RSI < 30
-                cross_above = df['ema50'][i] > df['sma200'][i] and df['ema50'][i-1] <= df['sma200'][i-1]
-                if cross_above and df['rsi14'][i] < 30:
+                if bullish_filter and ema_cross_up:
                     df.at[i, 'signal'] = 'BUY'
-                
-                # EXIT/SHORT: EMA crosses below SMA
-                cross_below = df['ema50'][i] < df['sma200'][i] and df['ema50'][i-1] >= df['sma200'][i-1]
-                if cross_below:
-                    df.at[i, 'signal'] = 'SELL'
-
             return df.tail(days + 50).copy().reset_index(drop=True)
         except Exception as e:
             logger.exception("Engine Failure")
             return None
+        
+
+    def calculate_advanced_signals(df, strategy_obj=None):
+        """
+        Implements testing logic for EMA 21, SMA 20, SMA 50, and SMA 200.
+        """
+        # 1. Calculate Indicators
+        df['ema21'] = df['close'].ewm(span=21, adjust=False).mean()
+        df['sma20'] = df['close'].rolling(window=20).mean()
+        df['sma50'] = df['close'].rolling(window=50).mean()
+        df['sma200'] = df['close'].rolling(window=200).mean()
+        
+        # 2. Strategy Logic: The "Triple Filter"
+        df['signal'] = None
+        
+        for i in range(1, len(df)):
+            # Ensure we have enough data for the SMA 200
+            if pd.isna(df['sma200'][i]):
+                continue
+                
+            # BUY LOGIC: 
+            # 1. Price is above SMA 200 (Long-term Bullish)
+            # 2. EMA 21 crosses above SMA 20
+            # 3. SMA 20 is above SMA 50
+            bullish_filter = (df['close'][i] > df['sma200'][i]) and (df['sma20'][i] > df['sma50'][i])
+            ema_cross_up = (df['ema21'][i] > df['sma20'][i]) and (df['ema21'][i-1] <= df['sma20'][i-1])
+            
+            if bullish_filter and ema_cross_up:
+                df.at[i, 'signal'] = 'BUY'
+                
+            # SELL LOGIC (Exit):
+            # Exit when EMA 21 crosses below SMA 20
+            ema_cross_down = (df['ema21'][i] < df['sma20'][i]) and (df['ema21'][i-1] >= df['sma20'][i-1])
+            if ema_cross_down:
+                df.at[i, 'signal'] = 'SELL'
+                
+        return df

@@ -67,28 +67,45 @@ def backtest_view(request):
     if 'shoonya_token' not in request.session:
         return redirect('login')
 
-    timeframe = request.GET.get('timeframe', 'D')
-    timeline = int(request.GET.get('timeline', '365'))
+    all_strategies = Strategy.objects.all()
+
+    timeframe = request.GET.get('timeframe', '5')  # Candle size: 1, 3, 5, 15, 60, D
+    timeline = int(request.GET.get('timeline', '5')) # Period: 5 (days), 30, 90, 180, 365, 730
+    candle_type = request.GET.get('candle_type', 'normal') # normal or heikin_ashi
+    
     token = request.session.get('shoonya_token')
     shoonya_service.session_token = token
+
     shoonya_service.get_nifty_price('26000', session_token=token)
 
     # engine = Backtester(token='26000')
     # df = engine.get_history(timeframe=timeframe, days=timeline)
     strategy_id = request.GET.get('strategy_id')
     strategy_obj = None
-    if strategy_id:
+
+    if strategy_id and strategy_id != 'None':
         strategy_obj = get_object_or_404(Strategy, pk=strategy_id)
-        # Use the strategy's specific token and exchange
+    
+    # 3. Handle Parameter Access Safely
+    if strategy_obj:
+        # Verify parameters only if a strategy exists
+        if strategy_obj.ema_period <= 0 or strategy_obj.sma_period <= 0:
+            messages.error(request, f"Invalid parameters for {strategy_obj.name}. Please check settings.")
+            return redirect('strategy_list')
+        
         token = strategy_obj.token
-        exchange = strategy_obj.exchange 
+        exchange = strategy_obj.exchange
     else:
+        # Fallback for "General" backtest (No strategy selected)
         token = '26000'
         exchange = 'NSE'
+        # Optional: Create a dummy object or just use defaults in the engine
+        strategy_obj = None
 
-    engine = Backtester(token=token, exchange=exchange)
-    df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj)
-
+        
+    engine = Backtester(token=token, exchange=exchange) 
+    # df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj)
+    df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj, candle_type=candle_type)
     if df is None or df.empty:
         messages.error(request, "Unable to fetch market data.")
         return render(request, 'trading/backtest.html', {'candles_json': '[]', 'current_tf': timeframe, 'current_tl': timeline})
@@ -121,8 +138,8 @@ def backtest_view(request):
 
     trades = []
     active_trade = None
-    candles, sma50, sma200, ema9, ema21, sma20, rsi14, markers = [], [], [], [], [], [], [], []
-
+    candles, ema_data, sma200_data, rsi_data, markers = [], [], [], [], []
+    ema21_data, sma20_data, sma50_data = [], [], []
     for row in df.itertuples():
         t = int(row.time_dt.timestamp())
         curr_close = float(row.close)
@@ -141,6 +158,10 @@ def backtest_view(request):
         if hasattr(row, 'rsi14') and not np.isnan(row.rsi14): 
             rsi_data.append({'time': t, 'value': float(row.rsi14)})
             
+
+        if not np.isnan(row.ema21): ema21_data.append({'time': t, 'value': float(row.ema21)})
+        if not np.isnan(row.sma20): sma20_data.append({'time': t, 'value': float(row.sma20)})
+        if not np.isnan(row.sma50): sma50_data.append({'time': t, 'value': float(row.sma50)})
         # 3. Strategy Signals
         # if hasattr(row, 'signal'):
         #     if row.signal == 'BUY':
@@ -180,9 +201,13 @@ def backtest_view(request):
         # 'markers_json': json.dumps(markers) if markers else '[]',
         # 'current_tf': timeframe, 
         # 'current_tl': timeline
+        'all_strategies': all_strategies,
         'strategy': strategy_obj,
         'candles_json': json.dumps(candles),
         'ema9_json': json.dumps(ema_data),     # This feeds the 'EMA 9' button on UI
+        'ema21_json': json.dumps(ema21_data), # NEW
+        'sma20_json': json.dumps(sma20_data), # NEW
+        'sma50_json': json.dumps(sma50_data),
         'sma200_json': json.dumps(sma200_data), # This feeds the 'SMA 200' button on UI
         'rsi_json': json.dumps(rsi_data),       # This feeds the 'RSI 14' button on UI
         'markers_json': json.dumps(markers),
@@ -218,13 +243,17 @@ def strategy_upsert(request, pk=None):
         symbol = request.POST.get('symbol')
         token = request.POST.get('token')
         exch = request.POST.get('exchange', 'NSE')
-        
+        ema_p = request.POST.get('ema_period', 21)
+        sma_p = request.POST.get('sma_period', 200)
+
         if strategy:
             # Update
             strategy.name = name
             strategy.symbol = symbol
             strategy.token = token
             strategy.exchange = exch
+            strategy.ema_period = ema_p
+            strategy.sma_period = sma_p
             strategy.save()
             messages.success(request, f"Strategy '{name}' updated.")
         else:

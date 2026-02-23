@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
     <meta charset="UTF-8">
     <title>Strategy Analytics | AlgoLab</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,47 +37,85 @@
             <a href="/logout/" class="text-rose-400 text-xs font-bold uppercase">Logout</a>
         </div>
     </nav>
-
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="p-3 mb-4 rounded bg-red-500/10 text-red-400 text-sm border border-red-500/20">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
     <main class="max-w-[1600px] mx-auto mt-8 px-6 grid grid-cols-12 gap-6">
         
         <!-- Sidebar: Configuration -->
         <div class="col-span-12 lg:col-span-3 space-y-6">
             <div class="card p-6">
-                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Strategy Details</h2>
-                <div class="mb-6">
-                    <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Active Strategy</label>
-                    <div class="text-xl font-bold text-white">{{ strategy.name|default:"RSI-EMA Scalper Pro" }}</div>
-                    <div class="text-xs text-blue-400 font-mono mt-1">{{ strategy.symbol|default:"NIFTY 50" }} ({{ strategy.exchange|default:"NSE" }})</div>
-                </div>
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Select Strategy</h2>
+                <form method="GET" action="." id="strategy-selector-form" class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Active Setup</label>
+                        <select name="strategy_id" class="form-input" onchange="this.form.submit()">
+                            {% for strat in all_strategies %}
+                            <option value="{{ strat.id }}" {% if strategy.id == strat.id %}selected{% endif %}>
+                                {{ strat.name }}
+                            </option>
+                            {% empty %}
+                            <option disabled>No strategies found</option>
+                            {% endfor %}
+                        </select>
+                        <!-- <div class="text-xs text-blue-400 font-mono mt-2">
+                            {{ strategy.symbol }} ({{ strategy.exchange }})
+                        </div> -->
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-900/20 mt-4">
+                        Run Detailed Backtest
+                    </button>
+                </form>
+                <hr class="border-[#30363d] my-4">
+            </div>
+            <div class="card p-6">    
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Select TimeFrame</h2>
 
                 <form method="GET" action="." id="backtest-form" class="space-y-4">
                     <input type="hidden" name="strategy_id" value="{{ strategy.id }}">
                     
                     <div>
-                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Select Time Range</label>
-                        <select name="timeline" id="timeline-select" class="form-input" onchange="toggleCustomRange(this.value)">
-                            <option value="30">1 Month</option>
-                            <option value="90">3 Months</option>
-                            <option value="180">6 Months</option>
-                            <option value="365" selected>1 Year</option>
-                            <option value="730">2 Years</option>
-                            <option value="custom">Custom Range</option>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Lookback Period</label>
+                        <select name="timeline" class="form-input">
+                            <option value="5" {% if current_tl == 5 %}selected{% endif %}>5 Days</option>
+                            <option value="30" {% if current_tl == 30 %}selected{% endif %}>1 Month</option>
+                            <option value="90" {% if current_tl == 90 %}selected{% endif %}>3 Months</option>
+                            <option value="180" {% if current_tl == 180 %}selected{% endif %}>6 Months</option>
+                            <option value="365" {% if current_tl == 365 %}selected{% endif %}>1 Year</option>
+                            <option value="730" {% if current_tl == 730 %}selected{% endif %}>2 Years</option>
                         </select>
                     </div>
 
-                    <div id="custom-range-inputs" class="hidden grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[9px] text-gray-500">From</label>
-                            <input type="date" name="from_date" class="form-input text-[11px]">
-                        </div>
-                        <div>
-                            <label class="text-[9px] text-gray-500">To</label>
-                            <input type="date" name="to_date" class="form-input text-[11px]">
-                        </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Candle Size</label>
+                        <select name="timeframe" class="form-input">
+                            <option value="1" {% if current_tf == '1' %}selected{% endif %}>1 Min</option>
+                            <option value="3" {% if current_tf == '3' %}selected{% endif %}>3 Min</option>
+                            <option value="5" {% if current_tf == '5' %}selected{% endif %}>5 Min</option>
+                            <option value="15" {% if current_tf == '15' %}selected{% endif %}>15 Min</option>
+                            <option value="30" {% if current_tf == '30' %}selected{% endif %}>30 Min</option>
+                            <option value="60" {% if current_tf == '60' %}selected{% endif %}>1 Hour</option>
+                            <option value="180" {% if current_tf == '180' %}selected{% endif %}>3 Hour</option>
+                            <option value="D" {% if current_tf == 'D' %}selected{% endif %}>1 Day</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Candle Type</label>
+                        <select name="candle_type" class="form-input">
+                            <option value="normal" {% if candle_type == 'normal' %}selected{% endif %}>Standard Candles</option>
+                            <option value="heikin_ashi" {% if candle_type == 'heikin_ashi' %}selected{% endif %}>Heikin-Ashi</option>
+                        </select>
                     </div>
 
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-900/20 mt-4">
-                        Run Detailed Backtest
+                        Change Timeframe
                     </button>
                 </form>
             </div>
@@ -170,9 +209,10 @@
                 sma200: {{ sma200_json|safe|default:"[]" }},
                 rsi: {{ rsi_json|safe|default:"[]" }},
                 // Initialize others as empty if not provided by this strategy
-                ema21: [],
-                sma20: [],
-                sma50: []
+                ema21: {{ ema21_json|safe|default:"[]" }},
+                sma20: {{ sma20_json|safe|default:"[]" }},
+                sma50: {{ sma50_json|safe|default:"[]" }},
+
             }
         };
 
