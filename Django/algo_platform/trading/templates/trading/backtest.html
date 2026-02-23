@@ -67,6 +67,43 @@
                             {{ strategy.symbol }} ({{ strategy.exchange }})
                         </div> -->
                     </div>
+
+                    <input type="hidden" name="strategy_id" value="{{ strategy.id }}">
+                    
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Lookback Period</label>
+                        <select name="timeline" class="form-input">
+                            <option value="5" {% if current_tl == 5 %}selected{% endif %}>5 Days</option>
+                            <option value="30" {% if current_tl == 30 %}selected{% endif %}>1 Month</option>
+                            <option value="90" {% if current_tl == 90 %}selected{% endif %}>3 Months</option>
+                            <option value="180" {% if current_tl == 180 %}selected{% endif %}>6 Months</option>
+                            <option value="365" {% if current_tl == 365 %}selected{% endif %}>1 Year</option>
+                            <option value="730" {% if current_tl == 730 %}selected{% endif %}>2 Years</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Candle Size</label>
+                        <select name="timeframe" class="form-input">
+                            <option value="1" {% if current_tf == '1' %}selected{% endif %}>1 Min</option>
+                            <option value="3" {% if current_tf == '3' %}selected{% endif %}>3 Min</option>
+                            <option value="5" {% if current_tf == '5' %}selected{% endif %}>5 Min</option>
+                            <option value="15" {% if current_tf == '15' %}selected{% endif %}>15 Min</option>
+                            <option value="30" {% if current_tf == '30' %}selected{% endif %}>30 Min</option>
+                            <option value="60" {% if current_tf == '60' %}selected{% endif %}>1 Hour</option>
+                            <option value="180" {% if current_tf == '180' %}selected{% endif %}>3 Hour</option>
+                            <option value="D" {% if current_tf == 'D' %}selected{% endif %}>1 Day</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Candle Type</label>
+                        <select name="candle_type" class="form-input">
+                            <option value="normal" {% if candle_type == 'normal' %}selected{% endif %}>Standard Candles</option>
+                            <option value="heikin_ashi" {% if candle_type == 'heikin_ashi' %}selected{% endif %}>Heikin-Ashi</option>
+                        </select>
+                    </div>
+
                     
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-900/20 mt-4">
                         Run Detailed Backtest
@@ -273,61 +310,89 @@
 
         // 3. Populate Trade Log & Analytics
         function processAnalytics() {
-            const logBody = document.getElementById('trade-log-body');
-            let totalPnl = 0;
-            let wins = 0;
-            let losses = 0;
-            let grossProfit = 0;
-            let grossLoss = 0;
+    const logBody = document.getElementById('trade-log-body');
+    logBody.innerHTML = '';
 
-            data.trades.forEach(trade => {
-                totalPnl += trade.pnl;
-                const isWin = trade.pnl >= 0;
-                if (isWin) {
-                    wins++;
-                    grossProfit += trade.pnl;
-                } else {
-                    losses++;
-                    grossLoss += Math.abs(trade.pnl);
-                }
+    let totalPnl = 0;
+    let wins = 0;
+    let losses = 0;
+    let grossProfit = 0;
+    let grossLoss = 0;
 
-                const row = `
-                    <tr class="table-row border-b border-[#161b22]">
-                        <td class="py-4 font-bold ${trade.side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}">${trade.side}</td>
-                        <td class="py-4">
-                            <div class="text-white">${trade.entry_price}</div>
-                            <div class="text-[10px] text-gray-500">${trade.entry_time}</div>
-                        </td>
-                        <td class="py-4">
-                            <div class="text-white">${trade.exit_price}</div>
-                            <div class="text-[10px] text-gray-500">${trade.exit_time}</div>
-                        </td>
-                        <td class="py-4 text-right font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">
-                            ${isWin ? '+' : ''}${trade.pnl.toFixed(2)}
-                        </td>
-                        <td class="py-4 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
-                                ${isWin ? 'Profit' : 'Loss'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-                logBody.insertAdjacentHTML('beforeend', row);
-            });
+    const trades = data.trades || [];
 
-            // Update Metrics UI
-            const totalTrades = data.trades.length;
-            const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : 0;
-            const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : grossProfit;
+    if (!trades.length) {
+        logBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-6 text-center text-gray-500">
+                    No trades executed in this period.
+                </td>
+            </tr>
+        `;
+    }
 
-            document.getElementById('metric-total-pnl').innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
-            document.getElementById('metric-total-pnl').className = `text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-            document.getElementById('metric-win-rate').innerText = winRate + '%';
-            document.getElementById('metric-total-trades').innerText = totalTrades;
-            document.getElementById('metric-pf').innerText = profitFactor;
-            document.getElementById('count-wins').innerText = wins;
-            document.getElementById('count-losses').innerText = losses;
+    trades.forEach(trade => {
+        const pnl = parseFloat(trade.pnl) || 0;
+        const isWin = pnl >= 0;
+
+        totalPnl += pnl;
+
+        if (isWin) {
+            wins++;
+            grossProfit += pnl;
+        } else {
+            losses++;
+            grossLoss += Math.abs(pnl);
         }
+
+        const row = `
+            <tr class="table-row border-b border-[#161b22]">
+                <td class="py-4 font-bold ${trade.side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}">
+                    ${trade.side}
+                </td>
+                <td class="py-4">
+                    <div class="text-white">${trade.entry_price}</div>
+                    <div class="text-[10px] text-gray-500">${trade.entry_time}</div>
+                </td>
+                <td class="py-4">
+                    <div class="text-white">${trade.exit_price}</div>
+                    <div class="text-[10px] text-gray-500">${trade.exit_time}</div>
+                </td>
+                <td class="py-4 text-right font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">
+                    ${isWin ? '+' : ''}${pnl.toFixed(2)}
+                </td>
+                <td class="py-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase
+                        ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
+                        ${isWin ? 'Profit' : 'Loss'}
+                    </span>
+                </td>
+            </tr>
+        `;
+        logBody.insertAdjacentHTML('beforeend', row);
+    });
+
+    const totalTrades = trades.length;
+    const winRate = totalTrades ? ((wins / totalTrades) * 100).toFixed(1) : 0;
+    const profitFactor = grossLoss > 0
+        ? (grossProfit / grossLoss).toFixed(2)
+        : (grossProfit > 0 ? "∞" : "0");
+
+    const pnlEl = document.getElementById('metric-total-pnl');
+    pnlEl.innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
+    pnlEl.className = `text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+    document.getElementById('metric-win-rate').innerText = winRate + '%';
+    document.getElementById('metric-total-trades').innerText = totalTrades;
+    document.getElementById('metric-pf').innerText = profitFactor;
+    document.getElementById('count-wins').innerText = wins;
+    document.getElementById('count-losses').innerText = losses;
+}
+    // Run AFTER everything is defined
+    window.addEventListener('load', function () {
+        processAnalytics();
+        resize();
+    });
 
         // 4. UI Helpers
         function toggleCustomRange(val) {

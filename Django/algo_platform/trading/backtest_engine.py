@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 class Backtester:
 
     def __init__(self, token='26000', exchange='NSE'):
-        self.token = token
-        self.exchange = exchange
+        self.token = str(token).strip()
+        self.exchange = exchange.strip().upper()
 
 
     def to_heikin_ashi(self, df):
@@ -89,8 +89,8 @@ class Backtester:
                 time.sleep(1)
 
             if ret is None:
-                raise RuntimeError("Shoonya API returned None")
-
+                logger.error(f"Shoonya returned None | Exchange: {self.exchange} | Token: {self.token} | Interval: {timeframe}")
+                raise RuntimeError( f"Shoonya returned None | Exchange: {self.exchange} | Token: {self.token} | Interval: {timeframe}")
             if not isinstance(ret, list):
                 raise RuntimeError("Invalid Shoonya response")
 
@@ -122,6 +122,7 @@ class Backtester:
             ema_p = getattr(strategy_obj, 'ema_period', 50)
             sma_p = getattr(strategy_obj, 'sma_period', 200)
             rsi_p = getattr(strategy_obj, 'rsi_period', 14)
+            rsi_low = getattr(strategy_obj, 'rsi_threshold', 30)
 
             # 3. Dynamic Indicators (Using the names your chart expects)
             df['ema50'] = df['close'].ewm(span=ema_p, adjust=False).mean()
@@ -143,12 +144,27 @@ class Backtester:
                 if pd.isna(df['sma200'][i]) or pd.isna(df['sma50'][i]):
                     continue
                     
-                # Strategy Logic using model parameters
-                bullish_filter = (df['close'][i] > df['sma200'][i]) and (df['sma50'][i] > df['sma200'][i])
-                ema_cross_up = (df['ema21'][i] > df['sma50'][i]) and (df['ema21'][i-1] <= df['sma50'][i-1])
-                
-                if bullish_filter and ema_cross_up:
+                ema_cross_up = (
+                    df['ema50'][i] > df['sma200'][i] and
+                    df['ema50'][i-1] <= df['sma200'][i-1]
+                )
+
+                ema_cross_down = (
+                    df['ema50'][i] < df['sma200'][i] and
+                    df['ema50'][i-1] >= df['sma200'][i-1]
+                )
+
+                # 🔥 TEMPORARILY REMOVE RSI FILTER FOR DEBUGGING
+                if ema_cross_up:
                     df.at[i, 'signal'] = 'BUY'
+
+                if ema_cross_down:
+                    df.at[i, 'signal'] = 'SELL'
+
+            buy_count = (df['signal'] == 'BUY').sum()
+            sell_count = (df['signal'] == 'SELL').sum()
+            print(f"DEBUG: BUY signals = {buy_count}, SELL signals = {sell_count}")
+            
             return df.tail(days + 50).copy().reset_index(drop=True)
         except Exception as e:
             logger.exception("Engine Failure")

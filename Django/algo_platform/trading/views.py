@@ -74,7 +74,9 @@ def backtest_view(request):
     candle_type = request.GET.get('candle_type', 'normal') # normal or heikin_ashi
     
     token = request.session.get('shoonya_token')
+    # 🔥 Force broker session before backtest
     shoonya_service.session_token = token
+    shoonya_service.ensure_session(token)
 
     shoonya_service.get_nifty_price('26000', session_token=token)
 
@@ -93,8 +95,12 @@ def backtest_view(request):
             messages.error(request, f"Invalid parameters for {strategy_obj.name}. Please check settings.")
             return redirect('strategy_list')
         
-        token = strategy_obj.token
-        exchange = strategy_obj.exchange
+        token = strategy_obj.token.strip()
+        exchange = strategy_obj.exchange.strip().upper()
+
+        # Hard safety
+        if token == "26000":
+            exchange = "NSE"
     else:
         # Fallback for "General" backtest (No strategy selected)
         token = '26000'
@@ -189,7 +195,18 @@ def backtest_view(request):
             })
             markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
             active_trade = None
-    
+    if active_trade:
+        final_price = float(df.iloc[-1]['close'])
+        pnl = final_price - active_trade['entry_price']
+        trades.append({
+            'side': active_trade['side'],
+            'entry_price': active_trade['entry_price'],
+            'exit_price': final_price,
+            'entry_time': active_trade['entry_time'],
+            'exit_time': df.iloc[-1]['time_dt'].strftime('%Y-%m-%d %H:%M'),
+            'pnl': round(pnl, 2)
+        })    
+    print(f"DEBUG: Total trades created = {len(trades)}")
     context = {
         # 'candles_json': json.dumps(candles) if candles else '[]',
         # 'sma50_json': json.dumps(sma50) if sma50 else '[]',
@@ -280,84 +297,3 @@ def strategy_viewer(request, pk):
         return redirect('login')
     strategy = get_object_or_404(Strategy, pk=pk)
     return render(request, 'trading/strategy_viewer.html', {'strat': strategy})
-
-# Add these to your views.py imports
-import datetime
-
-# def strategy_backtest_view(request, pk):
-#     if 'shoonya_token' not in request.session:
-#         return redirect('login')
-
-#     strategy = get_object_or_404(Strategy, pk=pk)
-#     timeline = int(request.GET.get('timeline', '365'))
-#     timeframe = request.GET.get('timeframe', 'D')
-
-#     engine = Backtester(token=strategy.token, exchange=strategy.exchange)
-#     df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy)
-
-#     if df is None or df.empty:
-#         messages.error(request, "Market data unavailable for this instrument.")
-#         return redirect('strategy_list')
-
-#     # --- Date Formatting (Matching your existing logic) ---
-#     if timeframe == 'D':
-#         df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y', errors='coerce')
-#     else:
-#         df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y %H:%M:%S', errors='coerce')
-    
-#     df = df.dropna(subset=['time_dt']).sort_values("time_dt").reset_index(drop=True)
-
-#     # --- Trade Simulation Logic ---
-#     trades = []
-#     active_trade = None
-    
-#     # Track data for Chart
-#     candles, ema50, sma200, rsi14, markers = [], [], [], [], []
-
-#     for row in df.itertuples():
-#         t = int(row.time_dt.timestamp())
-#         price = float(row.close)
-        
-#         # 1. Populate Chart Data
-#         candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': price})
-#         if not np.isnan(row.ema50): ema50.append({'time': t, 'value': float(row.ema50)})
-#         if not np.isnan(row.sma200): sma200.append({'time': t, 'value': float(row.sma200)})
-#         if not np.isnan(row.rsi14): rsi14.append({'time': t, 'value': float(row.rsi14)})
-
-#         # 2. Process Signals & Simulate Trades
-#         signal = getattr(row, 'signal', None)
-        
-#         if signal == 'BUY' and not active_trade:
-#             active_trade = {
-#                 'side': 'BUY',
-#                 'entry_price': price,
-#                 'entry_time': row.time_dt.strftime('%Y-%m-%d %H:%M'),
-#                 'entry_ts': t
-#             }
-#             markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-
-#         elif signal == 'SELL' and active_trade:
-#             pnl = price - active_trade['entry_price']
-#             trades.append({
-#                 'side': active_trade['side'],
-#                 'entry_price': active_trade['entry_price'],
-#                 'exit_price': price,
-#                 'entry_time': active_trade['entry_time'],
-#                 'exit_time': row.time_dt.strftime('%Y-%m-%d %H:%M'),
-#                 'pnl': round(pnl, 2)
-#             })
-#             markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
-#             active_trade = None
-
-#     context = {
-#         'strategy': strategy,
-#         'candles_json': json.dumps(candles),
-#         'ema9_json': json.dumps(ema50), # Mapping EMA50 to the 'ema9' slot in your template
-#         'sma200_json': json.dumps(sma200),
-#         'rsi_json': json.dumps(rsi14),
-#         'markers_json': json.dumps(markers),
-#         'trades_json': json.dumps(trades),
-#         'current_tf': timeframe,
-#         'current_tl': timeline
-#     }
-#     return render(request, 'trading/strategy_backtest.html', context)
