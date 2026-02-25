@@ -1,0 +1,56 @@
+:root {
+    --primary: #0d6efd;
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    transition: background 0.3s ease;
+}
+
+.ls-2 { letter-spacing: 2px; }
+.ls-5 { letter-spacing: 5px; }
+.fw-black { font-weight: 900; }
+.x-small { font-size: 0.75rem; }
+
+.border-dashed {
+    border: 2px dashed #dee2e6;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.border-dashed:hover {
+    border-color: var(--primary);
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.card {
+    border-radius: 1.25rem;
+    transition: transform 0.2s;
+}
+
+pre {
+    margin: 0;
+    padding: 1rem;
+    background: #1e1e1e !important;
+    color: #fff;
+    font-size: 0.85rem;
+    overflow-x: auto;
+}
+
+#accessCode {
+    font-size: 1.5rem;
+    font-weight: 900;
+}
+
+/* Animations */
+.animate-fade-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+[data-bs-theme="dark"] .bg-light { background-color: #2b3035 !important; }
+[data-bs-theme="dark"] .card { background-color: #212529; border: 1px solid #373b3e; }
