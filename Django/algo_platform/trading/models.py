@@ -9,17 +9,19 @@ class Strategy(models.Model):
     is_active = models.BooleanField(default=False)
     
     # Strategy Parameters
-    ema_period = models.IntegerField(default=50)
-    sma_period = models.IntegerField(default=200)
-    rsi_period = models.IntegerField(default=14)
-    rsi_threshold = models.IntegerField(default=30) # For your "RSI < 30" rule
+    # ema_period = models.IntegerField(default=50)
+    # sma_period = models.IntegerField(default=200)
+    # rsi_period = models.IntegerField(default=14)
+    # rsi_threshold = models.IntegerField(default=30) # For your "RSI < 30" rule
+    
+    logic_config = models.JSONField(default=dict, blank=True)
     
     # Risk & Execution
     sl_pct = models.FloatField(default=1.0)
     target_pct = models.FloatField(default=2.0)
     start_time = models.TimeField(default="09:15")
     square_off = models.TimeField(default="15:15")
-    
+
     class Meta:
         verbose_name_plural = "Strategies"
 

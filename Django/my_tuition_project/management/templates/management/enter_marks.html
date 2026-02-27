@@ -2,114 +2,169 @@
 {% load custom_tags %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Header with Test Meta Data -->
-    <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="text-uppercase text-info mb-1" style="letter-spacing: 1px;">Marks Entry Portal</h6>
-                <h2 class="fw-bold mb-0">{{ test.test_name }}</h2>
-                <div class="mt-2">
-                    <span class="badge bg-primary me-2"><i class="bi bi-book me-1"></i> {{ test.subject.name }}</span>
-                    <span class="badge bg-secondary me-2"><i class="bi bi-people me-1"></i> {{ test.batch.name }}</span>
-                    <span class="badge bg-light text-dark"><i class="bi bi-calendar-event me-1"></i> {{ test.date_held }}</span>
-                </div>
-            </div>
-            <div class="text-end">
-                <div class="display-6 fw-bold text-info">{{ test.max_marks }}</div>
-                <div class="small text-uppercase text-white-50">Maximum Marks</div>
-            </div>
-        </div>
+
+<style>
+.marks-header {
+background: var(--sidebar-bg);
+color: white;
+border-radius: 20px;
+padding: 32px;
+margin-bottom: 32px;
+border-bottom: 4px solid #0d6efd;
+}
+
+.marks-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.marks-input {
+    background: var(--bg-main);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px;
+    font-weight: 800;
+    text-align: center;
+    transition: 0.2s;
+    width: 100px;
+}
+.marks-input:focus {
+    border-color: #0d6efd;
+    outline: none;
+    background: var(--card-bg);
+}
+
+.progress-track {
+    background: var(--bg-main);
+    height: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table-marks thead th {
+    background: var(--bg-main);
+    padding: 16px 24px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+
+</style>
+
+<div class="container-fluid">
+<!-- Header -->
+<div class="marks-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+<div>
+<div class="d-flex align-items-center gap-2 mb-2">
+<span class="badge bg-primary rounded-pill px-3">MARK ENTRY PORTAL</span>
+<span class="text-white-50 small fw-bold text-uppercase">{{ test.date_held|date:"d M Y" }}</span>
+</div>
+<h1 class="fw-bold mb-0 text-white">{{ test.test_name }}</h1>
+<p class="mb-0 text-white-50 fw-medium mt-1">
+{{ test.subject.name }} • {{ test.batch.name }}
+</p>
+</div>
+<div class="bg-white bg-opacity-10 p-3 rounded-4 border border-white border-opacity-10 text-center" style="min-width: 140px;">
+<div class="h2 fw-bold mb-0 text-info">{{ test.max_marks }}</div>
+<div class="extra-small text-uppercase fw-bold opacity-50" style="font-size: 0.6rem;">Maximum Marks</div>
+</div>
+</div>
+
+<form method="POST" class="marks-card">
+    {% csrf_token %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-marks">
+            <thead>
+                <tr>
+                    <th class="ps-5">Student Identity</th>
+                    <th class="text-center">Score</th>
+                    <th class="text-center">Result</th>
+                    <th class="pe-5" style="width: 300px;">Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in test.batch.students.all %}
+                {% with score=existing_marks|get_item:student.id %}
+                <tr>
+                    <td class="ps-5">
+                        <div class="fw-bold">{{ student.username }}</div>
+                        <div class="extra-small text-muted">Grade: {{ student.current_grade }} • #{{ student.id }}</div>
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <input type="number" step="0.5" max="{{ test.max_marks }}" 
+                                   name="marks_{{ student.id }}" 
+                                   id="m_{{ student.id }}"
+                                   class="marks-input" 
+                                   value="{{ score|default:'' }}"
+                                   oninput="updateUI('{{ student.id }}', {{ test.max_marks }})">
+                            <span class="text-muted fw-bold">/ {{ test.max_marks }}</span>
+                        </div>
+                    </td>
+                    <td class="text-center" id="s_{{ student.id }}">
+                        <span class="badge bg-secondary">Pending</span>
+                    </td>
+                    <td class="pe-5">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="progress-track flex-grow-1">
+                                <div id="b_{{ student.id }}" class="progress-bar" role="progressbar" style="width: 0%; height: 100%;"></div>
+                            </div>
+                            <span id="p_{{ student.id }}" class="fw-bold small" style="min-width: 45px;">0%</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <form method="POST">
-        {% csrf_token %}
-        <div class="card shadow-sm border-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Student Details</th>
-                            <th class="text-center">Marks Obtained</th>
-                            <th class="text-center">Percentage</th>
-                            <th>Status</th>
-                            <th class="pe-4">Progress Bar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in test.batch.students.all %}
-                        {% with score=existing_marks|get_item:student.id %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold">{{ student.username }}</div>
-                                <div class="small text-muted">ID: #{{ student.id|add:"1000" }} | {{ student.year_of_study }}</div>
-                            </td>
-                            <td class="text-center" style="width: 200px;">
-                                <div class="input-group">
-                                    <input type="number" step="0.5" max="{{ test.max_marks }}" 
-                                           name="marks_{{ student.id }}" 
-                                           id="m_{{ student.id }}"
-                                           class="form-control text-center fw-bold border-primary" 
-                                           value="{{ score|default:'' }}"
-                                           oninput="updateUI('{{ student.id }}', {{ test.max_marks }})">
-                                    <span class="input-group-text">/{{ test.max_marks }}</span>
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <span id="p_{{ student.id }}" class="fw-bold">0%</span>
-                            </td>
-                            <td id="s_{{ student.id }}">
-                                <span class="badge bg-secondary">Pending</span>
-                            </td>
-                            <td class="pe-4" style="width: 250px;">
-                                <div class="progress" style="height: 8px;">
-                                    <div id="b_{{ student.id }}" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endwith %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="card-footer bg-white border-0 d-flex justify-content-between py-3">
-                <a href="{% url 'batch_detail' test.batch.id %}" class="btn btn-outline-secondary px-4">Discard Changes</a>
-                <button type="submit" class="btn btn-primary px-5 fw-bold shadow">
-                    <i class="bi bi-cloud-upload me-2"></i>Finalize & Save Marks
-                </button>
-            </div>
-        </div>
-    </form>
+    <div class="p-4 bg-body-tertiary border-top d-flex justify-content-between gap-3">
+        <a href="{% url 'batch_detail' test.batch.id %}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel & Discard</a>
+        <button type="submit" class="btn btn-primary px-5 fw-bold rounded-pill shadow">
+            <i class="bi bi-cloud-upload-fill me-2"></i>Finalize Grade Sheet
+        </button>
+    </div>
+</form>
+
+
 </div>
 
 <script>
 function updateUI(id, max) {
-    const val = parseFloat(document.getElementById('m_' + id).value) || 0;
-    const perc = ((val / max) * 100).toFixed(1);
-    const pLabel = document.getElementById('p_' + id);
-    const sLabel = document.getElementById('s_' + id);
-    const bBar = document.getElementById('b_' + id);
+const val = parseFloat(document.getElementById('m_' + id).value) || 0;
+const perc = ((val / max) * 100).toFixed(1);
+const pLabel = document.getElementById('p_' + id);
+const sLabel = document.getElementById('s_' + id);
+const bBar = document.getElementById('b_' + id);
 
-    pLabel.innerText = perc + '%';
-    bBar.style.width = perc + '%';
+pLabel.innerText = perc + &#39;%&#39;;
+bBar.style.width = perc + &#39;%&#39;;
 
-    if (perc < 40) {
-        bBar.className = 'progress-bar bg-danger';
-        sLabel.innerHTML = '<span class="badge bg-danger">Fail</span>';
-    } else if (perc < 75) {
-        bBar.className = 'progress-bar bg-warning';
-        sLabel.innerHTML = '<span class="badge bg-warning text-dark">Pass</span>';
-    } else {
-        bBar.className = 'progress-bar bg-success';
-        sLabel.innerHTML = '<span class="badge bg-success">Distinction</span>';
-    }
+if (perc &lt; 40) {
+    bBar.className = &#39;progress-bar bg-danger&#39;;
+    sLabel.innerHTML = &#39;&lt;span class=&quot;badge bg-danger rounded-pill&quot;&gt;Fail&lt;/span&gt;&#39;;
+} else if (perc &lt; 75) {
+    bBar.className = &#39;progress-bar bg-warning&#39;;
+    sLabel.innerHTML = &#39;&lt;span class=&quot;badge bg-warning text-dark rounded-pill&quot;&gt;Pass&lt;/span&gt;&#39;;
+} else {
+    bBar.className = &#39;progress-bar bg-success&#39;;
+    sLabel.innerHTML = &#39;&lt;span class=&quot;badge bg-success rounded-pill&quot;&gt;Distinction&lt;/span&gt;&#39;;
 }
 
-// Initial update on page load
+
+}
+
 window.onload = function() {
-    {% for student in test.batch.students.all %}
-        updateUI('{{ student.id }}', {{ test.max_marks }});
-    {% endfor %}
+{% for student in test.batch.students.all %}
+updateUI('{{ student.id }}', {{ test.max_marks }});
+{% endfor %}
 };
 </script>
+
 {% endblock %}

@@ -22,3 +22,7 @@ def divide(value, arg):
     except (ValueError, TypeError):
         return 0
     
+
+@register.filter
+def split(value, arg):
+    return value.split(arg)

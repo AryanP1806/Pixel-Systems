@@ -37,16 +37,10 @@ CSRF_TRUSTED_ORIGINS = [
     'https://unannexed-helene-unbewailing.ngrok-free.dev',
 ]
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', 'unannexed-helene-unbewailing.ngrok-free.dev']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', 'unannexed-helene-unbewailing.ngrok-free.dev','DeekshantAcademy.pythonanywhere.com']
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
-
-STATIC_URL = 'static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
 
 
 MEDIA_URL = '/media/'
@@ -64,7 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'management',
-    
+
 ]
 
 MIDDLEWARE = [
@@ -72,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -143,7 +138,30 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+# 2. This is where your SOURCE files are (where you put your custom CSS/JS)
+# Make sure this folder is NOT named 'static' if STATIC_ROOT is 'static'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'), # Rename your local 'static' folder to 'assets'
+]
+
+# 3. This is where 'collectstatic' will GATHER everything for PythonAnywhere
+# This MUST be a different name than anything in STATICFILES_DIRS
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 5. Security Headers (Required for a "Premium" app)
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+X_FRAME_OPTIONS = 'DENY'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

@@ -39,6 +39,7 @@ def dashboard(request):
     context = {}
 
     context['notices'] = Notice.objects.filter(is_active=True).order_by('-created_at')[:3]
+    context['now'] = timezone.now()
 
     if user.is_student:
         context['recent_materials'] = StudyMaterial.objects.filter(
@@ -568,28 +569,122 @@ def bulk_student_upload(request):
         return redirect('student_list')
     return render(request, 'management/bulk_upload.html')
 
+
+# ... [Keep all your existing imports] ...
+from django.db import transaction
+from .models import User, Batch, FeeStructure, PaymentTransaction, Subject, Attendance, Test, Mark, BatchSubjectTeacher, Lecture
+
+@login_required
+@user_passes_test(is_owner)
+def batch_edit(request, batch_id):
+    """
+    Unified editor for batches. 
+    Allows changing the name, lead teacher, grade, and subject-faculty mappings.
+    """
+    batch = get_object_or_404(Batch, id=batch_id)
+    
+    if request.method == "POST":
+        batch.name = request.POST.get('name')
+        batch.grade = request.POST.get('grade')
+        batch.teacher_id = request.POST.get('main_teacher')
+        batch.save()
+
+        # Update Subject-Teacher mappings: Clear and Re-assign
+        BatchSubjectTeacher.objects.filter(batch=batch).delete()
+        batch.subjects.clear()
+
+        subject_ids = request.POST.getlist('subjects[]')
+        teacher_ids = request.POST.getlist('subject_teachers[]')
+
+        for sub_id, tech_id in zip(subject_ids, teacher_ids):
+            if sub_id and tech_id:
+                sub = Subject.objects.get(id=sub_id)
+                tech = User.objects.get(id=tech_id)
+                BatchSubjectTeacher.objects.create(batch=batch, subject=sub, teacher=tech)
+                batch.subjects.add(sub)
+
+        messages.success(request, f"Batch '{batch.name}' updated successfully.")
+        return redirect('batch_detail', batch_id=batch.id)
+
+    teachers = User.objects.filter(Q(is_teacher=True) | Q(is_owner=True))
+    subjects = Subject.objects.all()
+    current_mappings = BatchSubjectTeacher.objects.filter(batch=batch)
+    
+    return render(request, 'management/batch_form.html', {
+        'batch': batch,
+        'teachers': teachers,
+        'subjects': subjects,
+        'current_mappings': current_mappings,
+        'is_edit': True
+    })
+
+@login_required
 @user_passes_test(is_owner)
 def promote_students(request):
+    """
+    Advanced Session Transition:
+    1. Archives existing batches (students stay in archived version).
+    2. Swaps grade strings in names (e.g., '9th' -> '10th').
+    3. Creates new batches and moves students forward.
+    """
     if request.method == "POST":
-        # 1. Move students to next grade
-        students = User.objects.filter(is_student=True)
-        for student in students:
-            if student.current_grade < 12:
-                student.current_grade += 1
-                student.save()
-            else:
-                # Mark as Alumnus or deactivate if they passed 12th
-                student.is_active = False
-                student.save()
+        current_year = timezone.now().year
+        next_year = current_year + 1
         
-        # 2. Re-assign to new batches based on the new grade
-        for student in User.objects.filter(is_student=True, is_active=True):
-            new_batch = Batch.objects.filter(grade=student.current_grade).first()
-            if new_batch:
-                new_batch.students.add(student)
+        try:
+            with transaction.atomic():
+                grade_labels = {9: '10th Standard', 10: '11th Standard', 11: '12th Standard', 12: 'Alumni'}
+                active_batches = Batch.objects.exclude(name__startswith="[ARCHIVED")
                 
-        messages.success(request, "New academic year started! Students promoted.")
-        return redirect('dashboard')
+                for old_batch in active_batches:
+                    old_grade = old_batch.grade
+                    students_in_batch = list(old_batch.students.all())
+                    
+                    if old_grade < 12:
+                        new_grade = old_grade + 1
+                        
+                        # Find and Replace grade in name to avoid confusion
+                        new_name = old_batch.name.replace(f"{old_grade}th", f"{new_grade}th")
+                        new_name = new_name.replace(f"{old_grade} Standard", f"{new_grade} Standard")
+                        final_name = f"[{next_year}] {new_name}"
+                        
+                        # Create the new batch
+                        new_batch = Batch.objects.create(
+                            name=final_name,
+                            teacher=old_batch.teacher,
+                            grade=new_grade
+                        )
+                        new_batch.students.set(students_in_batch)
+                        
+                        # Clone Subject Assignments
+                        for assign in BatchSubjectTeacher.objects.filter(batch=old_batch):
+                            BatchSubjectTeacher.objects.create(
+                                batch=new_batch, subject=assign.subject, teacher=assign.teacher
+                            )
+                            new_batch.subjects.add(assign.subject)
+
+                    # Archive old batch (Keep students linked for history)
+                    old_batch.name = f"[ARCHIVED {current_year}] {old_batch.name}"
+                    old_batch.save()
+
+                # Global Student Meta Update
+                for student in User.objects.filter(is_student=True, is_active=True):
+                    s_old_grade = student.current_grade
+                    if s_old_grade == 12:
+                        student.is_active = False
+                        student.year_of_study = f"Alumni ({current_year})"
+                    elif s_old_grade in [9, 10, 11]:
+                        student.current_grade += 1
+                        student.year_of_study = grade_labels.get(s_old_grade, f"{student.current_grade}th Standard")
+                    student.save()
+
+            messages.success(request, f"New Session {next_year} started! Names updated and students promoted.")
+            return redirect('batch_list')
+        except Exception as e:
+            messages.error(request, f"Critical failure: {str(e)}")
+            return redirect('promote_students')
+
+    return render(request, 'management/promote_confirm.html')
     
 
 @login_required
@@ -853,55 +948,104 @@ def finance_dashboard(request):
 
 from django.db import transaction
 
+
+from django.db import transaction
+from django.contrib import messages
+from django.utils import timezone
+from .models import User, Batch, FeeStructure
+
+
+from django.db import transaction
+from django.contrib import messages
+from django.utils import timezone
+from .models import User, Batch, FeeStructure, BatchSubjectTeacher
+
 @login_required
 @user_passes_test(is_owner)
 def promote_students(request):
+    """
+    Advanced Session Transition:
+    1. Archives existing batches (keeping students linked).
+    2. Creates new batches for the next grade.
+    3. Re-enrolls students into their corresponding next-level batches.
+    4. Promotes student grades and graduates 12th standard.
+    """
     if request.method == "POST":
-        # We use a transaction to ensure either everything moves or nothing moves (no partial data)
-        with transaction.atomic():
-            active_students = User.objects.filter(is_student=True, is_active=True)
-            
-            for student in active_students:
-                if student.current_grade == 9:
-                    # Promote 9 -> 10
-                    student.current_grade = 10
-                    student.year_of_study = "10th Standard"
-                    student.save()
+        current_year = timezone.now().year
+        next_year = current_year + 1
+        
+        try:
+            with transaction.atomic():
+                # 1. Map for standard labels
+                grade_labels = {
+                    9: '10th Standard',
+                    10: '11th Standard',
+                    11: '12th Standard',
+                    12: 'Passed Out / Alumni'
+                }
+
+                # 2. Process all active batches
+                # We exclude already archived batches to prevent double-archiving
+                active_batches = Batch.objects.exclude(name__startswith="[ARCHIVED")
+                
+                for old_batch in active_batches:
+                    old_grade = old_batch.grade
+                    students_in_batch = list(old_batch.students.all())
                     
-                    # Automatically create New Year Fee Structure
-                    FeeStructure.objects.create(
-                        student=student,
-                        total_amount=15000, # Default or you can make this a setting
-                        due_date=timezone.now().date() + timezone.timedelta(days=30),
-                        description=f"Annual Fees - 10th Standard (Promoted)"
-                    )
-                
-                elif student.current_grade == 10:
-                    # You don't teach 11th. Mark as finished.
-                    student.is_active = False
-                    student.save()
-                
-                elif student.current_grade == 12:
-                    # Finished 12th. Mark as Alumni.
-                    student.is_active = False
+                    # Create the New Batch for the next grade (if not graduating)
+                    if old_grade < 12:
+                        new_grade = old_grade + 1
+                        new_batch_name = f"[{next_year}] {old_batch.name}"
+                        
+                        # Create mirror batch
+                        new_batch = Batch.objects.create(
+                            name=new_batch_name,
+                            teacher=old_batch.teacher,
+                            grade=new_grade
+                        )
+                        
+                        # Transfer Students to the new batch
+                        new_batch.students.set(students_in_batch)
+                        
+                        # Transfer Subject/Teacher assignments if they exist
+                        assignments = BatchSubjectTeacher.objects.filter(batch=old_batch)
+                        for assign in assignments:
+                            BatchSubjectTeacher.objects.create(
+                                batch=new_batch,
+                                subject=assign.subject,
+                                teacher=assign.teacher
+                            )
+                            # Add subjects to the many-to-many field in new batch
+                            new_batch.subjects.add(assign.subject)
+
+                    # Archive the old batch (but DO NOT clear students)
+                    old_batch.name = f"[ARCHIVED {current_year}] {old_batch.name}"
+                    old_batch.save()
+
+                # 3. Update Individual Student Metadata
+                # We do this globally for all active students
+                all_students = User.objects.filter(is_student=True, is_active=True)
+                for student in all_students:
+                    s_old_grade = student.current_grade
+                    
+                    if s_old_grade == 12:
+                        student.is_active = False
+                        student.year_of_study = f"Alumni ({current_year})"
+                    elif s_old_grade in [9, 10, 11]:
+                        new_grade = s_old_grade + 1
+                        student.current_grade = new_grade
+                        student.year_of_study = grade_labels.get(s_old_grade, f"{new_grade}th Standard")
+                    
                     student.save()
 
-            # Archive Batches: Rename current batches and clear their students
-            # This keeps the history of the batch name but readies the system for new year
-            current_batches = Batch.objects.all()
-            for batch in current_batches:
-                # Rename to archive
-                current_year = timezone.now().year
-                batch.name = f"[Archived {current_year}] {batch.name}"
-                batch.save()
-                # Remove students so the new year batches are fresh
-                batch.students.clear()
+            messages.success(request, f"Academic Transition Complete! New batches for {next_year} have been created with existing student groups.")
+            return redirect('batch_list')
+            
+        except Exception as e:
+            messages.error(request, f"Critical failure during transition: {str(e)}")
+            return redirect('promote_students')
 
-        messages.success(request, "Academic Year Transition Complete! 9th graders promoted to 10th. 10th & 12th graders marked as finished. Old batches archived.")
-        return redirect('dashboard')
-    
     return render(request, 'management/promote_confirm.html')
-
 from django.db.models import Avg
 from django.utils import timezone
 import calendar

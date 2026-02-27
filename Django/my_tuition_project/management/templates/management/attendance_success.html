@@ -1,29 +1,40 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container py-5 text-center">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-lg border-0 p-4">
-                <div class="mb-4">
-                    <i class="bi bi-check-circle-fill text-success display-1"></i>
-                </div>
-                <h2 class="fw-bold mb-3">Attendance Saved!</h2>
-                <p class="text-muted">Attendance for <strong>{{ batch.name }}</strong> on {{ date|date:"d M Y" }} has been recorded successfully. Teacher lecture hours have also been logged.</p>
-                
-                <hr class="my-4">
-                
-                <h6 class="fw-bold text-dark mb-3">Next Step: Notify Parents Group</h6>
-                <div class="d-grid gap-3">
-                    <a href="{{ wa_url }}" target="_blank" class="btn btn-success btn-lg shadow">
-                        <i class="bi bi-whatsapp me-2"></i>Share Summary to Group
-                    </a>
-                    <a href="{% url 'batch_detail' batch.id %}" class="btn btn-outline-dark">
-                        Return to Batch Details
-                    </a>
-                </div>
-                <p class="mt-3 small text-muted">The share button will open WhatsApp with a pre-typed summary of present and absent students.</p>
+
+<div class="container py-5">
+<div class="row justify-content-center">
+<div class="col-xl-6 col-lg-8">
+<div class="card border-0 shadow-lg p-5 text-center rounded-4">
+<div class="mb-4">
+<div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 rounded-circle" style="width: 100px; height: 100px;">
+<i class="bi bi-check-circle-fill text-success display-2"></i>
+</div>
+</div>
+
+            <h2 class="fw-bold mb-3">Session Logged!</h2>
+            <p class="text-muted mb-5 px-md-5">
+                Attendance for <strong>{{ batch.name }}</strong> on {{ date|date:"d M Y" }} is secured. 
+                The teacher's teaching hours have been automatically attributed for payroll.
+            </p>
+            
+            <div class="p-4 bg-body-tertiary rounded-4 mb-5 border">
+                <h6 class="fw-bold mb-3"><i class="bi bi-megaphone-fill text-warning me-2"></i>Broadcast Summary</h6>
+                <p class="small text-muted mb-4">Sharing the attendance summary to the class group keeps parents informed and improves discipline.</p>
+                <a href="{{ wa_url }}" target="_blank" class="btn btn-success btn-lg w-100 rounded-pill shadow fw-bold">
+                    <i class="bi bi-whatsapp me-2"></i>Share Summary to Group
+                </a>
+            </div>
+
+            <div class="d-grid">
+                <a href="{% url 'batch_detail' batch.id %}" class="btn btn-outline-dark rounded-pill py-2 fw-bold">
+                    Return to Batch Console
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+
+</div>
+
 {% endblock %}

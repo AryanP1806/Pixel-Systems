@@ -150,7 +150,50 @@
                             <option value="heikin_ashi" {% if candle_type == 'heikin_ashi' %}selected{% endif %}>Heikin-Ashi</option>
                         </select>
                     </div>
+                    <hr class="border-[#30363d] my-4">
 
+<hr class="border-[#30363d] my-4">
+
+<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">
+Indicators
+</h2>
+
+<div id="indicator-container" class="space-y-3"></div>
+
+<button type="button"
+        onclick="addIndicatorRow()"
+        class="w-full bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded">
+    + Add Indicator
+</button>
+<!-- <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">
+Indicators
+</h2>
+
+<div class="space-y-3">
+    <div>
+        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">
+            EMA Period
+        </label>
+        <input type="number" name="ema_periods[]" class="form-input"
+               value="{{ request.GET.ema_period }}">
+    </div>
+
+    <div>
+        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">
+            SMA Period
+        </label>
+        <input type="number" name="sma_periods[]" class="form-input"
+               value="{{ request.GET.sma_period }}">
+    </div>
+
+    <div>
+        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">
+            RSI Period
+        </label>
+        <input type="number" name="rsi_periods[]" class="form-input"
+            value="{{ request.GET.rsi_period }}">
+    </div>
+</div> -->
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-900/20 mt-4">
                         Change Timeframe
                     </button>
@@ -189,14 +232,15 @@
             <!-- Chart Section -->
             <div class="card overflow-hidden">
                 <div class="p-4 border-b border-[#30363d] flex justify-between items-center bg-[#161b22]">
-                    <div class="flex gap-2">
+                    <!-- <div class="flex gap-2">
                         <button onclick="toggleStudy('ema9')" id="btn-ema9" class="btn-toggle text-yellow-500">EMA 9</button>
                         <button onclick="toggleStudy('ema21')" id="btn-ema21" class="btn-toggle text-orange-400">EMA 21</button>
                         <button onclick="toggleStudy('sma20')" id="btn-sma20" class="btn-toggle text-purple-400">SMA 20</button>
                         <button onclick="toggleStudy('sma50')" id="btn-sma50" class="btn-toggle text-emerald-400">SMA 50</button>
                         <button onclick="toggleStudy('sma200')" id="btn-sma200" class="btn-toggle text-blue-400">SMA 200</button>
                         <button onclick="toggleStudy('rsi')" id="btn-rsi" class="btn-toggle text-pink-400">RSI 14</button>
-                    </div>
+                    </div> -->
+                    <div id="dynamic-study-controls" class="flex gap-2"></div>
                     <div class="text-[11px] font-mono text-gray-500" id="legend-text">
                         Click indicators to overlay on chart
                     </div>
@@ -234,197 +278,187 @@
             </div>
         </div>
     </main>
-
+    
     <script>
-        // Data input from Django Template
-        const data = {
-            candles: {{ candles_json|safe|default:"[]" }},
-            markers: {{ markers_json|safe|default:"[]" }},
-            trades: {{ trades_json|safe|default:"[]" }},
-            studies: {
-                ema9: {{ ema9_json|safe|default:"[]" }},
-                sma200: {{ sma200_json|safe|default:"[]" }},
-                rsi: {{ rsi_json|safe|default:"[]" }},
-                // Initialize others as empty if not provided by this strategy
-                ema21: {{ ema21_json|safe|default:"[]" }},
-                sma20: {{ sma20_json|safe|default:"[]" }},
-                sma50: {{ sma50_json|safe|default:"[]" }},
+    // 1. Data input from Django Template
+    
+    const data = {
+        candles: {{ candles_json|safe|default:"[]" }},
+        markers: {{ markers_json|safe|default:"[]" }},
+        trades: {{ trades_json|safe|default:"[]" }},
+        dynamic_studies: {{ dynamic_studies_json|safe|default:"{}" }}
+    };
+    console.log("Indicator Data Received:", data.dynamic_studies);
+    const studyColors = ['#eab308', '#fb923c', '#a855f7', '#10b981', '#3b82f6', '#f472b6'];
+    let activeSeries = {}; // Single declaration for the entire script
 
-            }
-        };
 
-        const colors = {
-            ema9: '#eab308', 
-            ema21: '#fb923c', 
-            sma20: '#a855f7', 
-            sma50: '#10b981', 
-            sma200: '#3b82f6', 
-            rsi: '#f472b6'
-        };
+    function addIndicatorRow() {
+        const container = document.getElementById('indicator-container');
 
-        let activeSeries = {};
+        const row = document.createElement('div');
+        row.className = "flex gap-2";
 
-        // 1. Initialize Chart
-        const container = document.getElementById('chart-container');
-        const chart = LightweightCharts.createChart(container, {
-            layout: { background: { color: '#0d1117' }, textColor: '#8b949e', fontSize: 11 },
-            grid: { vertLines: { color: '#161b22' }, horzLines: { color: '#161b22' } },
-            timeScale: { borderColor: '#30363d', timeVisible: true },
-            rightPriceScale: { borderColor: '#30363d' },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
-        });
+        row.innerHTML = `
+            <select name="indicator_type[]" class="form-input w-1/2">
+                <option value="ema">EMA</option>
+                <option value="sma">SMA</option>
+                <option value="rsi">RSI</option>
+            </select>
+            <input type="number" name="indicator_period[]" class="form-input w-1/2" placeholder="Period">
+        `;
 
-        const candleSeries = chart.addCandlestickSeries({
-            upColor: '#238636', downColor: '#da3633', 
-            borderVisible: false, wickUpColor: '#238636', wickDownColor: '#da3633'
-        });
+        container.appendChild(row);
+    }
+    // 2. Initialize Chart
+    const container = document.getElementById('chart-container');
+    const chart = LightweightCharts.createChart(container, {
+        layout: { background: { color: '#0d1117' }, textColor: '#8b949e', fontSize: 11 },
+        grid: { vertLines: { color: '#161b22' }, horzLines: { color: '#161b22' } },
+        timeScale: { borderColor: '#30363d', timeVisible: true },
+        rightPriceScale: { borderColor: '#30363d' },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+    });
 
-        // Load Initial Data
-        if (data.candles.length) {
-            candleSeries.setData(data.candles);
-            if (data.markers.length) candleSeries.setMarkers(data.markers);
-            setTimeout(() => chart.timeScale().fitContent(), 100);
-        }
+    const candleSeries = chart.addCandlestickSeries({
+        upColor: '#238636', downColor: '#da3633', 
+        borderVisible: false, wickUpColor: '#238636', wickDownColor: '#da3633'
+    });
 
-        // 2. Toggle Indicators (Off by Default)
-        window.toggleStudy = function(name) {
-            const btn = document.getElementById('btn-' + name);
-            
-            if (activeSeries[name]) {
-                chart.removeSeries(activeSeries[name]);
-                delete activeSeries[name];
+    // 3. Dynamic Indicator Generator
+    const controlsContainer = document.getElementById('dynamic-study-controls');
+
+    Object.keys(data.dynamic_studies).forEach((studyKey, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-toggle';
+        btn.id = 'btn-' + studyKey;
+        btn.innerText = studyKey.replace('_', ' ').toUpperCase();
+        
+        const currentColor = studyColors[index % studyColors.length];
+        btn.style.color = currentColor;
+        
+        btn.onclick = () => {
+            if (activeSeries[studyKey]) {
+                chart.removeSeries(activeSeries[studyKey]);
+                delete activeSeries[studyKey];
                 btn.classList.remove('active');
             } else {
-                const isRsi = name === 'rsi';
-                activeSeries[name] = chart.addLineSeries({
-                    color: colors[name],
-                    lineWidth: 1.5,
+                const isRsi = studyKey.toLowerCase().includes('rsi');
+                activeSeries[studyKey] = chart.addLineSeries({
+                    color: currentColor,
+                    lineWidth: 2,
                     priceLineVisible: false,
-                    pane: isRsi ? 1 : 0
+                    priceScaleId: 'right'
                 });
-                
-                activeSeries[name].setData(data.studies[name]);
+                activeSeries[studyKey].setData(data.dynamic_studies[studyKey]);
                 btn.classList.add('active');
             }
         };
-
-        // 3. Populate Trade Log & Analytics
-        function processAnalytics() {
-    const logBody = document.getElementById('trade-log-body');
-    logBody.innerHTML = '';
-
-    let totalPnl = 0;
-    let wins = 0;
-    let losses = 0;
-    let grossProfit = 0;
-    let grossLoss = 0;
-
-    const trades = data.trades || [];
-
-    if (!trades.length) {
-        logBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="py-6 text-center text-gray-500">
-                    No trades executed in this period.
-                </td>
-            </tr>
-        `;
-    }
-
-    trades.forEach(trade => {
-        const pnl = parseFloat(trade.pnl) || 0;
-        const isWin = pnl >= 0;
-
-        totalPnl += pnl;
-
-        if (isWin) {
-            wins++;
-            grossProfit += pnl;
-        } else {
-            losses++;
-            grossLoss += Math.abs(pnl);
-        }
-
-        const row = `
-            <tr class="table-row border-b border-[#161b22]">
-                <td class="py-4 font-bold ${trade.side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}">
-                    ${trade.side}
-                </td>
-                <td class="py-4">
-                    <div class="text-white">${trade.entry_price}</div>
-                    <div class="text-[10px] text-gray-500">${trade.entry_time}</div>
-                </td>
-                <td class="py-4">
-                    <div class="text-white">${trade.exit_price}</div>
-                    <div class="text-[10px] text-gray-500">${trade.exit_time}</div>
-                </td>
-                <td class="py-4 text-right font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">
-                    ${isWin ? '+' : ''}${pnl.toFixed(2)}
-                </td>
-                <td class="py-4 text-center">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase
-                        ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
-                        ${isWin ? 'Profit' : 'Loss'}
-                    </span>
-                </td>
-            </tr>
-        `;
-        logBody.insertAdjacentHTML('beforeend', row);
+        controlsContainer.appendChild(btn);
     });
 
-    const totalTrades = trades.length;
-    const winRate = totalTrades ? ((wins / totalTrades) * 100).toFixed(1) : 0;
-    const profitFactor = grossLoss > 0
-        ? (grossProfit / grossLoss).toFixed(2)
-        : (grossProfit > 0 ? "∞" : "0");
+    // 4. Load Initial Candle Data
+    if (data.candles.length) {
+        candleSeries.setData(data.candles);
+        chart.timeScale().fitContent();
+        if (data.markers.length) candleSeries.setMarkers(data.markers);
+        setTimeout(() => chart.timeScale().fitContent(), 100);
+    }
 
-    const pnlEl = document.getElementById('metric-total-pnl');
-    pnlEl.innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
-    pnlEl.className = `text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+    // 5. Analytics & Trade Journal Engine
+    function processAnalytics() {
+        const logBody = document.getElementById('trade-log-body');
+        if (!logBody) return;
+        
+        logBody.innerHTML = '';
+        let totalPnl = 0, wins = 0, losses = 0, grossProfit = 0, grossLoss = 0;
+        const trades = data.trades || [];
 
-    document.getElementById('metric-win-rate').innerText = winRate + '%';
-    document.getElementById('metric-total-trades').innerText = totalTrades;
-    document.getElementById('metric-pf').innerText = profitFactor;
-    document.getElementById('count-wins').innerText = wins;
-    document.getElementById('count-losses').innerText = losses;
-}
-    // Run AFTER everything is defined
-    window.addEventListener('load', function () {
+        if (!trades.length) {
+            logBody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-500">No trades executed in this period.</td></tr>';
+        }
+
+        trades.forEach(trade => {
+            const pnl = parseFloat(trade.pnl) || 0;
+            const isWin = pnl >= 0;
+            totalPnl += pnl;
+            if (isWin) { wins++; grossProfit += pnl; } 
+            else { losses++; grossLoss += Math.abs(pnl); }
+
+            const row = `
+                <tr class="table-row border-b border-[#161b22]">
+                    <td class="py-4 font-bold ${trade.side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}">${trade.side}</td>
+                    <td class="py-4">
+                        <div class="text-white">${trade.entry_price}</div>
+                        <div class="text-[10px] text-gray-500">${trade.entry_time}</div>
+                    </td>
+                    <td class="py-4">
+                        <div class="text-white">${trade.exit_price}</div>
+                        <div class="text-[10px] text-gray-500">${trade.exit_time}</div>
+                    </td>
+                    <td class="py-4 text-right font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${isWin ? '+' : ''}${pnl.toFixed(2)}
+                    </td>
+                    <td class="py-4 text-center">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
+                            ${isWin ? 'Profit' : 'Loss'}
+                        </span>
+                    </td>
+                </tr>`;
+            logBody.insertAdjacentHTML('beforeend', row);
+        });
+
+        const totalTrades = trades.length;
+        const winRate = totalTrades ? ((wins / totalTrades) * 100).toFixed(1) : 0;
+        const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? "∞" : "0");
+
+        const pnlEl = document.getElementById('metric-total-pnl');
+        if (pnlEl) {
+            pnlEl.innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
+            pnlEl.className = `text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
+
+        if (document.getElementById('metric-win-rate')) document.getElementById('metric-win-rate').innerText = winRate + '%';
+        if (document.getElementById('metric-total-trades')) document.getElementById('metric-total-trades').innerText = totalTrades;
+        if (document.getElementById('metric-pf')) document.getElementById('metric-pf').innerText = profitFactor;
+        if (document.getElementById('count-wins')) document.getElementById('count-wins').innerText = wins;
+        if (document.getElementById('count-losses')) document.getElementById('count-losses').innerText = losses;
+    }
+
+    // 6. UI Helpers & Tooltips
+    function resize() { 
+        chart.resize(container.clientWidth, container.clientHeight); 
+    }
+
+    window.addEventListener('resize', resize);
+    
+    // Unified Load Sequence
+    window.addEventListener('load', () => {
         processAnalytics();
         resize();
     });
 
-        // 4. UI Helpers
-        function toggleCustomRange(val) {
-            const container = document.getElementById('custom-range-inputs');
-            if (val === 'custom') container.classList.remove('hidden');
-            else container.classList.add('hidden');
+// Replace the crosshair section at the bottom of backtest.html with this:
+    chart.subscribeCrosshairMove(param => {
+        const legend = document.getElementById('legend-text');
+        if (!legend) return;
+
+        // Check if param, time, and the specific series data exist
+        if (!param || !param.time || !param.seriesData || !param.seriesData.get(candleSeries)) {
+            legend.innerText = "Hover over chart for details";
+            return;
         }
 
-        function resize() {
-            chart.resize(container.clientWidth, container.clientHeight);
-        }
-
-        window.addEventListener('resize', resize);
-        window.onload = () => {
-            processAnalytics();
-            resize();
-        };
-
-        // Crosshair Tooltip
-        chart.subscribeCrosshairMove(param => {
-            if (!param.time || !param.seriesData.get(candleSeries)) {
-                document.getElementById('legend-text').innerText = "Hover over chart for details";
-                return;
-            }
-            const d = param.seriesData.get(candleSeries);
-            document.getElementById('legend-text').innerHTML = `
-                O: <span class="text-white">${d.open}</span> 
-                H: <span class="text-emerald-500">${d.high}</span> 
-                L: <span class="text-rose-500">${d.low}</span> 
-                C: <span class="text-white">${d.close}</span>
+        const d = param.seriesData.get(candleSeries);
+        if (d) {
+            legend.innerHTML = `
+                O: <span class="text-white">${d.open.toFixed(2)}</span> 
+                H: <span class="text-emerald-500">${d.high.toFixed(2)}</span> 
+                L: <span class="text-rose-500">${d.low.toFixed(2)}</span> 
+                C: <span class="text-white">${d.close.toFixed(2)}</span>
             `;
-        });
-    </script>
+        }
+    });
+</script>
 </body>
 </html>

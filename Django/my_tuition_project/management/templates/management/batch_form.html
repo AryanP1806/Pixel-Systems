@@ -1,98 +1,223 @@
 {% extends 'base.html' %}
+{% load custom_tags %}
+
 {% block content %}
-<div class="container py-4">
+
+<style>
+.form-container {
+background: var(--card-bg);
+border-radius: 24px;
+padding: 40px;
+border: 1px solid var(--border-color);
+box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.mapping-card {
+    background: rgba(100, 116, 139, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+}
+
+.mapping-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.form-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.input-group-modern {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: 0.2s;
+}
+.input-group-modern:focus-within {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+}
+.input-group-modern input, .input-group-modern select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    width: 100%;
+}
+
+.btn-add-row {
+    border: 2px dashed var(--border-color);
+    color: var(--text-muted);
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: 0.2s;
+    background: transparent;
+}
+.btn-add-row:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
+    background: rgba(13, 110, 253, 0.02);
+}
+</style>
+
+<div class="container py-2">
     <div class="row justify-content-center">
-        <div class="col-md-9">
-            <div class="card shadow-lg border-0">
-                <div class="card-header bg-primary text-white p-3">
-                    <h5 class="mb-0 fw-bold"><i class="bi bi-layer-forward me-2"></i>Configure Academic Batch</h5>
+        <div class="col-xl-10 col-lg-12">
+            <div class="mb-4">
+                <a href="{% url 'batch_list' %}" class="btn btn-link text-muted text-decoration-none p-0">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Batches
+                </a>
+            </div>
+
+            <div class="form-container">
+                <div class="mb-5">
+                    <h2 class="fw-bold mb-1">{% if is_edit %}Edit Batch: {{ batch.name }}{% else %}Create New Batch{% endif %}</h2>
+                    <p class="text-muted">Set up student grouping and assign specialized faculty members.</p>
                 </div>
-                <div class="card-body p-4">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="row mb-4">
-                            <div class="col-md-8">
-                                <label class="form-label fw-bold">Batch Identifier (Name)</label>
-                                <input type="text" name="name" class="form-control" placeholder="e.g. 12th PCM - Evening" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Standard / Grade</label>
-                                <input type="number" name="grade" class="form-control" min="1" max="13" placeholder="12" required>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-8">
+                            <label class="form-label">Batch Name / Identifier</label>
+                            <div class="input-group-modern">
+                                <i class="bi bi-bookmark-fill text-primary"></i>
+                                <input type="text" name="name" placeholder="e.g. 12th PCM - Regular" value="{{ batch.name|default:'' }}" required>
                             </div>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Standard / Grade</label>
+                            <div class="input-group-modern">
+                                <i class="bi bi-layers text-muted"></i>
+                                <select name="grade" required>
+                                    <option value="">Select Grade</option>
+                                    {% for g in "9,10,11,12,13"|split:"," %}
+                                        <option value="{{ g }}" {% if batch.grade|slugify == g %}selected{% endif %}>
+                                            {% if g == '13' %}Repeaters{% else %}{{ g }}th Standard{% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Primary Class Teacher</label>
-                            <select name="main_teacher" class="form-select border-primary" required>
+                    <div class="mb-5">
+                        <label class="form-label">Lead Class Teacher</label>
+                        <div class="input-group-modern">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <select name="main_teacher" required>
                                 <option value="">-- Choose Lead Faculty --</option>
                                 {% for t in teachers %}
-                                    <option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>
+                                    <option value="{{ t.id }}" {% if batch.teacher.id == t.id %}selected{% endif %}>
+                                        {{ t.get_full_name|default:t.username }}
+                                    </option>
                                 {% endfor %}
                             </select>
                         </div>
+                    </div>
 
-                        <div class="border rounded p-3 bg-light">
-                            <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-mortarboard me-2"></i>Subject-Faculty Mapping</h6>
-                            <table class="table table-sm align-middle" id="assignmentTable">
-                                <thead>
-                                    <tr class="small text-muted text-uppercase">
-                                        <th>Subject</th>
-                                        <th>Assigned Teacher</th>
-                                        <th width="40"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="assignmentBody">
-                                    <!-- Rows added via JS -->
-                                </tbody>
-                            </table>
-                            <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none p-0" onclick="addRow()">
-                                <i class="bi bi-plus-circle-fill me-1"></i> Add Subject Assignment
-                            </button>
+                    <div class="mapping-card">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold mb-0 text-dark">Subject-Faculty Mapping</h6>
                         </div>
 
-                        <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg shadow">Create Batch & Finalize Faculty</button>
+                        <div id="assignmentBody">
+                            {% if is_edit %}
+                                {% for mapping in current_mappings %}
+                                <div class="mapping-row">
+                                    <div class="flex-grow-1">
+                                        <select name="subjects[]" class="form-select border-0 bg-transparent fw-bold" required>
+                                            {% for s in subjects %}
+                                                <option value="{{ s.id }}" {% if mapping.subject.id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="text-muted"><i class="bi bi-arrow-right"></i></div>
+                                    <div class="flex-grow-1">
+                                        <select name="subject_teachers[]" class="form-select border-0 bg-transparent fw-bold text-primary" required>
+                                            {% for t in teachers %}
+                                                <option value="{{ t.id }}" {% if mapping.teacher.id == t.id %}selected{% endif %}>{{ t.get_full_name|default:t.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-2" onclick="this.closest('.mapping-row').remove()">
+                                        <i class="bi bi-trash fs-5"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
-                    </form>
-                </div>
+
+                        <button type="button" class="btn-add-row" onclick="addRow()">
+                            <i class="bi bi-plus-circle me-2"></i> Add Subject Assignment
+                        </button>
+                    </div>
+
+                    <div class="mt-5 d-flex gap-3">
+                        <button type="submit" class="btn btn-primary btn-lg px-5 rounded-pill shadow-sm fw-bold">
+                            {% if is_edit %}Update Batch Details{% else %}Finalize & Create Batch{% endif %}
+                        </button>
+                        <a href="{% url 'batch_list' %}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Cancel</a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Row Template (Hidden) -->
-<div id="rowTemplate" style="display:none;">
-    <table>
-        <tr>
-            <td>
-                <select name="subjects[]" class="form-select form-select-sm" required>
-                    <option value="">Subject...</option>
-                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-                </select>
-            </td>
-            <td>
-                <select name="subject_teachers[]" class="form-select form-select-sm" required>
-                    <option value="">Teacher...</option>
-                    {% for t in teachers %}<option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>{% endfor %}
-                </select>
-            </td>
-            <td class="text-end">
-                <button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove()">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        </tr>
-    </table>
-</div>
+<template id="rowTemplate">
+    <div class="mapping-row">
+        <div class="flex-grow-1">
+            <select name="subjects[]" class="form-select border-0 bg-transparent fw-bold" required>
+                <option value="">Choose Subject...</option>
+                {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="text-muted"><i class="bi bi-arrow-right"></i></div>
+        <div class="flex-grow-1">
+            <select name="subject_teachers[]" class="form-select border-0 bg-transparent fw-bold text-primary" required>
+                <option value="">Assign Teacher...</option>
+                {% for t in teachers %}<option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="button" class="btn btn-sm btn-link text-danger p-2" onclick="this.closest('.mapping-row').remove()">
+            <i class="bi bi-trash fs-5"></i>
+        </button>
+    </div>
+</template>
 
 <script>
-function addRow() {
-    const body = document.getElementById('assignmentBody');
-    const template = document.querySelector('#rowTemplate tr');
-    const clone = template.cloneNode(true);
-    body.appendChild(clone);
-}
-// Initial row
-window.onload = addRow;
+    function addRow() {
+        const body = document.getElementById('assignmentBody');
+        const template = document.getElementById('rowTemplate');
+        body.appendChild(template.content.cloneNode(true));
+    }
+    {% if not is_edit %} window.onload = addRow; {% endif %}
 </script>
+
 {% endblock %}

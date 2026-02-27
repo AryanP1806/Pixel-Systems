@@ -55,184 +55,201 @@ def logout_user(request):
     return redirect('login')
 
 
-
 import json
 import numpy as np
 import pandas as pd
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from .backtest_engine import Backtester
+from .models import Strategy
 from .api_service import shoonya_service
 
 def backtest_view(request):
     if 'shoonya_token' not in request.session:
         return redirect('login')
 
+    # ----------------- PARAMETERS -----------------
     all_strategies = Strategy.objects.all()
-
-    timeframe = request.GET.get('timeframe', '5')  # Candle size: 1, 3, 5, 15, 60, D
-    timeline = int(request.GET.get('timeline', '5')) # Period: 5 (days), 30, 90, 180, 365, 730
-    candle_type = request.GET.get('candle_type', 'normal') # normal or heikin_ashi
-    
-    token = request.session.get('shoonya_token')
-    # 🔥 Force broker session before backtest
-    shoonya_service.session_token = token
-    shoonya_service.ensure_session(token)
-
-    shoonya_service.get_nifty_price('26000', session_token=token)
-
-    # engine = Backtester(token='26000')
-    # df = engine.get_history(timeframe=timeframe, days=timeline)
+    timeframe = request.GET.get('timeframe', '5')
+    timeline = int(request.GET.get('timeline', '5'))
+    candle_type = request.GET.get('candle_type', 'normal')
     strategy_id = request.GET.get('strategy_id')
-    strategy_obj = None
 
+    strategy_obj = None
     if strategy_id and strategy_id != 'None':
         strategy_obj = get_object_or_404(Strategy, pk=strategy_id)
-    
-    # 3. Handle Parameter Access Safely
-    if strategy_obj:
-        # Verify parameters only if a strategy exists
-        if strategy_obj.ema_period <= 0 or strategy_obj.sma_period <= 0:
-            messages.error(request, f"Invalid parameters for {strategy_obj.name}. Please check settings.")
-            return redirect('strategy_list')
-        
-        token = strategy_obj.token.strip()
-        exchange = strategy_obj.exchange.strip().upper()
 
-        # Hard safety
-        if token == "26000":
-            exchange = "NSE"
-    else:
-        # Fallback for "General" backtest (No strategy selected)
-        token = '26000'
-        exchange = 'NSE'
-        # Optional: Create a dummy object or just use defaults in the engine
-        strategy_obj = None
+    token = strategy_obj.token if strategy_obj else '26000'
+    exchange = strategy_obj.exchange if strategy_obj else 'NSE'
 
-        
-    engine = Backtester(token=token, exchange=exchange) 
-    # df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj)
-    df = engine.get_history(timeframe=timeframe, days=timeline, strategy_obj=strategy_obj, candle_type=candle_type)
+    # ----------------- FETCH DATA -----------------
+    engine = Backtester(token=token, exchange=exchange)
+    df = engine.get_history(
+        timeframe=timeframe,
+        days=timeline,
+        strategy_obj=strategy_obj,
+        candle_type=candle_type
+    )
+
     if df is None or df.empty:
-        messages.error(request, "Unable to fetch market data.")
-        return render(request, 'trading/backtest.html', {'candles_json': '[]', 'current_tf': timeframe, 'current_tl': timeline})
+        messages.error(request, "Market data unavailable.")
+        return render(request, 'trading/backtest.html', {
+            'all_strategies': all_strategies
+        })
 
-    # 1. Define explicit formats to handle Shoonya's inconsistent API responses
-    if timeframe == 'D':
-        # Try primary daily format: 07-02-2026
-        df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y', errors='coerce')
-        
-        # Fallback 1: Shoonya sometimes uses 2026-02-07
-        if df['time_dt'].isna().all():
-            df['time_dt'] = pd.to_datetime(df['time'], format='%Y-%m-%d', errors='coerce')
-        
-        # Fallback 2: Shoonya sometimes uses 07-Feb-2026
-        if df['time_dt'].isna().all():
-            df['time_dt'] = pd.to_datetime(df['time'], format='%d-%b-%Y', errors='coerce')
-    else:
-        # Intraday format: 07-02-2026 15:30:00
-        df['time_dt'] = pd.to_datetime(df['time'], format='%d-%m-%Y %H:%M:%S', errors='coerce')
+    # ----------------- DYNAMIC INDICATORS -----------------
+    # ----------------- MULTIPLE DYNAMIC INDICATORS -----------------
+    indicator_types = request.GET.getlist("indicator_type[]")
+    indicator_periods = request.GET.getlist("indicator_period[]")
 
-    # 2. Final safety: If all explicit formats failed, use a fast, warning-free catch-all
-    # We remove 'dayfirst' and use 'format' as None to let pandas use its C-engine if possible
-    if df['time_dt'].isna().all():
-        df['time_dt'] = pd.to_datetime(df['time'], errors='coerce')
+    for ind_type, period in zip(indicator_types, indicator_periods):
+        try:
+            period = int(period)
+        except:
+            continue
 
-    # 3. Clean and sort
-    df = df.dropna(subset=['time_dt', 'open', 'close'])
-    df = df.sort_values("time_dt").reset_index(drop=True)
-    # Prepare Data Packs
+        col_name = f"{ind_type}_{period}"
 
+        if ind_type == "ema":
+            df[col_name] = df['close'].ewm(
+                span=period, adjust=False
+            ).mean()
+
+        elif ind_type == "sma":
+            df[col_name] = df['close'].rolling(
+                window=period
+            ).mean()
+
+        elif ind_type == "rsi":
+            delta = df['close'].diff()
+            gain = delta.where(delta > 0, 0).rolling(period).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
+            rs = gain / loss.replace(0, np.nan)
+            df[col_name] = 100 - (100 / (1 + rs))
+            
+    # try:
+    #     if ema_period:
+    #         ema_period = int(ema_period)
+    #         df[f'ema_{ema_period}'] = df['close'].ewm(
+    #             span=ema_period, adjust=False
+    #         ).mean()
+
+    #     if sma_period:
+    #         sma_period = int(sma_period)
+    #         df[f'sma_{sma_period}'] = df['close'].rolling(
+    #             window=sma_period
+    #         ).mean()
+
+    #     if rsi_period:
+    #         rsi_period = int(rsi_period)
+    #         delta = df['close'].diff()
+    #         gain = delta.where(delta > 0, 0).rolling(rsi_period).mean()
+    #         loss = (-delta.where(delta < 0, 0)).rolling(rsi_period).mean()
+    #         rs = gain / loss.replace(0, np.nan)
+    #         df[f'rsi_{rsi_period}'] = 100 - (100 / (1 + rs))
+    # except:
+    #     pass
+
+    # ----------------- DATE CLEAN -----------------
+    # if timeframe == 'D':
+    #     df['time_dt'] = pd.to_datetime(
+    #         df['time'],
+    #         format='%d-%b-%Y',
+    #         errors='coerce'
+    #     )
+    # else:
+    #     df['time_dt'] = pd.to_datetime(
+    #         df['time'],
+    #         format='%d-%b-%Y %H:%M:%S',
+    #         errors='coerce'
+    #     )
+    df['time_dt'] = pd.to_datetime(df['time'], errors='coerce', dayfirst=True)
+    df = df.dropna(subset=['time_dt']).sort_values("time_dt")
+
+    # ----------------- PACK DATA -----------------
+    candles = []
+    markers = []
     trades = []
-    active_trade = None
-    candles, ema_data, sma200_data, rsi_data, markers = [], [], [], [], []
-    ema21_data, sma20_data, sma50_data = [], [], []
-    for row in df.itertuples():
-        t = int(row.time_dt.timestamp())
-        curr_close = float(row.close)
-        
-        # 1. Standard Candle Data
-        candles.append({'time': t, 'open': float(row.open), 'high': float(row.high), 'low': float(row.low), 'close': curr_close})
-        
-        # 2. Strategy Indicators (Using names from backtest_engine.py)
-        # We check hasattr because if the engine failed to calculate one, it won't crash the loop
-        if hasattr(row, 'ema50') and not np.isnan(row.ema50): 
-            ema_data.append({'time': t, 'value': float(row.ema50)}) 
-            
-        if hasattr(row, 'sma200') and not np.isnan(row.sma200): 
-            sma200_data.append({'time': t, 'value': float(row.sma200)})
-            
-        if hasattr(row, 'rsi14') and not np.isnan(row.rsi14): 
-            rsi_data.append({'time': t, 'value': float(row.rsi14)})
-            
+    dynamic_studies = {}
 
-        if not np.isnan(row.ema21): ema21_data.append({'time': t, 'value': float(row.ema21)})
-        if not np.isnan(row.sma20): sma20_data.append({'time': t, 'value': float(row.sma20)})
-        if not np.isnan(row.sma50): sma50_data.append({'time': t, 'value': float(row.sma50)})
-        # 3. Strategy Signals
-        # if hasattr(row, 'signal'):
-        #     if row.signal == 'BUY':
-        #         markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-        #     elif row.signal == 'SELL':
-        #         markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
-        signal = getattr(row, 'signal', None)
+    indicator_columns = [
+        col for col in df.columns
+        if col.startswith(("ema_", "sma_", "rsi_"))
+    ]
+
+    active_trade = None
+
+    for row in df.itertuples():
+        row_dict = row._asdict()
+        t = int(row.time_dt.timestamp())
+        close_val = float(row.close)
+
+        candles.append({
+            'time': t,
+            'open': float(row.open),
+            'high': float(row.high),
+            'low': float(row.low),
+            'close': close_val
+        })
+
+        # ---- PACK INDICATORS ----
+        for col in indicator_columns:
+            val = row_dict.get(col)
+            if val is not None and not pd.isna(val):
+                dynamic_studies.setdefault(col, []).append({
+                    "time": t,
+                    "value": float(val)
+                })
+
+        # ---- PACK TRADES ----
+        signal = row_dict.get('signal')
+
         if signal == 'BUY' and not active_trade:
             active_trade = {
-                'entry_price': curr_close, 
-                'entry_time': row.time_dt.strftime('%Y-%m-%d %H:%M'), 
+                'entry_price': close_val,
+                'entry_time': row.time_dt.strftime('%Y-%m-%d %H:%M'),
                 'side': 'BUY'
             }
-            markers.append({'time': t, 'position': 'belowBar', 'color': '#10b981', 'shape': 'arrowUp', 'text': 'BUY'})
-        
+            markers.append({
+                'time': t,
+                'position': 'belowBar',
+                'color': '#10b981',
+                'shape': 'arrowUp',
+                'text': 'BUY'
+            })
+
         elif signal == 'SELL' and active_trade:
-            pnl = curr_close - active_trade['entry_price']
+            pnl = close_val - active_trade['entry_price']
             trades.append({
                 'side': active_trade['side'],
                 'entry_price': active_trade['entry_price'],
-                'exit_price': curr_close,
+                'exit_price': close_val,
                 'entry_time': active_trade['entry_time'],
                 'exit_time': row.time_dt.strftime('%Y-%m-%d %H:%M'),
                 'pnl': round(pnl, 2)
             })
-            markers.append({'time': t, 'position': 'aboveBar', 'color': '#f43f5e', 'shape': 'arrowDown', 'text': 'SELL'})
+            markers.append({
+                'time': t,
+                'position': 'aboveBar',
+                'color': '#f43f5e',
+                'shape': 'arrowDown',
+                'text': 'SELL'
+            })
             active_trade = None
-    if active_trade:
-        final_price = float(df.iloc[-1]['close'])
-        pnl = final_price - active_trade['entry_price']
-        trades.append({
-            'side': active_trade['side'],
-            'entry_price': active_trade['entry_price'],
-            'exit_price': final_price,
-            'entry_time': active_trade['entry_time'],
-            'exit_time': df.iloc[-1]['time_dt'].strftime('%Y-%m-%d %H:%M'),
-            'pnl': round(pnl, 2)
-        })    
-    print(f"DEBUG: Total trades created = {len(trades)}")
+
     context = {
-        # 'candles_json': json.dumps(candles) if candles else '[]',
-        # 'sma50_json': json.dumps(sma50) if sma50 else '[]',
-        # 'sma200_json': json.dumps(sma200) if sma200 else '[]',
-        # 'ema9_json': json.dumps(ema9) if ema9 else '[]',
-        # 'ema21_json': json.dumps(ema21) if ema21 else '[]',
-        # 'sma20_json': json.dumps(sma20) if sma20 else '[]',
-        # 'rsi14_json': json.dumps(rsi14) if rsi14 else '[]',
-        # 'markers_json': json.dumps(markers) if markers else '[]',
-        # 'current_tf': timeframe, 
-        # 'current_tl': timeline
         'all_strategies': all_strategies,
         'strategy': strategy_obj,
         'candles_json': json.dumps(candles),
-        'ema9_json': json.dumps(ema_data),     # This feeds the 'EMA 9' button on UI
-        'ema21_json': json.dumps(ema21_data), # NEW
-        'sma20_json': json.dumps(sma20_data), # NEW
-        'sma50_json': json.dumps(sma50_data),
-        'sma200_json': json.dumps(sma200_data), # This feeds the 'SMA 200' button on UI
-        'rsi_json': json.dumps(rsi_data),       # This feeds the 'RSI 14' button on UI
+        'dynamic_studies_json': json.dumps(dynamic_studies),
         'markers_json': json.dumps(markers),
-        'trades_json': json.dumps(trades),      # This populates the Trade Journal table
-        'current_tf': timeframe, 
+        'trades_json': json.dumps(trades),
+        'current_tf': timeframe,
         'current_tl': timeline
     }
+
     return render(request, 'trading/backtest.html', context)
+
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -245,51 +262,48 @@ def strategy_list(request):
     strategies = Strategy.objects.all()
     return render(request, 'trading/strategy_list.html', {'strategies': strategies})
 
+import json
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Strategy
+
 def strategy_upsert(request, pk=None):
-    """Handles both Creating and Editing strategies."""
-    if 'shoonya_token' not in request.session:
-        return redirect('login')
-    
-    strategy = None
-    if pk:
-        strategy = get_object_or_404(Strategy, pk=pk)
+    strategy = get_object_or_404(Strategy, pk=pk) if pk else None
 
     if request.method == 'POST':
-        # Extraction
-        name = request.POST.get('name')
-        symbol = request.POST.get('symbol')
-        token = request.POST.get('token')
-        exch = request.POST.get('exchange', 'NSE')
-        ema_p = request.POST.get('ema_period', 21)
-        sma_p = request.POST.get('sma_period', 200)
+        # Capture raw lists from the frontend condition-row names
+        inds = request.POST.getlist('long_indicator[]')
+        vals = request.POST.getlist('long_value[]')
+        ops = request.POST.getlist('long_operator[]')
+        target_inds = request.POST.getlist('long_target_indicator[]')
+        target_vals = request.POST.getlist('long_target_value[]')
+
+        # Structure the logic into a dictionary
+        logic_data = {
+            "long": [
+                {
+                    "ind1": i, 
+                    "val1": v, 
+                    "op": o, 
+                    "ind2": ti, 
+                    "val2": tv
+                } for i, v, o, ti, tv in zip(inds, vals, ops, target_inds, target_vals)
+            ]
+        }
 
         if strategy:
-            # Update
-            strategy.name = name
-            strategy.symbol = symbol
-            strategy.token = token
-            strategy.exchange = exch
-            strategy.ema_period = ema_p
-            strategy.sma_period = sma_p
+            strategy.name = request.POST.get('name')
+            strategy.logic_config = logic_data
             strategy.save()
-            messages.success(request, f"Strategy '{name}' updated.")
         else:
-            # Create
             Strategy.objects.create(
-                name=name,
-                symbol=symbol,
-                token=token,
-                exchange=exch,
-                is_active=False
+                name=request.POST.get('name'),
+                logic_config=logic_data,
+                token=request.POST.get('token'),
+                symbol=request.POST.get('symbol')
             )
-            messages.success(request, f"Strategy '{name}' created successfully.")
-        
         return redirect('strategy_list')
-        
-    return render(request, 'trading/strategy_builder.html', {
-        'strategy': strategy,
-        'is_editing': strategy is not None
-    })
+
+    return render(request, 'trading/strategy_builder.html', {'strategy': strategy})
 
 def strategy_viewer(request, pk):
     """Detail page for a specific strategy logic."""

@@ -1,90 +1,152 @@
 {% extends 'base.html' %}
 {% load custom_tags %}
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-dark"><i class="bi bi-safe2 me-2 text-primary"></i>Financial Intelligence</h2>
-        <div class="text-muted small">Month-to-Date Collection: <span class="fw-bold text-success">₹{{ monthly_collection }}</span></div>
-    </div>
 
-    <!-- Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-primary text-white">
-                <div class="card-body">
-                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Revenue Expected</h6>
-                    <h2 class="fw-bold mb-0">₹{{ total_expected }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-success text-white">
-                <div class="card-body">
-                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Fees Collected</h6>
-                    <h2 class="fw-bold mb-0">₹{{ total_collected }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-danger text-white">
-                <div class="card-body">
-                    <h6 class="text-white-50 small text-uppercase fw-bold">Total Outstanding Balance</h6>
-                    <h2 class="fw-bold mb-0">₹{{ total_pending }}</h2>
-                </div>
-            </div>
-        </div>
-    </div>
+<style>
+.finance-header {
+background: var(--sidebar-bg);
+color: white;
+border-radius: 24px;
+padding: 40px;
+margin-bottom: 32px;
+border-bottom: 5px solid #0d6efd;
+}
 
-    <!-- Defaulters Table -->
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-octagon me-2"></i>Fee Defaulters (Overdue)</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light small text-uppercase">
-                        <tr>
-                            <th class="ps-4">Student</th>
-                            <th>Fee Description</th>
-                            <th>Due Date</th>
-                            <th>Pending Amount</th>
-                            <th class="text-end pe-4">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for d in defaulters %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold text-dark">{{ d.student.get_full_name|default:d.student.username }}</div>
-                                <div class="small text-muted">Parent: {{ d.parent_phone }}</div>
-                            </td>
-                            <td>{{ d.fee.description }}</td>
-                            <td><span class="text-danger fw-bold">{{ d.fee.due_date|date:"d M Y" }}</span></td>
-                            <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">₹{{ d.balance }}</span></td>
-                            <td class="text-end pe-4">
-                                <a href="https://wa.me/91{{ d.parent_phone }}?text=Hello, this is Deekshant Academy. A reminder that fee payment for {{ d.student.username }} (₹{{ d.balance }}) was due on {{ d.fee.due_date }}. Please ignore if already paid.
-                                नमस्कार, ही दीक्षांत अकॅडमी (Deekshant Academy) कडून एक आठवण आहे. {{ d.student.username }} यांची फी (₹{{ d.balance }}) भरण्याची शेवटची तारीख {{ d.fee.due_date }} होती. जर आपण फी आधीच भरली असेल, तर कृपया या संदेशाकडे दुर्लक्ष करा." 
-                                   target="_blank" class="btn btn-sm btn-success">
-                                    <i class="bi bi-whatsapp"></i> Remind
-                                </a>
-                                <a href="{% url 'manage_fees' d.student.id %}" class="btn btn-sm btn-outline-primary ms-1">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <i class="bi bi-check-circle display-4 d-block mb-3 text-success opacity-50"></i>
-                                Great! No overdue payments at the moment.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+.stat-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: 0.3s;
+}
+.stat-box:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+
+.defaulter-table thead th {
+    background: var(--bg-main);
+    padding: 16px 20px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+.btn-wa-remind {
+    background: #25d366;
+    color: white;
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-weight: 600;
+    border: none;
+    transition: 0.2s;
+}
+.btn-wa-remind:hover { background: #128c7e; transform: scale(1.05); color: white; }
+
+
+</style>
+
+<div class="container-fluid">
+<div class="finance-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+<div>
+<div class="badge bg-primary rounded-pill px-3 py-2 mb-3 shadow-sm">ADMINISTRATIVE FINANCE</div>
+<h1 class="fw-bold mb-1 text-white">Financial Intelligence</h1>
+<p class="mb-0 text-white-50">Academy-wide revenue monitoring and collection tracking.</p>
+</div>
+<div class="text-end">
+<div class="extra-small text-uppercase fw-bold text-white-50 mb-1" style="font-size: 0.6rem;">Monthly Velocity</div>
+<div class="h3 fw-bold text-success mb-0">₹{{ monthly_collection }} <i class="bi bi-graph-up-arrow ms-2"></i></div>
+</div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-4">
+        <div class="stat-box border-primary-subtle">
+            <div class="extra-small text-primary text-uppercase fw-bold mb-2" style="font-size: 0.6rem; letter-spacing: 1px;">Projected Revenue</div>
+            <h2 class="fw-bold mb-0">₹{{ total_expected }}</h2>
+            <div class="progress mt-3" style="height: 6px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
             </div>
         </div>
     </div>
+    <div class="col-lg-4">
+        <div class="stat-box border-success-subtle">
+            <div class="extra-small text-success text-uppercase fw-bold mb-2" style="font-size: 0.6rem; letter-spacing: 1px;">Liquid Collection</div>
+            <h2 class="fw-bold mb-0 text-success">₹{{ total_collected }}</h2>
+            {% with perc=total_collected|multiply:100|divide:total_expected %}
+            <div class="progress mt-3" style="height: 6px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ perc }}%"></div>
+            </div>
+            <div class="mt-2 extra-small text-muted">{{ perc|floatformat:1 }}% of target reached</div>
+            {% endwith %}
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-box border-danger-subtle">
+            <div class="extra-small text-danger text-uppercase fw-bold mb-2" style="font-size: 0.6rem; letter-spacing: 1px;">Total Accounts Receivable</div>
+            <h2 class="fw-bold mb-0 text-danger">₹{{ total_pending }}</h2>
+            <div class="progress mt-3" style="height: 6px;">
+                <div class="progress-bar bg-danger" role="progressbar" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Defaulters Table -->
+<div class="card border-0 shadow-sm overflow-hidden mb-4 rounded-4">
+    <div class="card-header bg-transparent border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-octagon-fill me-2"></i>Overdue Fee Ledger</h5>
+        <span class="badge bg-danger-subtle text-danger rounded-pill px-3">{{ defaulters|length }} Active Alerts</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 defaulter-table">
+            <thead>
+                <tr>
+                    <th class="ps-4">Student Profile</th>
+                    <th>Installment Detail</th>
+                    <th>Maturity Date</th>
+                    <th>Debt Amount</th>
+                    <th class="text-end pe-4">Intervention</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in defaulters %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold">{{ d.student.get_full_name|default:d.student.username }}</div>
+                        <div class="extra-small text-muted">Parent: {{ d.parent_phone }}</div>
+                    </td>
+                    <td><span class="small fw-medium">{{ d.fee.description }}</span></td>
+                    <td><span class="text-danger fw-bold small">{{ d.fee.due_date|date:"d M Y" }}</span></td>
+                    <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">₹{{ d.balance }}</span></td>
+                    <td class="text-end pe-4">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="https://wa.me/91{{ d.parent_phone }}?text=Hello, this is Deekshant Academy. A reminder that fee payment for {{ d.student.username }} (₹{{ d.balance }}) was due on {{ d.fee.due_date }}. Please ignore if already paid." 
+                               target="_blank" class="btn-wa-remind">
+                                <i class="bi bi-whatsapp me-2"></i>Remind
+                            </a>
+                            <a href="{% url 'manage_fees' d.student.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="opacity-25 mb-3"><i class="bi bi-check-circle-fill display-3 text-success"></i></div>
+                        <h5 class="fw-bold text-muted">Zero Overdue Accounts</h5>
+                        <p class="text-muted small mb-0">All student accounts are currently in good standing.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
 </div>
 {% endblock %}

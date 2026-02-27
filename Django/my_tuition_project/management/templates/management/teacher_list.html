@@ -1,58 +1,75 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-    <h2 class="fw-bold">Faculty Management</h2>
-    <a href="{% url 'add_teacher' %}" class="btn btn-primary">
-        <i class="bi bi-person-plus-fill me-2"></i>Add New Teacher
+
+<div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-4">
+    <div>
+        <h1 class="fw-extrabold text-dark-theme-white">Faculty Directory</h1>
+        <p class="text-muted mb-0">Monitor teacher assignments, lecture hours, and payroll management.</p>
+    </div>
+    <a href="{% url 'add_teacher' %}" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm">
+        <i class="bi bi-person-plus-fill me-2"></i>Invite Faculty
     </a>
 </div>
 
-<div class="card shadow-sm border-0">
+<div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th class="ps-4">Teacher Name</th>
-                    <th>Email/Phone</th>
-                    <th>Assignments</th>
-                    <th class="text-end pe-4">Pay & Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in teachers %}
-                <tr>
-                    <td class="ps-4">
-                        <div class="fw-bold">{{ t.username }}</div>
-                        <div class="small text-muted">Joined {{ t.date_joined|date:"M Y" }}</div>
-                    </td>
-                    <td>
-                        <div class="small text-dark">{{ t.email|default:"No Email" }}</div>
-                        <div class="small text-muted">{{ t.phone|default:"--" }}</div>
-                    </td>
-                    <td>
-                        <span class="badge bg-info-subtle text-info border border-info-subtle">
-                            {{ t.batches_taught.count|add:t.batchsubjectteacher_set.count }} Classes
-                        </span>
-                    </td>
-                    <td class="text-end pe-4">
-                        <div class="btn-group">
-                            <!-- NEW PAY MANAGEMENT BUTTONS -->
-                            <a href="{% url 'manage_teacher_rates' t.id %}" class="btn btn-sm btn-outline-dark" title="Set Hourly Rates">
-                                <i class="bi bi-currency-exchange"></i> Rates
-                            </a>
-                            <a href="{% url 'teacher_salary_report' t.id %}" class="btn btn-sm btn-outline-success" title="View Earnings">
-                                <i class="bi bi-wallet2"></i> Earnings
-                            </a>
-                            <!-- EXISTING ACTIONS -->
-                            <a href="{% url 'edit_user' t.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="4" class="text-center py-5 text-muted">No teachers registered.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Instructor Details</th>
+                        <th>Contact / Digital</th>
+                        <th>Active Workload</th>
+                        <th class="text-end pe-4">Payroll & Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-4 d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; font-weight: 800;">
+                                    {{ t.username|first|upper }}
+                                </div>
+                                <a href="{% url 'teacher_profile' t.id %}" style="text-decoration: none;">
+                                <div>
+                                    <div class="fw-bold text-dark-theme-white">{{ t.get_full_name|default:t.username }}</div>
+                                    <div class="extra-small text-muted">Member since {{ t.date_joined|date:"M Y" }}</div>
+                                </div>
+                                </a>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small fw-medium">{{ t.email|default:"No email recorded" }}</div>
+                            <div class="extra-small text-muted"><i class="bi bi-telephone-fill me-1"></i>{{ t.phone|default:"--" }}</div>
+                        </td>
+                        <td>
+                            <div class="d-inline-flex align-items-center bg-info bg-opacity-10 text-info px-3 py-1 rounded-pill fw-bold" style="font-size: 0.75rem;">
+                                {{ t.batches_taught.count|add:t.batchsubjectteacher_set.count }} Subject Batches
+                            </div>
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group border rounded-pill overflow-hidden shadow-sm">
+                                <a href="{% url 'manage_teacher_rates' t.id %}" class="btn btn-sm btn-white  py-2 px-3 border-end" title="Rates">
+                                    <i class="bi bi-currency-exchange me-1"></i> Rates
+                                </a>
+                                <a href="{% url 'teacher_salary_report' t.id %}" class="btn btn-sm btn-outline-success py-2 px-3" title="Earnings">
+                                    <i class="bi bi-wallet2 me-1"></i> Ledger
+                                </a>
+                                <a href="{% url 'edit_user' t.id %}" class="btn btn-sm btn-primary py-2 px-3" title="Settings">
+                                    <i class="bi bi-gear-fill"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center py-5 text-muted">No faculty profiles found. Start by registering a new teacher.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
 {% endblock %}

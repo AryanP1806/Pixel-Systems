@@ -51,4 +51,5 @@ urlpatterns = [
      path('teachers/<int:teacher_id>/salary/', views.teacher_salary_report, name='teacher_salary_report'),
      path('api/global-search/', views.global_search, name='global_search'),
      path('teachers/<int:teacher_id>/profile/', views.teacher_profile, name='teacher_profile'),
+     path('batches/<int:batch_id>/edit/', views.batch_edit, name='batch_edit'),
 ]

@@ -4,257 +4,288 @@
 {% block content %}
 
 <style>
-    .dash-header {
-        background: linear-gradient(135deg, #1a1d20 0%, #343a40 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 30px;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    .stat-card {
-        border: none;
-        border-radius: 12px;
-        transition: transform 0.2s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-    .stat-card:hover { transform: translateY(-5px); }
-    .action-btn {
-        border: none;
-        border-radius: 12px;
-        padding: 20px;
-        font-weight: 700;
-        transition: 0.2s;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        text-decoration: none;
-    }
-    .action-btn i { font-size: 2rem; }
-    .action-btn:hover { opacity: 0.9; transform: scale(1.02); }
-    
-    .table-custom thead {
-        background: #f8f9fa;
-        text-transform: uppercase;
-        font-size: 0.7rem;
-        letter-spacing: 1px;
-        font-weight: 800;
-        color: #6c757d;
-    }
-    .notice-item {
-        border-left: 4px solid #ffc107;
-        background: #fff;
-        transition: 0.2s;
-    }
-    .notice-item:hover { background: #fffdf5; }
+/* Premium Header with adaptive gradient */
+.dash-header {
+background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+color: white;
+border-radius: 24px;
+padding: 40px;
+margin-bottom: 32px;
+position: relative;
+overflow: hidden;
+border: 1px solid rgba(255,255,255,0.05);
+}
+.dash-header::after {
+content: "";
+position: absolute;
+top: -50px; right: -50px;
+width: 150px; height: 150px;
+background: rgba(13, 110, 253, 0.15);
+filter: blur(40px);
+border-radius: 50%;
+}
+
+.stat-card {
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -10px rgba(0,0,0,0.1); }
+.stat-icon {
+    width: 64px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 16px;
+    font-size: 1.75rem;
+}
+
+.action-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 24px;
+    font-weight: 600;
+    transition: all 0.2s;
+    background: var(--card-bg);
+    color: var(--text-main);
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+.action-btn i { font-size: 1.5rem; }
+.action-btn:hover { border-color: #0d6efd; background: rgba(13, 110, 253, 0.04); transform: scale(1.02); }
+
+.notice-item {
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    transition: 0.2s;
+    border-left: 6px solid #ffc107;
+    padding: 20px;
+    border-radius: 16px;
+}
+
+.table-custom thead th {
+    border: none;
+    padding: 16px 20px;
+    background: rgba(100, 116, 139, 0.05);
+}
+.table-custom tbody td { padding: 16px 20px; }
+
+/* Touch Target Optimization for Mobile */
+@media (max-width: 768px) {
+    .dash-header { padding: 24px; border-radius: 20px; }
+    .stat-card { padding: 16px; }
+    .stat-icon { width: 50px; height: 50px; font-size: 1.25rem; }
+    .action-btn { padding: 16px; }
+}
+
+
 </style>
 
-<div class="container-fluid py-2">
-    <!-- Premium Header -->
-    <div class="dash-header d-flex justify-content-between align-items-center">
-        <div>
-            <h2 class="fw-bold mb-1">Welcome, {{ user.get_full_name|default:user.username }}</h2>
-            <p class="mb-0 opacity-75">
-                {% if user.is_owner %}
-                    <i class="bi bi-shield-check me-1"></i> Academy Administrator
-                {% elif user.is_teacher %}
-                    <i class="bi bi-mortarboard me-1"></i> Faculty Member
-                {% else %}
-                    <i class="bi bi-person me-1"></i> Student Portal
-                {% endif %}
-            </p>
-        </div>
-        <div class="text-end d-none d-md-block">
-            <div class="small opacity-50 text-uppercase fw-bold">Current Date</div>
-            <div class="h5 fw-bold mb-0">{{ now|date:"D, d M Y" }}</div>
-        </div>
-    </div>
+<div class="container-fluid">
+<!-- Premium Header -->
+<div class="dash-header d-flex justify-content-between align-items-center">
+<div>
+<span class="badge bg-primary mb-3 px-3 py-2 rounded-pill shadow-sm" style="font-size: 0.7rem;">DEEKSHANT ACADEMY</span>
+<h1 class="fw-bold mb-1">Hello, {{ user.get_full_name|default:user.username }}!</h1>
+<p class="mb-0 opacity-75 fw-medium">
+{% if user.is_owner %}
+Managing the academy as Administrator
+{% elif user.is_teacher %}
+Signed in to Faculty Portal
+{% else %}
+Accessing Student Learning Center
+{% endif %}
+</p>
+</div>
+<div class="text-end d-none d-md-block">
+<div class="small opacity-50 text-uppercase fw-bold mb-1" style="letter-spacing: 1px;">Current Date</div>
+<div class="h4 fw-bold mb-0">{{ now|date:"D, d M Y" }}</div>
+</div>
+</div>
 
-    <!-- Notices Section -->
-    {% if notices %}
-    <div class="mb-5">
-        <h6 class="fw-bold text-muted text-uppercase small mb-3">Important Announcements</h6>
-        <div class="row g-2">
-            {% for notice in notices %}
-            <div class="col-12">
-                <div class="card notice-item shadow-sm p-3 border-0 rounded-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-megaphone-fill text-warning fs-4 me-3"></i>
-                            <div>
-                                <div class="fw-bold text-dark">{{ notice.title }}</div>
-                                <div class="small text-muted">{{ notice.content }}</div>
-                            </div>
-                        </div>
-                        <span class="badge bg-light text-muted fw-normal">{{ notice.created_at|timesince }} ago</span>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+<!-- Active Notices -->
+{% if notices %}
+<div class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0">Announcements</h5>
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Recent updates</span>
     </div>
-    {% endif %}
-
-    {% if user.is_owner or user.is_teacher %}
-    <!-- Staff/Owner View -->
-    <div class="row g-3 mb-5">
-        <div class="col-md-4">
-            <div class="card stat-card bg-white p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted small text-uppercase fw-bold">Total Students</h6>
-                        <h2 class="fw-bold mb-0">{{ student_count }}</h2>
-                    </div>
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                        <i class="bi bi-people text-primary fs-3"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card bg-white p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted small text-uppercase fw-bold">Active Batches</h6>
-                        <h2 class="fw-bold mb-0">{{ active_batches_count }}</h2>
-                    </div>
-                    <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                        <i class="bi bi-layers text-success fs-3"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card bg-white p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted small text-uppercase fw-bold">Faculty Staff</h6>
-                        <h2 class="fw-bold mb-0">{{ teacher_count }}</h2>
-                    </div>
-                    <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                        <i class="bi bi-mortarboard text-info fs-3"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Performance Mapping (Toppers & At-Risk) -->
-    <div class="row g-4 mb-5">
-        <div class="col-lg-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-trophy text-primary me-2"></i>Batch Toppers</h6>
-                    <span class="badge bg-primary-subtle text-primary small">Top 3</span>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 table-custom">
-                            <thead>
-                                <tr>
-                                    <th class="ps-4">Student</th>
-                                    <th>Batch</th>
-                                    <th class="text-end pe-4">Performance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in toppers %}
-                                <tr>
-                                    <td class="ps-4 fw-bold">{{ item.student.username }}</td>
-                                    <td>{{ item.batch.name }}</td>
-                                    <td class="text-end pe-4">
-                                        <span class="badge bg-success">★ {{ item.avg }}%</span>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="3" class="text-center py-4 text-muted small">No exam data available.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card shadow-sm border-0 h-100 border-top border-danger border-4">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>At-Risk Students</h6>
-                    <span class="badge bg-danger-subtle text-danger small">< 40%</span>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 table-custom">
-                            <thead>
-                                <tr>
-                                    <th class="ps-4">Student</th>
-                                    <th>Batch</th>
-                                    <th class="text-end pe-4">Recent Avg</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in at_risk %}
-                                <tr>
-                                    <td class="ps-4 fw-bold">{{ item.student.username }}</td>
-                                    <td>{{ item.batch.name }}</td>
-                                    <td class="text-end pe-4 text-danger fw-bold">{{ item.avg }}%</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="3" class="text-center py-4 text-muted small">All students are above threshold.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Management Grid -->
-    <h6 class="fw-bold text-muted text-uppercase small mb-3">Management Shortcuts</h6>
     <div class="row g-3">
-        {% if user.is_owner %}
-        <div class="col-6 col-md-3">
-            <a href="{% url 'student_list' %}" class="action-btn bg-primary text-white">
-                <i class="bi bi-person-plus"></i>
-                <span>Directory</span>
-            </a>
+        {% for notice in notices %}
+        <div class="col-12">
+            <div class="notice-item shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex gap-3">
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning rounded-circle" style="width: 48px; height: 48px; min-width: 48px;">
+                            <i class="bi bi-lightning-charge-fill"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold mb-1">{{ notice.title }}</div>
+                            <div class="text-muted small" style="line-height: 1.5;">{{ notice.content }}</div>
+                        </div>
+                    </div>
+                    <span class="text-muted extra-small" style="font-size: 0.7rem;">{{ notice.created_at|timesince }} ago</span>
+                </div>
+            </div>
         </div>
-        <div class="col-6 col-md-3">
-            <a href="{% url 'finance_dashboard' %}" class="action-btn bg-success text-white">
-                <i class="bi bi-cash-stack"></i>
-                <span>Finances</span>
-            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if user.is_owner or user.is_teacher %}
+<!-- Admin/Faculty Dashboard -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-4 col-md-6">
+        <div class="card stat-card shadow-sm">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ student_count }}</h3>
+                <p class="text-muted small mb-0 fw-medium">Total Students</p>
+            </div>
         </div>
-        {% endif %}
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card stat-card shadow-sm">
+            <div class="stat-icon bg-indigo bg-opacity-10 text-indigo" style="color: #6366f1;">
+                <i class="bi bi-collection-fill"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ active_batches_count }}</h3>
+                <p class="text-muted small mb-0 fw-medium">Active Batches</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-12">
+        <div class="card stat-card shadow-sm">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ teacher_count }}</h3>
+                <p class="text-muted small mb-0 fw-medium">Faculty Members</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Section -->
+<div class="row g-4 mb-5">
+    <div class="col-xl-7 col-lg-6">
+        <div class="card shadow-sm h-100 overflow-hidden">
+            <div class="card-header border-0 py-4 px-4 bg-transparent d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-star-fill text-warning me-2"></i>Batch Toppers</h6>
+                <button class="btn btn-sm btn-light border">Export</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-custom">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Batch</th>
+                            <th class="text-end">Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in toppers %}
+                        <tr>
+                            <td class="fw-bold">{{ item.student.username }}</td>
+                            <td class="text-muted small">{{ item.batch.name }}</td>
+                            <td class="text-end">
+                                <span class="badge bg-primary rounded-pill px-3">{{ item.avg }}%</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center py-5 text-muted">No data points captured.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5 col-lg-6">
+        <div class="card shadow-sm h-100 border-top border-danger border-4">
+            <div class="card-header border-0 py-4 px-4 bg-transparent d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-activity me-2"></i>Learning Support</h6>
+                <span class="badge bg-danger-subtle text-danger rounded-pill">< 40%</span>
+            </div>
+            <div class="p-4 pt-0">
+                {% for item in at_risk %}
+                <div class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-4 bg-body-tertiary">
+                    <div>
+                        <div class="fw-bold small">{{ item.student.username }}</div>
+                        <div class="extra-small text-muted">{{ item.batch.name }}</div>
+                    </div>
+                    <div class="text-danger fw-bold">{{ item.avg }}%</div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5 text-muted small">All students performing within safe margins.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions Grid -->
+<div class="mb-4">
+    <h6 class="fw-bold text-muted text-uppercase small mb-3" style="letter-spacing: 1px;">Quick Management</h6>
+    <div class="row g-3">
         <div class="col-6 col-md-3">
-            <a href="{% url 'batch_list' %}" class="action-btn bg-dark text-white">
-                <i class="bi bi-calendar-check"></i>
+            <a href="{% url 'batch_list' %}" class="action-btn">
+                <i class="bi bi-calendar-check text-primary"></i>
                 <span>Attendance</span>
             </a>
         </div>
         <div class="col-6 col-md-3">
-            <a href="{% url 'study_material_list' %}" class="action-btn bg-info text-white">
-                <i class="bi bi-folder2-open"></i>
+            <a href="{% url 'study_material_list' %}" class="action-btn">
+                <i class="bi bi-folder2 text-success"></i>
                 <span>Materials</span>
             </a>
         </div>
+        {% if user.is_owner %}
+        <div class="col-6 col-md-3">
+            <a href="{% url 'finance_dashboard' %}" class="action-btn">
+                <i class="bi bi-cash-stack text-warning"></i>
+                <span>Finances</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'student_list' %}" class="action-btn">
+                <i class="bi bi-person-gear text-info"></i>
+                <span>Profiles</span>
+            </a>
+        </div>
+        {% endif %}
     </div>
+</div>
 
-    {% elif user.is_student %}
-    <!-- Student Dashboard -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-4">
-            <div class="card stat-card bg-primary text-white p-5 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">My Attendance</div>
-                <h1 class="display-3 fw-bold mb-0">{{ attendance_pct }}%</h1>
+{% elif user.is_student %}
+<!-- Student Perspective -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card stat-card shadow-sm border-0" style="background: linear-gradient(135deg, #0d6efd, #0b5ed7); color: white;">
+            <div class="stat-icon bg-white bg-opacity-20">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0 text-white">{{ attendance_pct }}%</h2>
+                <p class="text-white-50 small mb-0 fw-bold">Attendance Record</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card stat-card bg-dark text-white p-5 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">Last Score</div>
-                <h1 class="display-3 fw-bold mb-0">
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card shadow-sm border-0" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white;">
+            <div class="stat-icon bg-white bg-opacity-10">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0 text-white">
                     {% if latest_test %}
                         {% with p=latest_test.marks_obtained|multiply:100|divide:latest_test.test.max_marks %}
                             {{ p|floatformat:0 }}%
@@ -262,44 +293,55 @@
                     {% else %}
                         N/A
                     {% endif %}
-                </h1>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card {% if pending_fees > 0 %}bg-danger{% else %}bg-success{% endif %} text-white p-5 text-center">
-                <div class="small text-white-50 text-uppercase fw-bold mb-2">Pending Fees</div>
-                <h1 class="display-3 fw-bold mb-0">₹{{ pending_fees }}</h1>
+                </h2>
+                <p class="text-white-50 small mb-0 fw-bold">Recent Exam Score</p>
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card stat-card shadow-sm border-0 {% if pending_fees > 0 %}bg-danger{% else %}bg-success{% endif %}" style="color: white;">
+            <div class="stat-icon bg-white bg-opacity-20">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0 text-white">₹{{ pending_fees }}</h2>
+                <p class="text-white-50 small mb-0 fw-bold">Dues & Fees</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <!-- Student Materials -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Recently Shared Materials</h6>
-            <a href="{% url 'study_material_list' %}" class="small text-decoration-none">View All Repository</a>
-        </div>
-        <div class="card-body p-0">
-            <div class="list-group list-group-flush">
-                {% for mat in recent_materials %}
-                <div class="list-group-item d-flex justify-content-between align-items-center p-3">
-                    <div>
-                        <div class="fw-bold">{{ mat.title }}</div>
-                        <div class="small text-muted">{{ mat.subject.name }} • {{ mat.uploaded_at|date:"d M" }}</div>
+<!-- Repository Card -->
+<div class="card shadow-sm overflow-hidden mb-4">
+    <div class="card-header py-4 px-4 bg-transparent border-0 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">Academic Resources</h6>
+        <a href="{% url 'study_material_list' %}" class="btn btn-sm btn-outline-primary px-3 rounded-pill">Explore All</a>
+    </div>
+    <div class="p-0">
+        <div class="list-group list-group-flush">
+            {% for mat in recent_materials %}
+            <div class="list-group-item d-flex justify-content-between align-items-center p-4 bg-transparent">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded text-primary">
+                        <i class="bi bi-file-earmark-pdf fs-4"></i>
                     </div>
-                    {% if mat.file %}
-                        <a href="{{ mat.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">Download</a>
-                    {% else %}
-                        <a href="{% url 'study_material_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">View Note</a>
-                    {% endif %}
+                    <div>
+                        <div class="fw-bold mb-1">{{ mat.title }}</div>
+                        <div class="extra-small text-muted">{{ mat.subject.name }} • {{ mat.uploaded_at|date:"d M" }}</div>
+                    </div>
                 </div>
-                {% empty %}
-                <div class="p-4 text-center text-muted small">No materials shared recently.</div>
-                {% endfor %}
+                {% if mat.file %}
+                    <a href="{{ mat.file.url }}" target="_blank" class="btn btn-primary btn-sm rounded-pill px-3"><i class="bi bi-download me-1"></i> Get</a>
+                {% endif %}
             </div>
+            {% empty %}
+            <div class="p-5 text-center text-muted small">No new materials uploaded to your batches.</div>
+            {% endfor %}
         </div>
     </div>
-    {% endif %}
+</div>
+{% endif %}
+
 
 </div>
 
