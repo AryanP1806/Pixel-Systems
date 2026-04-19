@@ -132,8 +132,23 @@
     <label for="id_payment_amount">
       <span style="color: red" aria-hidden="true">*</span> Payment Amount:
     </label>
-    {{ form.payment_amount }}
+    <div class="input-group">
+      {{ form.payment_amount }}
+      <a href="{% url 'short_term_calculator' %}" target="_blank" style="text-decoration: none; flex-shrink: 0;">
+        <button type="button" title="Short-Term Calculator" style="background: linear-gradient(135deg, var(--info), #2563eb); color: white; padding: 10px 15px; border: none; border-radius: var(--radius-md); font-size: 14px; cursor: pointer; margin: 0;">
+          🧮 Calc
+        </button>
+      </a>
+    </div>
   </div>
+
+<!--  <div style="margin-bottom: var(--space-md); text-align: right;">-->
+<!--    <a href="{% url 'short_term_calculator' %}" target="_blank" style="text-decoration: none;">-->
+<!--        <button type="button" class="action-btn" style="background: linear-gradient(135deg, var(--info), #2563eb); width: auto;">-->
+<!--            🧮 Open Short-Term Deal Calculator-->
+<!--        </button>-->
+<!--    </a>-->
+<!--</div>-->
 
   <div class="form-group">
     <label for="id_status">

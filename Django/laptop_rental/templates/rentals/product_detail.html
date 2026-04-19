@@ -322,6 +322,11 @@
 
 <h3>Rental History</h3>
 {% if rental_history %}
+  <span style="font-size: 1.1em; font-weight: bold; color: #10b981;">
+    Total Historical Revenue: ₹{{ total_history_revenue }}
+  </span>
+  {% endif %}
+{% if rental_history %}
 <div class="table-container" tabindex="0">
   <table border="1" cellpadding="8">
     <thead>
@@ -329,7 +334,8 @@
         <th>Customer</th>
         <th>Start Date</th>
         <th>End Date</th>
-        <th>Payment</th>
+        <th>Rental Amount</th>
+        <th>Revenue</th>
         <th>Status</th>
         {% if user.is_superuser %}
 
@@ -351,6 +357,7 @@
         <td>{{ rental.rental_start_date }}</td>
         <td>{{ rental.rental_end_date }}</td>
         <td>₹{{ rental.payment_amount }}</td>
+        <td style="font-weight: bold; color: green;">₹{{ rental.calculated_revenue }}</td>
         <td>{{ rental.status|title }}</td>
         {% if user.is_superuser %}
         <td>
