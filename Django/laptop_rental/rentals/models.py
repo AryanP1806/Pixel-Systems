@@ -242,6 +242,7 @@ class ProductAsset(models.Model):
             self.asset_id = generated_id
         # --- END: REPLACEMENT LOGIC FOR ASSET ID ---
 
+
         # Final check against both tables is good practice
         # Exclude the pending being approved (if set) to avoid false positive during approval
         pending_pk_to_exclude = getattr(self, '_pending_pk', None)
@@ -249,8 +250,15 @@ class ProductAsset(models.Model):
         if pending_pk_to_exclude:
             pending_conflict_qs = pending_conflict_qs.exclude(pk=pending_pk_to_exclude)
 
-        if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or pending_conflict_qs.exists():
+        # 2. Check Main Table (CRITICAL: Must exclude self.pk if we are editing)
+        main_conflict_qs = ProductAsset.objects.filter(asset_id=self.asset_id)
+        if self.pk:
+            main_conflict_qs = main_conflict_qs.exclude(pk=self.pk)
+
+        if main_conflict_qs.exists() or pending_conflict_qs.exists():
             raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
+        # if ProductAsset.objects.exclude(pk=self.pk).filter(asset_id=self.asset_id).exists() or pending_conflict_qs.exists():
+        #     raise ValueError(f"Asset ID '{self.asset_id}' already exists. Please use a unique one.")
 
         if self.edited_by:
             self.edited_at = timezone.now()
@@ -577,17 +585,24 @@ class Repair(models.Model):
         else:
             return "Active"
 
+    # models.py inside Repair class
     def save(self, *args, **kwargs):
         """Auto update the under_repair_warranty field when saving."""
         
-        if self._state.adding:
-            if self.purchase_date and (self.warranty_duration_months or 0) > 0:
-                expiry = self.purchase_date + relativedelta(
-                    months=int(self.warranty_duration_months or 0)
-                )
-                self.under_warranty = timezone.now().date() <= expiry
+        # Check if this is a new record or an update
+        # Note: We usually check dates on every save, not just adding, 
+        # just in case the date changed during an edit.
+        
+        if self.date and (self.repair_warranty_months or 0) > 0:
+            expiry = self.date + relativedelta(
+                months=int(self.repair_warranty_months or 0)
+            )
+            self.under_repair_warranty = timezone.now().date() <= expiry
+        else:
+            # If no date or no duration, it is not under warranty
+            self.under_repair_warranty = False
+            
         super().save(*args, **kwargs)
-
 
 class PendingProductConfiguration(models.Model):
     asset = models.ForeignKey(ProductAsset, on_delete=models.CASCADE)
@@ -650,3 +665,24 @@ class PendingRepair(models.Model):
 
     def __str__(self):
         return f"Pending Repair for {self.product.asset_id}"
+
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    last_activity = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
+
+# --- Signals to auto-create profile for users ---
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+    else:
+        # For existing users ensuring profile exists
+        UserProfile.objects.get_or_create(user=instance)

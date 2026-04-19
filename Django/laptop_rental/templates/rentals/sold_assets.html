@@ -12,18 +12,28 @@
       <th>Sold To</th>
       <th>Sale Price</th>
       <th>Sale Date</th>
+      <th>Changes By</th>
     </tr>
   </thead>
   <tbody>
     {% for p in products %}
     <tr>
-      <td>{{ p.asset_id }}</td>
+      <td>
+        <a
+          href="{% url 'product_detail' p.pk %}?{{ request.GET.urlencode }}"
+          style="color: #2563eb; text-decoration: none; font-weight: bold"
+        >
+          <i>{{ p.asset_id }}</i>
+        </a>
+      </td>
+
       <td>{{ p.brand }}</td>
       <td>{{ p.model_no }}</td>
       <td>{{ p.serial_no }}</td>
       <td>{{ p.sold_to }}</td>
       <td>₹ {{ p.sale_price }}</td>
       <td>{{ p.sale_date }}</td>
+      <td>{{ p.edited_by }} | {{ p.edited_at }}</td>
     </tr>
     {% endfor %}
   </tbody>

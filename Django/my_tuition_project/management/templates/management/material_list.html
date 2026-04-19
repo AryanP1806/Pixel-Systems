@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+.material-card {
+background: var(--card-bg);
+border: 1px solid var(--border-color);
+border-radius: 20px;
+transition: all 0.3s ease;
+overflow: hidden;
+height: 100%;
+display: flex;
+flex-direction: column;
+}
+.material-card:hover {
+transform: translateY(-5px);
+box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+border-color: #0d6efd;
+}
+.material-icon-box {
+height: 140px;
+display: flex;
+align-items: center;
+justify-content: center;
+background: var(--bg-main);
+border-bottom: 1px solid var(--border-color);
+}
+.text-preview {
+padding: 16px;
+font-size: 0.85rem;
+color: var(--text-muted);
+line-height: 1.6;
+background: rgba(100, 116, 139, 0.03);
+border-radius: 12px;
+margin-bottom: 16px;
+}
+.delete-btn {
+position: absolute;
+top: 12px;
+right: 12px;
+z-index: 10;
+background: var(--card-bg);
+border: 1px solid var(--border-color);
+color: #dc3545;
+width: 32px;
+height: 32px;
+border-radius: 8px;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: 0.2s;
+}
+.delete-btn:hover {
+background: #dc3545;
+color: white;
+}
+</style>
+
+<div class="container-fluid">
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-5 gap-3">
+<div>
+<h2 class="fw-bold mb-1">Study Repository</h2>
+<p class="text-muted mb-0">Access and manage all academic resources and notes.</p>
+</div>
+{% if user.is_owner or user.is_teacher %}
+<a href="{% url 'upload_material' %}" class="btn btn-primary btn-lg rounded-pill px-4 shadow-sm fw-bold">
+<i class="bi bi-cloud-arrow-up me-2"></i>New Upload
+</a>
+{% endif %}
+</div>
+
+<div class="row g-4">
+    {% for mat in materials %}
+    <div class="col-xl-4 col-md-6">
+        <div class="material-card position-relative">
+            {% if user.is_owner or mat.uploaded_by == user %}
+            <a href="{% url 'delete_material' mat.id %}" class="delete-btn" onclick="return confirm('Permanently remove this resource?')">
+                <i class="bi bi-trash-fill"></i>
+            </a>
+            {% endif %}
+
+            <div class="material-icon-box">
+                {% if mat.material_type == 'TEXT' %}
+                    <i class="bi bi-pencil-square display-4 text-primary opacity-50"></i>
+                {% elif mat.material_type == 'IMAGE' %}
+                    <img src="{{ mat.file.url }}" style="width: 100%; height: 100%; object-fit: cover;" alt="Preview">
+                {% else %}
+                    <i class="bi bi-file-earmark-pdf-fill display-4 text-danger opacity-50"></i>
+                {% endif %}
+            </div>
+
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3">{{ mat.subject.name }}</span>
+                    <small class="text-muted fw-bold extra-small text-uppercase">{{ mat.uploaded_at|date:"d M Y" }}</small>
+                </div>
+                
+                <h5 class="fw-bold mb-3">{{ mat.title }}</h5>
+
+                {% if mat.material_type == 'TEXT' %}
+                    <div class="text-preview">
+                        {{ mat.text_content|truncatewords:25 }}
+                    </div>
+                    <button class="btn btn-outline-dark w-100 rounded-pill fw-bold mt-auto" data-bs-toggle="modal" data-bs-target="#modal{{ mat.id }}">
+                        <i class="bi bi-eye me-2"></i>Read Full Note
+                    </button>
+                {% elif mat.material_type == 'IMAGE' %}
+                    <a href="{{ mat.file.url }}" target="_blank" class="btn btn-outline-primary w-100 rounded-pill fw-bold mt-auto">
+                        <i class="bi bi-fullscreen me-2"></i>View Image
+                    </a>
+                {% else %}
+                    <a href="{{ mat.file.url }}" download class="btn btn-primary w-100 rounded-pill fw-bold mt-auto shadow-sm">
+                        <i class="bi bi-download me-2"></i>Download Resource
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if mat.material_type == 'TEXT' %}
+    <div class="modal fade" id="modal{{ mat.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header border-0 bg-primary text-white p-4">
+                    <h5 class="modal-title fw-bold">{{ mat.title }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 p-md-5" style="white-space: pre-wrap; font-size: 1.1rem; line-height: 1.8; color: var(--text-main);">{{ mat.text_content }}</div>
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Close Note</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <div class="opacity-25 mb-4"><i class="bi bi-folder-x display-1"></i></div>
+        <h4 class="fw-bold text-muted">No materials found.</h4>
+        <p class="text-muted mb-0">Check back later for shared curriculum notes.</p>
+    </div>
+    {% endfor %}
+</div>
+
+
+</div>
+{% endblock %}

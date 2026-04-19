@@ -1,0 +1,387 @@
+{% extends 'base.html' %} 
+{% load static %}
+{% block title %}Bulk Rental Entry{% endblock %}
+
+{% block content %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{{ header_form.media }}
+{{ formset.media }}
+
+<style>
+    /* --- STICKY HEADER & TABLE --- */
+    .table-container {
+        max-height: 70vh;
+        overflow-y: auto;
+        position: relative;
+        border: 1px solid #ddd;
+    }
+    .table-container table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .table-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        padding: 12px;
+        text-align: left;
+    }
+
+    /* --- BACKDATED MODE STYLES --- */
+    body.mode-backdated {
+        border-left: 8px solid #d97706; /* Amber Warning Border */
+        border-right: 8px solid #d97706; /* Amber Warning Border */
+        position: relative;
+        /* border-left: 10px; */
+      }
+    /* Watermark for safety */
+    body.mode-backdated::before {
+        content: "BACKDATED MODE";
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 8rem;
+        color: rgba(217, 119, 6, 0.05);
+        pointer-events: none;
+        z-index: 0;
+        font-weight: 900;
+    }
+    .backdated-badge {
+        /* background-color: #d97706; */
+        color: white !important;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        vertical-align: middle;
+        margin-left: 10px;
+    }
+</style>
+
+<script>
+    if (new URLSearchParams(window.location.search).get('backdated') === 'true') {
+        document.body.classList.add('mode-backdated');
+    }
+</script>
+
+<div class="container" style="position: relative; z-index: 1;">
+  
+  <div class="homepage-center" style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <h1>
+        📦 Bulk Add Rentals 
+        {% if request.GET.backdated == 'true' %}
+            <span class="backdated-badge" >🕰️ HISTORICAL DATA ENTRY</span>
+        {% endif %}
+    </h1>
+
+    <div class="mode-controls">
+        {% if request.GET.backdated == 'true' %}
+            <a href="?" class="btn" style="background: #64748b; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold;">
+                ↩️ Exit Backdated Mode (Return to Normal)
+            </a>
+            <p style="margin-top: 5px; font-size: 12px; color: #d97706; font-weight: bold;">
+                ⚠️ You are seeing ALL assets (Rented, Missing, etc). Ensure accurate dates.
+            </p>
+        {% else %}
+            <a href="?backdated=true" class="btn" style="background: #d97706; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold;">
+                🕒 Start Backdated Entry (Old Data)
+            </a>
+            <p style="margin-top: 5px; font-size: 12px; color: #64748b;">
+                Normal Mode: Pending assets are hidden.
+            </p>
+        {% endif %}
+    </div>
+  </div>
+
+  <form method="post" id="bulkForm" style="max-width: 100%">
+    {% csrf_token %}
+
+    <div class="box" style="margin-bottom: var(--space-xl); text-align: left">
+      <h3 style="margin-bottom: var(--space-lg); color: var(--primary)">Common Details</h3>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-lg);">
+        
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);"><span style="color: red;">*</span>Customer</label>
+          <div style="margin-top: var(--space-xs)">{{ header_form.customer }}</div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);"><span style="color: red;">*</span>Status</label>
+          <div style="margin-top: var(--space-xs)">{{ header_form.status }}</div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);"><span style="color: red;">*</span>Start Date</label>
+          <div style="margin-top: var(--space-xs)">{{ header_form.rental_start_date }}</div>
+        </div>
+
+        <div id="end-date-wrapper" class="form-group" style="display: none">
+          <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);"><span style="color: red;">*</span>End Date</label>
+          <div style="margin-top: var(--space-xs)">{{ header_form.rental_end_date }}</div>
+        </div>
+
+        <div class="form-group">
+            <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);">Contract No</label>
+            <div style="margin-top: var(--space-xs)">{{ header_form.contract_number }}</div>
+        </div>
+  
+        <div class="form-group">
+            <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);">Validity</label>
+            <div style="margin-top: var(--space-xs)">{{ header_form.contract_validity }}</div>
+        </div>
+  
+        <div class="form-group">
+            <label style="font-weight: 600; font-size: 14px; color: var(--text-secondary);">Billing Day</label>
+            <div style="margin-top: var(--space-xs)">{{ header_form.billing_day }}</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom: var(--space-md); color: var(--text-primary)">Assets to Rent</h3>
+    {{ formset.management_form }}
+
+    <div id="duplicate-alert" style="display:none; background-color: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #f87171;">
+        ⚠️ <strong>Duplicate Warning:</strong> That asset is already selected in the list. Please select a different one.
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px; text-align: center; color: #64748b; font-weight: bold;">#</th>
+            <th style="width: auto;"><span style="color: red;">*</span>Asset (Searchable)</th>
+            <th style="width: 20%;"><span style="color: red;">*</span>  Payment Amount (₹)</th>
+            <th style="width: 80px; text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="formset-container">
+          {% for form in formset %}
+          <tr class="item-row">
+            <td class="row-number" style="padding: 10px; font-weight: bold; color: #64748b; text-align: center;">{{ forloop.counter }}</td>
+            <td>
+              {{ form.asset }} 
+              {% if form.asset.errors %}
+                <div style="color: var(--danger); font-size: 12px; margin-top: 5px">{{ form.asset.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ form.payment_amount }} 
+              {% if form.payment_amount.errors %}
+                <div style="color: var(--danger); font-size: 12px; margin-top: 5px">{{ form.payment_amount.errors }}</div>
+              {% endif %}
+            </td>
+            <td style="text-align: center">
+              <button type="button" class="remove-row-btn" style="background: #dc2626; padding: 6px 12px;">🗑️</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style=" font-weight: bold;">
+                <td style="text-align: right; padding: 10px;">Total Monthly Payment:</td>
+                <td style="padding: 10px;"><span id="live-total-display">0.00</span></td>
+                <td></td>
+            </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div style="margin-top: var(--space-lg); display: flex; gap: var(--space-md); justify-content: space-between;">
+      <button type="button" id="add-row-btn" style="background: #2563eb; width: auto;">➕ Add Another Asset</button>
+      <button type="submit" style="background: #059669; width: auto;">🚀 Save All Rentals</button>
+    </div>
+  </form>
+</div>
+<table style="display: none">
+  <tr id="empty-row">
+    <td class="row-number" style="padding: 0; font-weight: bold; color: #64748b; text-align: center;"></td>
+    
+    <td>{{ formset.empty_form.asset }}</td>
+    <td>{{ formset.empty_form.payment_amount }}</td>
+    <td style="text-align: center">
+      <button type="button" class="remove-row-btn" style="background: #dc2626; padding: 6px 12px;">🗑️</button>
+    </td>
+  </tr>
+</table><script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const isBackdated = new URLSearchParams(window.location.search).get('backdated') === 'true';
+    const statusField = document.querySelector('[name="{{ header_form.status.name }}"]');
+    const endDateWrapper = document.getElementById("end-date-wrapper");
+    const duplicateAlert = document.getElementById("duplicate-alert");
+
+    // ===============================================
+    // 1. DUPLICATE CHECK LOGIC
+    // ===============================================
+    function checkDuplicates(currentSelect) {
+        const currentVal = $(currentSelect).val();
+        if (!currentVal) return;
+
+        let duplicateFound = false;
+
+        // Iterate over all OTHER asset selects
+        $('select[name$="-asset"]').not(currentSelect).each(function() {
+            if ($(this).val() === currentVal) {
+                duplicateFound = true;
+                return false; // Break loop
+            }
+        });
+
+        if (duplicateFound) {
+            // 1. Show Alert
+            duplicateAlert.style.display = 'block';
+            
+            // 2. Clear the value
+            $(currentSelect).val(null).trigger('change.select2');
+            
+            // 3. Hide alert after 4 seconds
+            setTimeout(() => { duplicateAlert.style.display = 'none'; }, 4000);
+        }
+    }
+
+    // Attach listener using jQuery for Select2 events
+    $(document).on('select2:select', 'select[name$="-asset"]', function(e) {
+        checkDuplicates(this);
+        
+        // ===============================================
+        // 2. AUTO-ADD ROW LOGIC (When asset selected)
+        // ===============================================
+        const currentRow = $(this).closest('tr');
+        const isLastRow = currentRow.is(':last-child');
+        
+        if (isLastRow) {
+            addNewRow();
+        }
+    });
+
+    // ===============================================
+    // 3. KEYBOARD NAVIGATION (Tab & Enter)
+    // ===============================================
+    $(document).on('keydown', 'input[name$="-payment_amount"]', function(e) {
+        // Tab key code is 9
+        if ((e.key === 'Tab' || e.which === 9) && !e.shiftKey) {
+            e.preventDefault();
+
+            const currentRow = $(this).closest('tr');
+            const nextRow = currentRow.next('tr');
+
+            if (nextRow.length > 0) {
+                // Next row exists, focus its asset select2
+                const nextSelect = nextRow.find('select[name$="-asset"]');
+                nextSelect.select2('open');
+            } else {
+                // No next row, add one then focus it
+                addNewRow();
+                // Wait small delay for DOM update
+                setTimeout(() => {
+                    const newRow = $('#formset-container tr:last-child');
+                    newRow.find('select[name$="-asset"]').select2('open');
+                }, 100);
+            }
+        }
+    });
+
+
+    // ===============================================
+    // 4. BACKDATED URL PARAMS FIX
+    // ===============================================
+    if (isBackdated) {
+        $('select[data-autocomplete-light-url]').each(function() {
+            let url = $(this).attr('data-autocomplete-light-url');
+            if (url && !url.includes('backdated=true')) {
+                let separator = url.includes('?') ? '&' : '?';
+                $(this).attr('data-autocomplete-light-url', url + separator + 'backdated=true');
+            }
+        });
+    }
+
+    // ===============================================
+    // 5. STANDARD LOGIC (Add Row, Totals, etc)
+    // ===============================================
+    function updateTotals() {
+        let total = 0;
+        document.querySelectorAll('input[name$="payment_amount"]').forEach(i => total += (parseFloat(i.value) || 0));
+        document.getElementById('live-total-display').textContent = total.toFixed(2);
+        
+        // Update Row Numbers
+        document.querySelectorAll('#formset-container .row-number').forEach((td, index) => {
+            td.textContent = index + 1;
+        });
+    }
+
+    document.body.addEventListener('input', e => { if(e.target.name?.endsWith('payment_amount')) updateTotals(); });
+
+    const container = document.getElementById("formset-container");
+    const totalForms = document.getElementById("id_form-TOTAL_FORMS");
+    const emptyRow = document.getElementById("empty-row").cloneNode(true);
+
+    function addNewRow() {
+        const count = parseInt(totalForms.value);
+        const newRow = emptyRow.cloneNode(true);
+        newRow.removeAttribute("id");
+        newRow.classList.add("item-row");
+        newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, count);
+
+        // Update URL for backdated mode in new row
+        if (isBackdated) {
+            $(newRow).find('select[data-autocomplete-light-url]').each(function() {
+                let url = $(this).attr('data-autocomplete-light-url');
+                if (url && !url.includes('backdated=true')) {
+                    let separator = url.includes('?') ? '&' : '?';
+                    $(this).attr('data-autocomplete-light-url', url + separator + 'backdated=true');
+                }
+            });
+        }
+
+        container.appendChild(newRow);
+        totalForms.value = count + 1;
+
+        // Re-init DAL (Autocomplete)
+        $(newRow).find("[data-autocomplete-light-function=select2]").each(function() {
+            if(window.dal_init_function) window.dal_init_function($(this));
+        });
+
+        updateTotals();
+    }
+
+    document.getElementById("add-row-btn").addEventListener("click", addNewRow);
+
+    container.addEventListener("click", e => {
+        if(e.target.closest(".remove-row-btn")) {
+            const row = e.target.closest("tr");
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                updateTotals();
+            }
+        }
+    });
+
+    document.getElementById("bulkForm").addEventListener("submit", function() {
+        document.querySelectorAll('input[name$="payment_amount"]').forEach(i => { if(!i.value.trim()) i.value = "0"; });
+        if(statusField) statusField.style.pointerEvents = "auto";
+    });
+
+    function enforceBackdatedRules() {
+        if (!statusField) return;
+        let completedOption = Array.from(statusField.options).find(opt => 
+            opt.text.toLowerCase().includes('completed') || opt.value.toLowerCase() === 'completed'
+        );
+        if (isBackdated && completedOption) {
+            statusField.value = completedOption.value;
+            statusField.style.pointerEvents = "none";
+            // statusField.style.backgroundColor = "#e5e7eb";
+            if (endDateWrapper) endDateWrapper.style.display = "block";
+        }
+    }
+    
+    if (isBackdated) {
+        enforceBackdatedRules();
+    } else if (statusField) {
+        statusField.addEventListener("change", function() {
+            const val = statusField.value.toLowerCase();
+            const text = statusField.options[statusField.selectedIndex].text.toLowerCase();
+            endDateWrapper.style.display = (text.includes("completed") || val === "completed") ? "block" : "none";
+        });
+    }
+  });
+</script>
+{% endblock %}

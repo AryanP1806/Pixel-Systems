@@ -46,10 +46,10 @@
   /* Dark Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.6), 0 2px 4px -2px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.7),
-    0 4px 6px -4px rgb(0 0 0 / 0.6);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.8),
-    0 8px 10px -6px rgb(0 0 0 / 0.7);
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.7), 0 4px 6px -4px rgb(0 0 0 / 0.6);
+  --shadow-xl:
+    0 20px 25px -5px rgb(0 0 0 / 0.8), 0 8px 10px -6px rgb(0 0 0 / 0.7);
 
   /* Border Radius */
   --radius-sm: 0.375rem;
@@ -75,7 +75,11 @@ html {
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
   background: linear-gradient(
     135deg,
@@ -205,7 +209,8 @@ nav a {
   overflow-x: auto;
   margin-top: var(--space-lg);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.6),
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.6),
     0 2px 4px -1px rgba(0, 0, 0, 0.5);
 }
 
@@ -441,6 +446,7 @@ button.active {
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="password"],
 select {
   padding: var(--space-md);
   border: 2px solid var(--border);
@@ -454,9 +460,12 @@ select {
   box-shadow: var(--shadow-sm);
 }
 
+
+
 input[type="text"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
+input[type="password"],
 select:focus {
   outline: none;
   border-color: var(--primary);
@@ -465,6 +474,47 @@ select:focus {
   background-color: var(--surface-elevated);
 }
 
+
+
+/* --- REPLACE YOUR EXISTING INPUT BLOCK WITH THIS --- */
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="email"],       /* <--- Added */
+input[type="tel"],         /* <--- Added */
+select,
+textarea {                 /* <--- Added */
+  padding: var(--space-md);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  width: 100%;
+  background-color: var(--surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Fix for Textarea specifically */
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* --- THE AUTOFILL FIX (Crucial) --- */
+/* This forces the browser to paint the background dark even when autofilled */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
+  transition: background-color 5000s ease-in-out 0s;
+}
 /* Forms */
 form {
   background: var(--surface-elevated);
@@ -737,6 +787,43 @@ footer {
   font-size: 14px;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  /* background: #fff; */
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.stat-title {
+  font-size: 0.85em;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-value {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #333;
+  margin-top: 5px;
+}
+.stat-sub {
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 5px;
+}
+.text-green {
+  color: #28a745;
+}
+.text-red {
+  color: #dc3545;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
@@ -843,6 +930,77 @@ form,
   to {
     transform: rotate(360deg);
   }
+}
+
+/* =========================================
+   Select2 (Autocomplete) Dark Mode Fixes
+   Add this to the bottom of aryan2.css
+   ========================================= */
+
+/* 1. The main input box */
+.select2-container--default .select2-selection--single {
+  background-color: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  height: 48px; /* Matches your input[type="text"] padding */
+  display: flex;
+  align-items: center;
+}
+
+/* 2. The text inside the input box */
+.select2-container--default
+  .select2-selection--single
+  .select2-selection__rendered {
+  color: var(--text-primary);
+  padding-left: 12px;
+  font-size: 15px;
+}
+
+/* 3. The Dropdown Container */
+.select2-dropdown {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xl);
+  z-index: 9999; /* Ensure it sits on top */
+}
+
+/* 4. The Search Box inside the dropdown */
+.select2-search--dropdown .select2-search__field {
+  background-color: var(--background);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+/* 5. The Options List */
+.select2-results__option {
+  color: var(--text-primary);
+  background-color: var(--surface-elevated);
+  padding: 10px;
+}
+
+/* 6. Hover/Highlight State (Fixes the "blank until hover" issue) */
+.select2-container--default
+  .select2-results__option--highlighted[aria-selected] {
+  background-color: var(--primary); /* Blue background on hover */
+  color: #ffffff; /* White text */
+}
+
+/* 7. Already Selected Option */
+.select2-container--default .select2-results__option[aria-selected="true"] {
+  background-color: rgba(96, 165, 250, 0.2); /* Light blue tint */
+  color: var(--text-primary);
+}
+
+/* 8. Fix the arrow icon color */
+.select2-container--default
+  .select2-selection--single
+  .select2-selection__arrow
+  b {
+  border-color: var(--text-secondary) transparent transparent transparent;
+  top: 50%;
 }
 
 /* Utility Classes */

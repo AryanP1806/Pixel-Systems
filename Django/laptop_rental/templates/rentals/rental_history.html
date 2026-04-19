@@ -3,53 +3,154 @@
 {% block content %}
 <h2>Rental History (Completed)</h2>
 
-<form method="get">
-  <input
-    type="text"
-    name="q"
-    placeholder="Search rentals..."
-    value="{{ query }}"
-  />
-  <button type="submit">Search</button>
-</form>
+<div>
+  <form method="get">
+    <div>
+      <label style="font-weight: bold">Search:</label><br />
+      <input
+        type="text"
+        name="q"
+        placeholder="Customer, Asset, Contract..."
+        value="{{ query }}"
+      />
+    </div>
+
+    <div>
+      <label style="font-size:small; font-weight: bold">From (Start Date):</label><br />
+      <input
+        type="date"
+        name="start_date"
+        value="{{ start_date }}"
+        style="padding: 6px"
+      />
+    </div>
+
+    <div>
+      <label style="font-size: small; font-weight: bold">To (End Date):</label
+      ><br />
+      <input
+        type="date"
+        name="end_date"
+        value="{{ end_date }}"
+        style="padding: 6px"
+      />
+    </div>
+
+    <div>
+      <button
+        type="submit"
+        style="
+          padding: 7px 15px;
+          background-color: #6366f1;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        "
+      >
+        🔍 Filter
+      </button>
+      <a
+        href="{% url 'rental_history' %}"
+        style="
+          margin-left: 5px;
+          text-decoration: none;
+          color: #666;
+          font-size: small;
+        "
+      >
+        Reset
+      </a>
+    </div>
+  </form>
+</div>
 
 <div class="table-container">
-  <table border="1" cellpadding="8">
+  <table
+    border="1"
+    cellpadding="8"
+    style="width: 100%; border-collapse: collapse"
+  >
     <thead>
       <tr>
         <th>Customer</th>
-        <th>Asset ID</th>
-        <!-- <th>Serial No</th> -->
-        <th>Model</th>
-        <th>Rental Start</th>
-        <th>Rental End</th>
-        <th>Payment Amount</th>
-        <!-- <th>Contract No.</th> -->
-        <th>Contract Validity</th>
+        <th>Asset Details</th>
+        <th>Rental Period</th>
+        <th>Payment (Monthly)</th>
+        <th>Contract No.</th>
         <th>Checked By</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for rental in rentals %}
       <tr>
-        <td>{{ rental.customer.name }}</td>
-        <td>{{ rental.asset.asset_id }}</td>
-        <!-- <td>{{ rental.asset.serial_no }}</td> -->
-        <td>{{ rental.asset.model_no }}</td>
-        <td>{{ rental.rental_start_date }}</td>
-        <td>{{ rental.rental_end_date|date:"F j, Y" }}</td>
-        <td>{{ rental.payment_amount }}</td>
-        <!-- <td>{{ rental.phone_number_primary }}</td> -->
-        <!-- <td>{{ rental.contract_number }}</td> -->
-        <td>{{ rental.contract_validity|date:"F j, Y" }}</td>
-        <td>{{ rental.edited_by.username }}</td>
+        <td>
+          <a
+            href="{% url 'customer_detail' rental.customer.id %}"
+            style="font-weight: bold; text-decoration: none; color: #2563eb"
+          >
+            {{ rental.customer.name }}
+          </a>
+        </td>
+
+        <td>
+          <a
+            href="{% url 'product_detail' rental.asset.id %}"
+            style="text-decoration: none; color: #2563eb"
+          >
+            {{ rental.asset.asset_id }}
+          </a>
+          <br />
+          <span style="font-size: smaller; color: gray"
+            >{{ rental.asset.model_no }}</span
+          >
+        </td>
+
+        <td>
+          <span style="color: green"
+            >{{ rental.rental_start_date|date:"d M Y" }}</span
+          >
+          <br />
+          ⬇ <br />
+          <span style="color: red"
+            >{{ rental.rental_end_date|date:"d M Y" }}</span
+          >
+        </td>
+
+        <td>₹{{ rental.payment_amount }}</td>
+        <td>{{ rental.contract_number|default:"-" }}</td>
+        <td>{{ rental.edited_by.username }} | {{ rental.edited_at }}</td>
+
+        <td>
+          {% if user.is_superuser %}
+
+          <a href="{% url 'edit_rental' rental.id %}" title="Edit Record">
+            <button style="cursor: pointer; padding: 4px 8px">✏️</button>
+          </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
+    
+          {% else %}
+          <p>Admins Only</p>
+          {% endif %}
+        </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="10">No completed rentals found.</td>
+        <td colspan="7" style="text-align: center; padding: 20px">
+          No history found matching your filters.
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+
 </div>
+  <p style="padding: 1vh"></p>
+
 {% endblock %}

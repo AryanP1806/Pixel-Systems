@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+<h1>
+  {% block title %}Customer Details{% endblock %} </h1>
+  {% block content %}
+  <h1>
+    Customer Details: {{ customer.name }}
+    <a
+      href="{% url 'customer_list' %}"
+      style="
+        font-size: medium;
+        padding: 5px 10px;
+        background-color: #6366f1;
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        float: right;
+      "
+      >⬅ Back to Customer List</a
+    >
+  </h1>
+
+  {% if messages %}
+  <ul>
+    {% for message in messages %}
+    <li style="color: green">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <div
+    style="
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    "
+  >
+    <div style="display: flex; justify-content: space-between">
+      <div style="width: 48%">
+        <p><strong>Name:</strong> {{ customer.name }}</p>
+        <p><strong>Email:</strong> {{ customer.email }}</p>
+        <p>
+          <strong>Primary Phone:</strong> {{ customer.phone_number_primary }}
+        </p>
+        <p>
+          <strong>Secondary Phone:</strong> 
+          {{customer.phone_number_secondary|default:"-" }}
+        </p>
+      </div>
+      <div style="width: 48%">
+        <p><strong>Primary Address:</strong> {{ customer.address_primary }}</p>
+        <p>
+          <strong>Secondary Address:</strong> 
+          {{customer.address_secondary|default:"-" }}
+        </p>
+        <p>
+          <strong>Type:</strong>
+          {% if customer.is_permanent %}Permanent{% else %}Temporary{% endif %}
+          {% if customer.is_bni_member %}| BNI Member{% endif %}
+        </p>
+        <p>
+          <strong>Reference:</strong> {{ customer.reference_name|default:"-" }}
+        </p>
+      </div>
+    </div>
+
+    <hr style="margin: 15px 0" />
+
+    <div>
+      <strong>Actions: </strong>
+      <a
+        href="{% url 'edit_customer' customer.id %}"
+        style="
+          padding: 6px 12px;
+          background-color: #f59e0b;
+          color: white;
+          border-radius: 4px;
+          text-decoration: none;
+          font-size: small;
+        "
+      >
+        ✏️ Edit Customer
+      </a>
+    </div>
+  </div>
+
+  <hr />
+  
+  <h3>
+    Current Rentals
+    <span style="font-size: 0.8em; color: #4b5563; font-weight: normal; margin-left: 10px;">
+      ( 📦 <b>{{ active_count }}</b> Assets Rented | 💰 Monthly: ₹{{ total_active_billing }} )
+    </span>
+  </h3>
+  {% if current_rentals %}
+  <div class="table-container" tabindex="0">
+  <table border="1" cellpadding="8">
+    <thead>
+      <tr >
+        <th>Asset ID</th>
+        <th>Product Details</th>
+        <th>Start Date</th>
+        <th>Contract No.</th>
+        <th>Billing Day</th>
+        <th>Amount</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rental in current_rentals %}
+      <tr>
+        <td>
+          <a href="{% url 'product_detail' rental.asset.pk %}" style="font-weight: bold; text-decoration: none; color: #2563eb">
+            {{ rental.asset.asset_id }}
+          </a>
+        </td>
+        <td>{{ rental.asset.brand }} | {{ rental.asset.type_of_asset }}</td>
+        <td>{{ rental.rental_start_date }}</td>
+        <td>{{ rental.contract_number }}</td>
+        <td>{{ rental.billing_day }}</td>
+        <td>₹{{ rental.payment_amount }}</td>
+        <td>
+          <a href="{% url 'edit_rental' rental.id %}" title="Edit Rental">
+            <button style="cursor: pointer; padding: 4px 8px">✏️</button>
+          </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p>No ongoing rentals for this customer.</p>
+  {% endif %}
+  
+  <br />
+  <hr />
+  
+  <h3>Rental History
+    <span style="font-size: 0.8em; color: #4b5563; font-weight: normal; margin-left: 10px;">
+      ( 📦 <b>{{ history_count }}</b> Assets Rented History )
+    </span>
+  </h3>
+  {% if rental_history %}
+  <div class="table-container" tabindex="0">
+  <table border="1" cellpadding="8">
+    <thead>
+      <tr   >
+        <th>Asset ID</th>
+        <th>Product Details</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Amount</th>
+        <th>Status</th>
+        
+        {% if user.is_superuser %}
+
+        <th>Action</th>
+        {% endif %}</tr>
+    </thead>
+    <tbody>
+      {% for rental in rental_history %}
+      <tr>
+        <td>
+          <a href="{% url 'product_detail' rental.asset.pk %}" style="font-weight: bold; text-decoration: none; color: #2563eb">
+            {{ rental.asset.asset_id }}
+          </a>
+        </td>
+        <td>{{ rental.asset.brand }} | {{ rental.asset.type_of_asset }}</td>
+        <td>{{ rental.rental_start_date }}</td>
+        <td>{{ rental.rental_end_date }}</td>
+        <td>₹{{ rental.payment_amount }}</td>
+        <td>{{ rental.status|title }}</td>
+        
+        {% if user.is_superuser %}
+
+        <td>
+          <a href="{% url 'edit_rental' rental.id %}" title="Edit Rental">
+            <button style="cursor: pointer; padding: 4px 8px">✏️</button>
+          
+          </a>
+          <a
+            href="{% url 'delete_rental' rental.id %}"
+            onclick="return confirm('Delete Rental?');"
+            >
+            <button style="cursor: pointer; padding: 4px 8px">🗑️</button>
+            </a>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p>No past rentals found for this customer.</p>
+  {% endif %}
+  <hr />
+  {% endblock %}
+  <p style="padding: 1vh"></p>
+</h1>

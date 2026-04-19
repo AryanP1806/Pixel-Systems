@@ -1,0 +1,115 @@
+<ul class="nav flex-column p-2">
+<!-- Common Dashboard -->
+<li class="nav-item mb-2">
+<a href="{% url 'dashboard' %}" class="nav-link rounded">
+<i class="bi bi-grid-1x2-fill me-2"></i> Dashboard
+</a>
+</li>
+
+
+
+
+
+<!-- Owner Only Section -->
+{% if user.is_owner %}
+
+<div class="sidebar-header">Academic</div>
+<li class="nav-item mb-2">
+    <a href="{% url 'batch_list' %}" class="nav-link rounded">
+        <i class="bi bi-stack me-2"></i> Batches & Tests
+    </a>
+</li>
+
+<!-- Teacher or Owner Section -->
+{% if user.is_teacher or user.is_owner %}
+<li class="nav-item mb-2">
+    <a href="{% url 'upload_material' %}" class="nav-link rounded">
+        <i class="bi bi-cloud-arrow-up-fill me-2 text-primary"></i> Upload Materials
+    </a>
+</li>
+{% endif %}
+
+<div class="sidebar-header">Administration</div>
+<li class="nav-item mb-2">
+    <a href="{% url 'teacher_list' %}" class="nav-link rounded">
+        <i class="bi bi-mortarboard-fill me-2"></i> Faculty / Teachers
+    </a>
+</li>
+<li class="nav-item mb-2">
+    <a href="{% url 'student_list' %}" class="nav-link rounded">
+        <i class="bi bi-people-fill me-2"></i> Students
+    </a>
+</li>
+
+<li class="nav-item">
+    <a href="{% url 'finance_dashboard' %}" class="nav-link">
+        <i class="bi bi-cash-stack me-2"></i> Finances
+    </a>
+</li>
+<li class="nav-item mb-2">
+    <a href="{% url 'manage_subjects' %}" class="nav-link rounded">
+        <i class="bi bi-journal-bookmark-fill me-2"></i> Subjects
+    </a>
+</li>
+
+
+<div class="sidebar-header">Communication</div>
+<li class="nav-item mb-2">
+    <a href="{% url 'create_notice' %}" class="nav-link rounded">
+        <i class="bi bi-megaphone-fill me-2 text-warning"></i> Post Notice
+    </a>
+</li>
+
+{% endif %}
+
+
+<!-- Student Portal -->
+{% if user.is_student %}
+<div class="sidebar-header">My Portal</div>
+<li class="nav-item mb-2">
+    <a href="{% url 'student_attendance' %}" class="nav-link rounded">
+        <i class="bi bi-calendar2-check me-2"></i> My Attendance
+    </a>
+</li>
+<li class="nav-item mb-2">
+    <a href="{% url 'student_marks' %}" class="nav-link rounded">
+        <i class="bi bi-clipboard-data me-2"></i> My Exam Marks
+    </a>
+</li>
+<li class="nav-item mb-2">
+    <a href="{% url 'manage_fees' user.id %}" class="nav-link rounded">
+        <i class="bi bi-currency-rupee me-2"></i> My Fees
+    </a>
+</li>
+{% endif %}
+
+
+<div class="sidebar-header mt-3">Resources</div>
+    <li class="nav-item mb-1">
+        <a href="{% url 'study_material_list' %}" class="nav-link rounded">
+            <i class="bi bi-folder2-open me-2"></i> Study Repository
+        </a>
+    </li>
+
+<li class="nav-item mt-4"><hr class="border-secondary opacity-25"></li>
+<!-- SYSTEM ACCESS (Owner/Superuser Only) -->
+    {% if user.is_superuser or user.is_owner %}
+    <div class="sidebar-header">System</div>
+    <li class="nav-item">
+        <a href="/admin/" class="nav-link text-warning" target="_blank">
+            <i class="bi bi-shield-lock-fill me-2"></i> Database Admin
+        </a>
+    </li>
+    {% endif %}
+<li class="nav-item">
+    <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-link nav-link text-danger border-0 w-100 text-start">
+            <i class="bi bi-power me-2"></i> Logout
+        </button>
+    </form>
+    
+</li>
+
+
+</ul>

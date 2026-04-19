@@ -1,6 +1,8 @@
 from django import forms
+from django.forms import formset_factory, BaseFormSet
 from .models import Customer, Rental, ProductAsset, ProductConfiguration, PendingProduct, PendingCustomer, PendingRental, PendingProductConfiguration, Supplier, Repair,AssetType, HDDOption, RAMOption, GraphicsOption, DisplaySizeOption,CPUOption
 from django_select2.forms import Select2Widget
+
 # from .models import Rental
 from django.db.models import Q
 from django.utils.timezone import now
@@ -344,7 +346,86 @@ class PendingProductConfigurationForm(forms.ModelForm):
 #         model = Rental
 #         fields = '__all__'
 
-    
+# rentals/forms.py
+
+# forms.py
+
+from django import forms
+from django.forms import formset_factory
+from dal import autocomplete
+from .models import Customer, ProductAsset, Rental, PendingRental
+
+# --- BULK RENTAL FORMS ---
+
+class RentalBulkHeaderForm(forms.Form):
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.all(),
+        widget=autocomplete.ModelSelect2(url='customer-autocomplete', attrs={'data-placeholder': 'Select Customer...'})
+    )
+    rental_start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    rental_end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
+    billing_day = forms.IntegerField(required=False)
+    contract_number = forms.CharField(required=False)
+    contract_validity = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
+    # Default to 'ongoing'; logic in View will override this for non-admins if needed
+    status = forms.ChoiceField(choices=Rental.STATUS_CHOICES, initial='ongoing')
+
+
+# In forms.py
+
+class RentalBulkItemForm(forms.Form):
+    asset = forms.ModelChoiceField(
+        queryset=ProductAsset.objects.none(), 
+        widget=autocomplete.ModelSelect2(
+            url='asset-autocomplete', 
+            attrs={'data-placeholder': 'Search Asset...', 'style': 'width: 100%'}
+        )
+    )
+    payment_amount = forms.DecimalField(
+        required=False,
+        initial=0,       
+        min_value=0
+    )
+
+    def __init__(self, *args, **kwargs):
+        # Extract custom 'backdated' argument
+        is_backdated = kwargs.pop('backdated', False)
+        
+        super().__init__(*args, **kwargs)
+        
+        if is_backdated:
+            # BACKDATED MODE: Allow selecting ANY asset in the system
+            # This is crucial because historical data might use assets that are currently dead/sold/rented
+            self.fields['asset'].queryset = ProductAsset.objects.all()
+        else:
+            # NORMAL MODE: Strict filtering
+            rented_ids = Rental.objects.filter(status__in=['ongoing', 'overdue'], asset__isnull=False).values_list('asset_id', flat=True)
+            pending_ids = PendingRental.objects.filter(asset__isnull=False).values_list('asset_id', flat=True)
+            excluded_ids = set(rented_ids) | set(pending_ids)
+            self.fields['asset'].queryset = ProductAsset.objects.filter(condition_status='working').exclude(id__in=excluded_ids)
+           
+class BaseRentalItemFormSet(BaseFormSet):
+    def clean(self):
+        """Checks that no two forms have the same asset."""
+        if any(self.errors):
+            # Don't bother validating the formset unless each form is valid on its own
+            return
+
+        assets = []
+        for i, form in enumerate(self.forms):
+            if self.can_delete and self._should_delete_form(form):
+                continue
+            
+            asset = form.cleaned_data.get('asset')
+            if asset:
+                if asset in assets:
+                    # Raise error on the specific form field
+                    form.add_error('asset', "⚠️ Duplicate: This asset is already selected in another row.")
+                    raise ValidationError("Duplicate assets found. Please remove duplicates.")
+                assets.append(asset)
+
+RentalItemFormSet = formset_factory(RentalBulkItemForm, formset=BaseRentalItemFormSet, extra=1)
+
 class RentalForm(forms.ModelForm):
     class Meta:
         model = Rental

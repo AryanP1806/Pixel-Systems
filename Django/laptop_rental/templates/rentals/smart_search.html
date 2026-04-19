@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Smart Asset Search{% endblock %}
+
+{% block content %}
+<script src="https://unpkg.com/htmx.org@1.9.6"></script>
+
+<div class="container" style="max-width: 1400px; margin: 0 auto;">
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--space-lg);">
+    <div>
+      <h1 style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary); margin: 0; letter-spacing: -0.02em;">
+        ⚡ Smart Asset Match
+      </h1>
+      <p style="color: var(--text-tertiary); margin-top: 4px; font-size: 0.95rem;">
+        Real-time inventory filtering & availability check.
+      </p>
+    </div>
+    <a href="{% url 'home' %}" class="action-btn" style="text-decoration: none; padding: 8px 16px; font-size: 0.9rem; background: var(--surface-elevated); border: 1px solid var(--border); color: var(--text-primary);">
+      &larr; Return to Dashboard
+    </a>
+  </div>
+
+  <div >
+    
+    <form id="searchForm"
+          hx-get="{% url 'smart_asset_search' %}" 
+          hx-target="#results-body" 
+          hx-trigger="change"
+          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); align-items: end;">
+      
+      <div style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xl); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border); margin-bottom: var(--space-sm);">
+        
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+            <input type="checkbox" name="available_only" value="true" 
+                   {% if show_available_only %}checked{% endif %}
+                   style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; border-radius: 4px;">
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Available Only</span>
+                <span style="font-size: 0.75rem; color: var(--text-tertiary);">Hide sold/rented/damaged</span>
+            </div>
+        </label>
+
+        <div style="width: 1px; height: 30px; background: var(--border);"></div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Sort By:</label>
+            <select name="ordering" style="padding: 6px 12px; height: 36px; width: auto; min-width: 180px; font-size: 0.9rem; border-color: var(--border);">
+                <option value="asset_id" {% if selected_sort == 'asset_id' %}selected{% endif %}>Asset ID (A-Z)</option>
+                <option value="asset_id_desc" {% if selected_sort == 'asset_id_desc' %}selected{% endif %}>Asset ID (Z-A)</option>
+                <option value="purchased_newest" {% if selected_sort == 'purchased_newest' %}selected{% endif %}>Newest Added</option>
+                <option value="purchased_oldest" {% if selected_sort == 'purchased_oldest' %}selected{% endif %}>Oldest Added</option>
+            </select>
+        </div>
+
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Type</label>
+        <select name="asset_type" style="height: 40px; padding: 0 10px;">
+          <option value="">All Types</option>
+          {% for type in asset_types %}
+          <option value="{{ type.id }}" {% if selected_type == type.id %}selected{% endif %}>{{ type.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">CPU</label>
+        <select name="cpu" style="height: 40px; padding: 0 10px;">
+          <option value="">Any CPU</option>
+          {% for opt in cpu_options %}
+          <option value="{{ opt.id }}" {% if selected_cpu == opt.id %}selected{% endif %}>{{ opt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">RAM</label>
+        <select name="ram" style="height: 40px; padding: 0 10px;">
+          <option value="">Any RAM</option>
+          {% for opt in ram_options %}
+          <option value="{{ opt.id }}" {% if selected_ram == opt.id %}selected{% endif %}>{{ opt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">HDD</label>
+        <select name="hdd" style="height: 40px; padding: 0 10px;">
+          <option value="">Any HDD</option>
+          {% for opt in hdd_options %}
+          <option value="{{ opt.id }}" {% if selected_hdd == opt.id %}selected{% endif %}>{{ opt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">SSD</label>
+        <select name="ssd" style="height: 40px; padding: 0 10px;">
+          <option value="">Any SSD</option>
+          {% for val in ssd_options %}
+          <option value="{{ val }}" {% if selected_ssd == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Graphics</label>
+        <select name="graphics" style="height: 40px; padding: 0 10px;">
+          <option value="">Any GPU</option>
+          {% for opt in graphics_options %}
+          <option value="{{ opt.id }}" {% if selected_graphics == opt.id %}selected{% endif %}>{{ opt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Screen</label>
+        <select name="display" style="height: 40px; padding: 0 10px;">
+          <option value="">Any Size</option>
+          {% for opt in display_options %}
+          <option value="{{ opt.id }}" {% if selected_display == opt.id %}selected{% endif %}>{{ opt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Power Supply</label>
+        <select name="power" style="height: 40px; padding: 0 10px;">
+          <option value="">Any Power</option>
+          {% for val in power_options %}
+          <option value="{{ val }}" {% if selected_power == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+
+      <div>
+        <a href="{% url 'smart_asset_search' %}" 
+           style="display: flex; align-items: center; justify-content: center; height: 40px; border: 1px dashed var(--danger); border-radius: var(--radius-md); color: var(--danger); text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; background: rgba(239, 68, 68, 0.05);"
+           onmouseover="this.style.background='rgba(239, 68, 68, 0.1)'; this.style.borderColor='var(--danger)'" 
+           onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'">
+            ✕ Reset
+        </a>
+      </div>
+
+    </form>
+  </div>
+
+  <div class="table-container">
+    <table style="width: 100%;">
+      <thead>
+        <tr>
+          <th style="width: 15%;">Asset ID</th>
+          <th style="width: 20%;">Model Info</th>
+          <th style="width: 40%;">Configuration</th>
+          <th style="width: 25%;">Status & Action</th>
+        </tr>
+      </thead>
+      
+      <tbody id="results-body">
+        {% include 'rentals/partials/smart_search_results.html' %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+.detail-header {
+background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+color: white;
+border-radius: 20px;
+padding: 24px;
+margin-bottom: 24px;
+box-shadow: 0 10px 20px rgba(13, 110, 253, 0.15);
+}
+
+.enroll-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: rgba(100, 116, 139, 0.03);
+}
+
+.student-item {
+    transition: 0.2s;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+}
+.student-item:hover {
+    background: rgba(13, 110, 253, 0.05);
+}
+.student-item:last-child { border-bottom: none; }
+
+/* Custom Checkbox for PWA feel */
+.custom-check {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.2s;
+}
+input:checked + .custom-check {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.section-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.roster-badge {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 10px 16px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+
+</style>
+
+<div class="container-fluid">
+<!-- Header Card -->
+<div class="detail-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+<div>
+<div class="d-flex align-items-center gap-2 mb-1">
+<h2 class="fw-bold mb-0 text-white">{{ batch.name }}</h2>
+<span class="badge bg-white text-primary rounded-pill">Grade {{ batch.grade }}</span>
+</div>
+<p class="mb-0 opacity-75 fw-medium">
+<i class="bi bi-person-workspace me-1"></i>
+Lead: {{ batch.teacher.get_full_name|default:batch.teacher.username }}
+</p>
+</div>
+<div class="d-flex gap-2">
+<a href="{% url 'take_attendance' batch.id %}" class="btn btn-light fw-bold px-4 rounded-pill shadow-sm">
+<i class="bi bi-calendar-check-fill me-2 text-success"></i> Take Attendance
+</a>
+</div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Management & Roster -->
+    <div class="col-lg-4">
+        {% if user.is_owner %}
+        <!-- Fast Enrollment Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="section-title">
+                    <i class="bi bi-person-plus-fill"></i> Fast Enrollment
+                </div>
+                
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-transparent border-end-0 border-secondary-subtle">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" id="studentSearch" class="form-control border-start-0 border-secondary-subtle bg-transparent" placeholder="Filter names...">
+                </div>
+
+                <form method="POST" action="{% url 'add_student_to_batch' batch.id %}">
+                    {% csrf_token %}
+                    <div class="enroll-list-container mb-3" id="studentList">
+                        {% for student in all_students %}
+                        <label class="student-item d-flex align-items-center p-3 w-100 mb-0">
+                            <input type="checkbox" name="student_ids" value="{{ student.id }}" class="d-none student-check">
+                            <div class="custom-check me-3">
+                                <i class="bi bi-check-lg text-white small"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold small student-name">{{ student.username }}</div>
+                                <div class="extra-small text-muted" style="font-size: 0.7rem;">ID: #{{ student.id }}</div>
+                            </div>
+                        </label>
+                        {% empty %}
+                        <div class="p-5 text-center text-muted">
+                            <i class="bi bi-emoji-smile d-block fs-2 opacity-25 mb-2"></i>
+                            <span class="small">All eligible students are enrolled.</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if all_students %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check small">
+                            <input class="form-check-input" type="checkbox" id="selectAll">
+                            <label class="form-check-label text-muted" for="selectAll">Select All</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill fw-bold">Add Selected</button>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Roster Section -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="section-title">
+                    <i class="bi bi-people-fill"></i> Batch Roster ({{ batch.students.count }})
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;" class="pe-2">
+                    {% for s in batch.students.all %}
+                    <div class="roster-badge">
+                        <div class="fw-bold small">{{ s.username }}</div>
+                        <div class="text-muted extra-small">{{ s.phone|default:"No Phone" }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4 text-muted small">No students enrolled yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Data & Logs -->
+    <div class="col-lg-8">
+        <div class="row g-4">
+            <!-- Attendance History -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm overflow-hidden">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        <div class="section-title mb-0"><i class="bi bi-clock-history"></i> Attendance Logs</div>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Last 5 Sessions</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4">Date</th>
+                                    <th>Status</th>
+                                    <th class="text-end pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in attendance_history %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold">{{ session.date|date:"D, d M Y" }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 6px; width: 100px;">
+                                            <div class="progress-bar {% if session.percentage >= 80 %}bg-success{% elif session.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 role="progressbar" style="width: {{ session.percentage }}%"></div>
+                                        </div>
+                                        <small class="text-muted extra-small">{{ session.present }}/{{ session.total }} Present</small>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="{% url 'take_attendance' batch.id %}?date={{ session.date|date:'Y-m-d' }}" 
+                                           class="btn btn-sm btn-outline-secondary rounded-circle">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-5 text-muted small">No attendance history found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exam Records -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm overflow-hidden">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        <div class="section-title mb-0"><i class="bi bi-clipboard-data-fill"></i> Academic Tests</div>
+                        <a href="{% url 'create_test' batch.id %}" class="btn btn-sm btn-primary rounded-pill px-3">+ New Exam</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4">Test Details</th>
+                                    <th>Max Marks</th>
+                                    <th class="text-end pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in batch.test_set.all %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold">{{ test.test_name }}</div>
+                                        <div class="extra-small text-muted">{{ test.date_held|date:"d M Y" }} • {{ test.subject.name }}</div>
+                                    </td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary border px-3">{{ test.max_marks }}</span></td>
+                                    <td class="text-end pe-4">
+                                        <a href="{% url 'enter_marks' test.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">Manage Marks</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-5 text-muted small">No tests scheduled yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
+<script>
+// Modern Filter Logic
+document.getElementById('studentSearch')?.addEventListener('keyup', function() {
+let filter = this.value.toLowerCase();
+let items = document.querySelectorAll('.student-item');
+items.forEach(item => {
+let name = item.querySelector('.student-name').innerText.toLowerCase();
+item.style.display = name.includes(filter) ? 'flex' : 'none';
+});
+});
+
+// Select All Utility
+document.getElementById(&#39;selectAll&#39;)?.addEventListener(&#39;change&#39;, function() {
+    let checkboxes = document.querySelectorAll(&#39;.student-check&#39;);
+    checkboxes.forEach(cb =&gt; {
+        if (cb.closest(&#39;.student-item&#39;).style.display !== &#39;none&#39;) {
+            cb.checked = this.checked;
+        }
+    });
+});
+
+
+</script>
+
+{% endblock %}

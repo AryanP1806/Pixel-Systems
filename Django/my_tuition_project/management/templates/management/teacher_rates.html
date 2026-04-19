@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-dark text-white py-3">
+                    <h5 class="mb-0 fw-bold">Rate Card: {{ teacher.get_full_name|default:teacher.username }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold">Standard/Grade</label>
+                                <select name="grade" class="form-select" required>
+                                    <option value="9">9th Standard</option>
+                                    <option value="10">10th Standard</option>
+                                    <option value="11">11th Standard</option>
+                                    <option value="12">12th Standard</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold">Hourly Rate (₹)</label>
+                                <input type="number" name="rate" class="form-control" placeholder="e.g. 500" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3 fw-bold">Update Rate</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold text-muted">Active Hourly Rates</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Grade</th>
+                                <th>Hourly Rate</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rates %}
+                            <tr>
+                                <td class="ps-4 fw-bold">Grade {{ r.grade }}</td>
+                                <td class="text-success fw-bold">₹{{ r.hourly_rate }} / hr</td>
+                                <td class="text-end pe-4">
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center py-4 text-muted">No rates configured yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

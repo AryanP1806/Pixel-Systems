@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white py-3">Add New Subject</div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Subject Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Physics" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Add Subject</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header  py-3">Current Subjects</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th class="ps-4">#</th>
+                                <th>Subject Name</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subject in subjects %}
+                            <tr>
+                                <td class="ps-4">{{ forloop.counter }}</td>
+                                <td class="fw-bold">{{ subject.name }}</td>
+                                <td class="text-end pe-4">
+                                    <!-- FIXED: Changed sub.id to subject.id -->
+                                    <a href="{% url 'delete_subject' subject.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this subject?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center py-4">No subjects added yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

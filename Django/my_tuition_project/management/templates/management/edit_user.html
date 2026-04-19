@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0">
+                <!-- Header with Role Indicator -->
+                <div class="card-header {% if u.is_student %}bg-primary{% else %}bg-dark{% endif %} text-white py-4 px-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="fw-bold mb-0">Master Profile Control</h3>
+                            <p class="mb-0 opacity-75">ID: #{{ u.id|add:1000 }} • System Role: {% if u.is_student %}Student{% else %}Faculty{% endif %}</p>
+                        </div>
+                        <div class="text-end">
+                            <div class="bg-white text-dark rounded-pill px-3 py-1 small fw-bold">Active Account</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-5">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- SECTION 1: LEGAL IDENTITY -->
+                        <div class="row mb-5">
+                            <div class="col-12"><h6 class="text-muted text-uppercase fw-bold mb-4 border-bottom pb-2">1. Identity & Credentials</h6></div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">System Username*</label>
+                                <input type="text" name="username" class="form-control bg-light" value="{{ u.username }}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">First Name</label>
+                                <input type="text" name="first_name" class="form-control" value="{{ u.first_name }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">Last Name</label>
+                                <input type="text" name="last_name" class="form-control" value="{{ u.last_name }}">
+                            </div>
+                        </div>
+
+                        <!-- SECTION 2: ACADEMIC / PROFESSIONAL DETAILS -->
+                        <div class="row mb-5 bg-light p-4 rounded-3 border-start border-4 {% if u.is_student %}border-primary{% else %}border-success{% endif %}">
+                            <div class="col-12">
+                                <h6 class="text-dark text-uppercase fw-bold mb-4">
+                                    {% if u.is_student %}2. Academic Record{% else %}2. Professional Status{% endif %}
+                                </h6>
+                            </div>
+                            
+                            {% if u.is_student %}
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">Current Standard / Grade</label>
+                                <select name="current_grade" class="form-select">
+                                    <option value="9" {% if u.current_grade == 9 %}selected{% endif %}>9th Standard</option>
+                                    <option value="10" {% if u.current_grade == 10 %}selected{% endif %}>10th Standard</option>
+                                    <option value="11" {% if u.current_grade == 11 %}selected{% endif %}>11th Standard</option>
+                                    <option value="12" {% if u.current_grade == 12 %}selected{% endif %}>12th Standard</option>
+                                    <option value="13" {% if u.current_grade == 13 %}selected{% endif %}>Repeaters / Droppers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">Display Label (Year of Study)</label>
+                                <input type="text" class="form-control" value="{{ u.year_of_study }}" disabled>
+                                <div class="form-text small">Auto-updates based on Grade selection.</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold">Prev. Year Marks (%)</label>
+                                <input type="number" step="0.01" name="last_year_marks" class="form-control" value="{{ u.last_year_marks|default:'' }}">
+                            </div>
+                            {% else %}
+                            <div class="col-md-12">
+                                <div class="alert alert-info py-2 small border-0">
+                                    <i class="bi bi-info-circle me-2"></i> Teacher batch assignments and hourly rates are managed via the <strong>Faculty Directory</strong>.
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SECTION 3: PERSONAL & CONTACT -->
+                        <div class="row mb-5">
+                            <div class="col-12"><h6 class="text-muted text-uppercase fw-bold mb-4 border-bottom pb-2">3. Personal & Contact Info</h6></div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label small fw-bold">Gender</label>
+                                <select name="gender" class="form-select">
+                                    <option value="Male" {% if u.gender == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if u.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Other" {% if u.gender == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label small fw-bold">Age</label>
+                                <input type="number" name="age" class="form-control" value="{{ u.age|default:'' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label small fw-bold">Email Address</label>
+                                <input type="email" name="email" class="form-control" value="{{ u.email }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label small fw-bold">Mobile Phone</label>
+                                <input type="text" name="phone" class="form-control" value="{{ u.phone }}">
+                            </div>
+                            {% if u.is_student %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label small fw-bold text-danger">Parent's Mobile*</label>
+                                <input type="text" name="parent_phone" class="form-control border-danger-subtle" value="{{ u.parent_phone }}">
+                            </div>
+                            {% endif %}
+                            <div class="col-12 mb-3">
+                                <label class="form-label small fw-bold">Residential Address</label>
+                                <textarea name="address" class="form-control" rows="2">{{ u.address }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 4: SECURITY -->
+                        <div class="row mb-5">
+                            <div class="col-12"><h6 class="text-muted text-uppercase fw-bold mb-4 border-bottom pb-2">4. Account Security</h6></div>
+                            <div class="col-md-12">
+                                <div class="p-4 rounded-3 border border-warning-subtle" style="background: #fffcf0;">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold text-warning-emphasis">Reset Login Password</label>
+                                            <input type="password" name="password" class="form-control" placeholder="Type new password ONLY if you want to override existing">
+                                            <div class="form-text text-muted">Passwords are encrypted. If you leave this blank, the current password remains active.</div>
+                                        </div>
+                                        <div class="col-md-4 text-center d-none d-md-block">
+                                            <i class="bi bi-shield-lock-fill display-4 text-warning opacity-50"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FORM ACTIONS -->
+                        <div class="d-flex justify-content-between align-items-center pt-4 border-top">
+                            <a href="javascript:history.back()" class="btn btn-light px-4 border fw-bold text-muted">Discard Changes</a>
+                            <button type="submit" class="btn btn-primary btn-lg px-0 fw-bold shadow">
+                                <i class="bi bi-check-all me-2"></i>Synchronize Profile
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="mt-5 p-4 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center border-danger-subtle">
+                <div>
+                    <h6 class="fw-bold mb-1 text-danger">Danger Zone</h6>
+                    <p class="small text-muted mb-0">Permanently erase this account and all associated marks/attendance data.</p>
+                </div>
+                <a href="{% url 'delete_user' u.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('EXTREME WARNING: You are about to delete this user forever. This cannot be reversed. Proceed?')">
+                    Termindate Account
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

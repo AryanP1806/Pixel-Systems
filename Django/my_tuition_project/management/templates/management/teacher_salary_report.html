@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Salary Report</h2>
+            <p class="text-muted">{{ teacher.get_full_name|default:teacher.username }} • {{ selected_month }}/{{ selected_year }}</p>
+        </div>
+        <div class="text-end">
+            <div class="small text-uppercase fw-bold text-muted">Net Earnings</div>
+            <div class="h2 fw-bold text-success mb-0">₹{{ total_earnings }}</div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3">
+            <form class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <select name="month" class="form-select form-select-sm">
+                        <option value="1" {% if selected_month == '1' %}selected{% endif %}>Jan</option>
+                        <option value="7" {% if selected_month == '7' %}selected{% endif %}>Jul</option>
+                        <!-- Add all months as needed -->
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="number" name="year" class="form-control form-control-sm" value="{{ selected_year }}" style="width: 80px;">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-dark">Filter</button>
+                </div>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Date & Topic</th>
+                            <th>Batch</th>
+                            <th>Duration</th>
+                            <th class="text-end pe-4">Earnings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lectures %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">{{ l.topic_covered }}</div>
+                                <div class="small text-muted">{{ l.date|date:"d M Y" }}</div>
+                            </td>
+                            <td>{{ l.batch.name }} (Gr {{ l.batch.grade }})</td>
+                            <td>{{ l.duration_minutes }} mins</td>
+                            <td class="text-end pe-4 fw-bold">₹{{ l.calculated_earning }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center py-5 text-muted">No lectures logged for this period.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

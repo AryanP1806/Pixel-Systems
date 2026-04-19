@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+<h1>{% block title %}Contract Expiry Dashboard{% endblock %}</h1>
+{% block content %}
+<div style="max-width: 1100px; margin: 0 auto">
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    "
+  >
+    <h1>⚠️ Contract Expiry Dashboard</h1>
+
+    {% if expired_rentals %}
+    <form method="post">
+      {% csrf_token %}
+      <button
+        type="submit"
+        name="send_reminders"
+        onclick="
+          return confirm('Send email reminders for all expired contracts?');
+        "
+        style="
+          background-color: #ef4444;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          font-weight: bold;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        "
+      >
+        📨 Send Reminders to Admin
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div style="margin-bottom: 40px">
+    <h3
+      style="
+        color: #dc2626;
+        border-bottom: 2px solid #dc2626;
+        padding-bottom: 5px;
+      "
+    >
+      🔴 Expired Contracts ({{ expired_rentals.count }})
+    </h3>
+
+    {% if expired_rentals %}
+    <div class="table-container">
+      <table
+        border="1"
+        cellpadding="10"
+        style="
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid #fecaca;
+        "
+      >
+        <thead style="background-color: #fef2f2">
+          <tr>
+            <th style="color: #991b1b">Customer</th>
+            <th style="color: #991b1b">Asset</th>
+            <th style="color: #991b1b">Expiry Date</th>
+            <th style="color: #991b1b">Overdue By</th>
+            <th style="color: #991b1b">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rental in expired_rentals %}
+          <tr>
+            <td>
+              <a
+                href="{% url 'customer_detail' rental.customer.id %}"
+                style="font-weight: bold; color: #111827; text-decoration: none"
+              >
+                {{ rental.customer.name }}
+              </a>
+            </td>
+            <td>{{ rental.asset.asset_id }}</td>
+            <td style="color: #dc2626; font-weight: bold">
+              {{ rental.contract_validity|date:"d M Y" }}
+            </td>
+            <td>{{ rental.contract_validity|timesince:today }}</td>
+            <td>
+              <a
+                href="{% url 'edit_rental' rental.id %}"
+                style="text-decoration: none"
+              >
+                <button
+                  style="cursor: pointer; padding: 4px 10px; font-size: 0.9em"
+                >
+                  Renew / Edit
+                </button>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: #666; font-style: italic">
+      ✅ No active rentals have expired contracts.
+    </p>
+    {% endif %}
+  </div>
+
+  <div>
+    <h3
+      style="
+        color: #d97706;
+        border-bottom: 2px solid #d97706;
+        padding-bottom: 5px;
+      "
+    >
+      ⚠️ Expiring Soon (Next 15 Days)
+    </h3>
+
+    {% if expiring_soon %}
+    <div class="table-container">
+      <table
+        border="1"
+        cellpadding="10"
+        style="
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid #fde68a;
+        "
+      >
+        <thead style="background-color: #fffbeb">
+          <tr>
+            <th style="color: #92400e">Customer</th>
+            <th style="color: #92400e">Asset</th>
+            <th style="color: #92400e">Expiry Date</th>
+            <th style="color: #92400e">Days Left</th>
+            <th style="color: #92400e">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rental in expiring_soon %}
+          <tr>
+            <td>
+              <a
+                href="{% url 'customer_detail' rental.customer.id %}"
+                style="font-weight: bold; color: #111827; text-decoration: none"
+              >
+                {{ rental.customer.name }}
+              </a>
+            </td>
+            <td>{{ rental.asset.asset_id }}</td>
+            <td style="color: #d97706; font-weight: bold">
+              {{ rental.contract_validity|date:"d M Y" }}
+            </td>
+            <td>{{ rental.contract_validity|timeuntil:today }}</td>
+            <td>
+              <a
+                href="{% url 'edit_rental' rental.id %}"
+                style="text-decoration: none"
+              >
+                <button
+                  style="cursor: pointer; padding: 4px 10px; font-size: 0.9em"
+                >
+                  Check
+                </button>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: #666; font-style: italic">
+      ✨ No contracts expiring in the next 15 days.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

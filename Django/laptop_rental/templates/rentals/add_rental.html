@@ -1,15 +1,72 @@
 {% extends 'base.html' %}
-<h1>{% block title %}Add Rental{% endblock %}</h1>
-{% block content %}
+<h1></h1>
+{% block title %}Add Rental{% endblock %} {% block content %}
+<style>
+  /* Quick styling for the modal and form groups */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  .input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn-icon {
+    cursor: pointer;
+    padding: 5px 10px;
+    background: #eee;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  /* Simple Modal CSS */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+  }
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .close:hover {
+    color: black;
+  }
+</style>
+
 <h2>Add New Rental</h2>
 
 <form method="post">
-  {% csrf_token %}
-
-  <!-- Include form media for autocomplete -->
-  {{ form.media }} {% if form.errors %}
-  <div style="color: red">
-    <strong>There were errors with your submission:</strong>
+  {% csrf_token %} {{ form.media }} {% if form.errors %}
+  <div
+    role="alert"
+    style="
+      color: #dc2626;
+      background: #fee2e2;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    "
+  >
+    <strong>⚠️ There were errors with your submission:</strong>
     <ul>
       {% for field in form %} {% for error in field.errors %}
       <li>{{ field.label }}: {{ error }}</li>
@@ -18,70 +75,131 @@
   </div>
   {% endif %}
 
-  <p>
+  <div class="form-group">
     <label for="id_asset">
-      <span style="color: red">*</span> Product (Asset):
+      <span style="color: red" aria-hidden="true">*</span> Product (Asset):
     </label>
     {{ form.asset }}
-  </p>
+  </div>
 
   {% if form.asset.field.queryset.count == 0 %}
-  <p style="color: red">⚠️ No assets are available for rental at the moment.</p>
+  <div role="status" style="color: #dc2626; font-weight: bold">
+    ⚠️ No assets are available for rental at the moment.
+  </div>
   {% endif %}
 
-  <p>
+  <div class="form-group">
     <label for="id_customer">
-      <span style="color: red">*</span> Customer:
+      <span style="color: red" aria-hidden="true">*</span> Customer:
     </label>
-    {{ form.customer }}
-  </p>
+    <div class="input-group">
+      {{ form.customer }}
+      <button
+        type="button"
+        id="openCustomerModal"
+        class="btn-icon"
+        title="Add New Customer"
+        aria-label="Add New Customer"
+      >
+        ➕
+      </button>
+    </div>
+  </div>
 
-  <p>
+  <div class="form-group">
     <label for="id_rental_start_date">
-      <span style="color: red">*</span> Start Date:
+      <span style="color: red" aria-hidden="true">*</span> Start Date:
     </label>
     {{ form.rental_start_date }}
-  </p>
+  </div>
 
-  <p>
+  <div class="form-group">
     <label for="id_billing_day">Billing Date:</label>
     {{ form.billing_day }}
-  </p>
+  </div>
 
-  <p>
+  <div class="form-group">
     <label for="id_contract_number">Contract Number:</label>
     {{ form.contract_number }}
-  </p>
+  </div>
 
-  <p>
+  <div class="form-group">
     <label for="id_contract_validity">Contract Validity:</label>
     {{ form.contract_validity }}
-  </p>
+  </div>
 
-  <p>
+  <div class="form-group">
     <label for="id_payment_amount">
-      <span style="color: red">*</span> Payment Amount:
+      <span style="color: red" aria-hidden="true">*</span> Payment Amount:
     </label>
-    {{ form.payment_amount }}
-  </p>
+    <div class="input-group">
+      {{ form.payment_amount }}
+      <a href="{% url 'short_term_calculator' %}" target="_blank" style="text-decoration: none; flex-shrink: 0;">
+        <button type="button" title="Short-Term Calculator" style="background: linear-gradient(135deg, var(--info), #2563eb); color: white; padding: 10px 15px; border: none; border-radius: var(--radius-md); font-size: 14px; cursor: pointer; margin: 0;">
+          🧮 Calc
+        </button>
+      </a>
+    </div>
+  </div>
 
-  <p>
-    <label for="id_status"> <span style="color: red">*</span> Status: </label>
+<!--  <div style="margin-bottom: var(--space-md); text-align: right;">-->
+<!--    <a href="{% url 'short_term_calculator' %}" target="_blank" style="text-decoration: none;">-->
+<!--        <button type="button" class="action-btn" style="background: linear-gradient(135deg, var(--info), #2563eb); width: auto;">-->
+<!--            🧮 Open Short-Term Deal Calculator-->
+<!--        </button>-->
+<!--    </a>-->
+<!--</div>-->
+
+  <div class="form-group">
+    <label for="id_status">
+      <span style="color: red" aria-hidden="true">*</span> Status:
+    </label>
     {{ form.status }}
-  </p>
+  </div>
 
-  <div id="end-date-field" style="display: none">
+  <div id="end-date-field" class="form-group" style="display: none">
     <label for="id_rental_end_date">Rental End Date:</label>
     {{ form.rental_end_date }}
   </div>
 
-  <p>
+  <div class="form-group" style="margin-top: 20px">
     <button type="submit">Add Rental</button>
-  </p>
+  </div>
 </form>
+
+<div id="customerModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>Quick Add Customer</h3>
+    <form id="quickCustomerForm">
+      <div class="form-group">
+        <label>Name*</label>
+        <input type="text" name="name" required style="width: 100%" />
+      </div>
+      <div class="form-group">
+        <label>Phone*</label>
+        <input
+          type="text"
+          name="phone_number_primary"
+          required
+          style="width: 100%"
+        />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" style="width: 100%" />
+      </div>
+      <button type="button" id="saveCustomerBtn" style="margin-top: 10px">
+        Save Customer
+      </button>
+      <div id="modal-errors" style="color: red; margin-top: 10px"></div>
+    </form>
+  </div>
+</div>
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    // 1. Existing End Date Logic
     const statusField = document.getElementById("id_status");
     const endDateField = document.getElementById("end-date-field");
 
@@ -93,8 +211,68 @@
       }
     }
 
-    statusField.addEventListener("change", toggleEndDateField);
-    toggleEndDateField(); // Initial check
+    if (statusField) {
+      statusField.addEventListener("change", toggleEndDateField);
+      toggleEndDateField();
+    }
+
+    // 2. Modal Logic
+    const modal = document.getElementById("customerModal");
+    const btn = document.getElementById("openCustomerModal");
+    const span = document.getElementsByClassName("close")[0];
+    const saveBtn = document.getElementById("saveCustomerBtn");
+
+    btn.onclick = function () {
+      modal.style.display = "block";
+    };
+    span.onclick = function () {
+      modal.style.display = "none";
+    };
+    window.onclick = function (event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+      }
+    };
+
+    // 3. Quick Add AJAX Logic
+    saveBtn.onclick = function () {
+      const formData = new FormData(
+        document.getElementById("quickCustomerForm"),
+      );
+      // NOTE: You need to create a URL mapping for this, e.g., /customers/api/create/
+      // Include CSRF token in headers
+      const csrfToken = document.querySelector(
+        "[name=csrfmiddlewaretoken]",
+      ).value;
+
+      fetch("/customers/add/quick/", {
+        // Replace with your actual endpoint
+        method: "POST",
+        headers: { "X-CSRFToken": csrfToken },
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            // Add new option to the select box and select it
+            const select = document.getElementById("id_customer");
+            const option = new Option(data.name, data.id, true, true);
+            select.add(option, undefined);
+
+            // Close modal and reset form
+            modal.style.display = "none";
+            document.getElementById("quickCustomerForm").reset();
+          } else {
+            document.getElementById("modal-errors").innerText =
+              "Error: " + JSON.stringify(data.errors);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          document.getElementById("modal-errors").innerText =
+            "An unexpected error occurred.";
+        });
+    };
   });
 </script>
 {% endblock %}

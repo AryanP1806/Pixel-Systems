@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta Tags -->
+    <meta
+      name="description"
+      content="Pixel Systems - Legal Advisors and Counsel."
+    />
+    <meta name="robots" content="index, follow" />
+
+    <title>Legal Advisors | Pixel Systems</title>
+
+    <link rel="icon" type="image/x-icon" href="Pixel Images/logo.png" />
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="pixel2.css" />
+    <link rel="stylesheet" href="footer.css" />
+
+    <!-- JavaScript -->
+    <script src="pixel2.js" defer></script>
+
+    <style>
+      /* Page specific fix for sticky header */
+      .page-content {
+        padding-top: 120px; /* Clears the sticky header */
+        min-height: 80vh;
+        background-color: var(--background-secondary);
+      }
+
+      /* Advisor Card Styles */
+      .advisor-card {
+        background: var(--background-primary);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-width: 900px;
+        margin: 2rem auto;
+        transition: transform var(--transition-normal);
+        border: 1px solid var(--border-color);
+      }
+
+      .advisor-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-xl);
+      }
+
+      .advisor-image {
+        position: relative;
+        background-color: #e2e8f0; /* Placeholder color while loading */
+      }
+
+      .advisor-image img {
+        width: 100%;
+        height: 350px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .advisor-details {
+        padding: 2.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .advisor-name {
+        font-size: 2rem;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+        font-family: var(--font-family-heading);
+      }
+
+      .firm-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+      }
+
+      .contact-list {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 2rem;
+      }
+
+      .contact-list li {
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .contact-label {
+        font-weight: 600;
+        min-width: 80px;
+        color: var(--secondary-color);
+        margin-right: 0.5rem;
+      }
+
+      .website-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+
+      .website-link:hover {
+        color: var(--primary-dark);
+        text-decoration: underline;
+      }
+
+      /* Desktop Layout */
+      @media (min-width: 768px) {
+        .advisor-card {
+          flex-direction: row;
+        }
+
+        .advisor-image {
+          flex: 0 0 40%; /* Image takes 40% width */
+          max-width: 400px;
+        }
+
+        .advisor-image img {
+          height: 100%;
+          min-height: 400px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header role="banner">
+      <div class="logo">
+        <a href="index.html">
+          <img
+            src="Pixel Images/Gemini_Generated_Image_uaqdf3uaqdf3uaqd-removebg-preview (1).png"
+            alt="Pixel Systems - IT Solutions Provider Logo"
+            width="140"
+            height="auto"
+          />
+        </a>
+      </div>
+
+      <nav class="nav" role="navigation" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="index.html#services">Services</a></li>
+          <li><a href="index.html#testimonials">Testimonials</a></li>
+          <li><a href="index.html#about">About Us</a></li>
+          <li><a href="pixel.html">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main-content" class="page-content">
+      <section class="container">
+        <h1 style="text-align: center; margin-bottom: 0.5rem">
+          Our Legal Advisors
+        </h1>
+        <hr
+          style="
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(
+              90deg,
+              var(--primary-color),
+              var(--primary-dark)
+            );
+            border: none;
+            margin: 0 auto 3rem auto;
+            border-radius: 2px;
+          "
+        />
+
+        <div class="advisor-card">
+          <!-- Image Section -->
+          <div class="advisor-image">
+            <!-- Using the image path you provided. Ensure this file exists in your folder. -->
+            <img
+              src="Pixel Images/legal.jpg"
+              alt="Advocate Bhooshan Kokare"
+              loading="lazy"
+            />
+          </div>
+
+          <!-- Details Section -->
+          <div class="advisor-details">
+            <h2 class="advisor-name">Adv. Bhooshan Kokare</h2>
+            <div class="firm-name">Bhooshan Kokare and Advocates</div>
+
+            <ul class="contact-list">
+              <li>
+                <span class="contact-label">Email:</span>
+                <a
+                  href="mailto:advbhooshank@gmail.com"
+                  style="color: inherit; text-decoration: none"
+                  >advbhooshank@gmail.com</a
+                >
+              </li>
+              <li>
+                <span class="contact-label">Website:</span>
+                <a
+                  href="https://advbhooshankokare.com/"
+                  target="_blank"
+                  rel="noopener"
+                  class="website-link"
+                >
+                  www.advbhooshankokare.com
+                </a>
+              </li>
+            </ul>
+
+            <a href="pixel.html" class="cta-button" style="text-align: center"
+              >Contact Us</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+      <div class="container">
+        <h2>Pixel Systems</h2>
+
+        <div class="footer-container">
+          <div class="footer-column">
+            <h3>Navigation</h3>
+            <a href="index.html">Home</a>
+            <a href="pixel.html">Contact Us</a>
+            <a href="index.html#services">Services</a>
+          </div>
+
+          <div class="footer-column">
+            <h3>Learn About Us</h3>
+            <a href="index.html#amc">AMC Services</a>
+            <a href="index.html#testimonials">Testimonials</a>
+            <a href="index.html#about">About Us</a>
+            <a href="index.html#data-security">Security Consulting</a>
+          </div>
+
+          <div class="footer-column">
+            <h3>Legal</h3>
+            <a href="pixel-privacy.html#terms" target="_blank" rel="noopener"
+              >Terms of Service</a
+            >
+            <a href="pixel-privacy.html" target="_blank" rel="noopener"
+              >Privacy Policy</a
+            >
+            <a
+              href="legal-advisors.html"
+              aria-label="Our legal advisors"
+              style="color: white; padding-left: 0.5rem"
+              >Our Legal Advisors</a
+            >
+          </div>
+
+          <div class="footer-column">
+            <h3>Connect With Us</h3>
+            <a
+              href="https://wa.me/919822108282"
+              target="_blank"
+              rel="noopener"
+              aria-label="Contact us on WhatsApp"
+            >
+              <i class="fab fa-whatsapp" aria-hidden="true"></i> WhatsApp
+            </a>
+            <a
+              href="https://www.facebook.com/search/top?q=pixel%20systems"
+              target="_blank"
+              rel="noopener"
+              aria-label="Visit our Facebook page"
+            >
+              <i class="fab fa-facebook" aria-hidden="true"></i> Facebook
+            </a>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>
+            &copy; 2025 Pixel Systems. All rights reserved. Designed by Aryan
+            Pore
+          </p>
+          <p>
+            <a href="pixel.html">Contact: +91-9822108282</a> |
+            <a href="mailto:support@pixelitsolution.com"
+              >support@pixelitsolution.com</a
+            >
+          </p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

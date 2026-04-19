@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Resolve Conflicts{% endblock %}
+
+{% block content %}
+<div class="homepage-center">
+    <h1>Conflict Resolution</h1>
+    {% if mode == 'product' %}
+        <p>Reviewing Assets with Serial Number: <strong>{{ serial_no }}</strong></p>
+    {% else %}
+        <p>Reviewing Rental for Asset <strong>{{ asset_id }}</strong> ({{ customer_name }})</p>
+    {% endif %}
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            {% if mode == 'product' %}
+            <tr>
+                <th>Asset ID</th>
+                <th>Brand / Model</th>
+                <th>Purchase Date</th>
+                <th>Price</th>
+                <th>Condition</th>
+                <th>Operations</th>
+            </tr>
+            {% else %}
+            <tr>
+                <th>DB ID</th>
+                <th>Contract #</th>
+                <th>Amount</th>
+                <th>Period</th>
+                <th>User</th>
+                <th>Operations</th>
+            </tr>
+            {% endif %}
+        </thead>
+        <tbody>
+            {% if mode == 'product' %}
+                {% for p in products %}
+                <tr>
+                    <td style="font-weight: bold;">{{ p.asset_id }}</td>
+                    <td>{{ p.brand }} {{ p.model_no }}</td>
+                    <td>{{ p.purchase_date|date:"d M Y" }}</td>
+                    <td>₹{{ p.purchase_price }}</td>
+                    <td>{{ p.condition_status|capfirst }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="{% url 'product_detail' p.id %}"><button style="padding: 4px 8px;">👁️ View</button></a>
+                            <a href="{% url 'edit_product' p.id %}"><button style="padding: 4px 8px; background: var(--info);">✏️ Edit</button></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                {% for rental in rentals %}
+                <tr>
+                    <td style="font-weight: bold;">#{{ rental.id }}</td>
+                    <td>{{ rental.contract_number|default:"-" }}</td>
+                    <td>₹{{ rental.payment_amount }}</td>
+                    <td>{{ rental.rental_start_date|date:"d M y" }}</td>
+                    <td>{{ rental.edited_by.username }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="{% url 'edit_rental' rental.id %}"><button style="padding: 4px 8px; background: var(--info);">✏️ Edit</button></a>
+                            <a href="{% url 'delete_rental' rental.id %}" onclick="return confirm('Delete duplicate rental?');">
+                                <button style="padding: 4px 8px; background: var(--danger);">🗑️ Delete</button>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<div class="text-center mt-lg" style="margin-bottom: 50px;">
+    {% if mode == 'product' %}
+        <div class="box" style="border-top: 4px solid var(--info);">
+            <h4>💡 Product Deletion Policy</h4>
+            <p class="stat-sub" style="text-align: left;">You cannot delete products directly here because they might have linked <strong>Rentals</strong>, <strong>Repairs</strong>, or <strong>Configurations</strong>. Please view the asset and ensure it has no dependencies before removing it from the main list.</p>
+        </div>
+        {% elif mode == 'rental' %}
+        <div class="box" style="margin-top: 30px; border-top: 4px solid var(--warning);">
+            <h4>💡 Which one should I keep?</h4>
+            <ul style="text-align: left; font-size: 0.9em; margin-top: 10px;">
+                <li>Keep the record with the <strong>Contract Number</strong> if only one has it.</li>
+                <li>Keep the record created by the most reliable user/date.</li>
+                <li>After deleting duplicates, run the <strong><a href="{% url 'run_revenue_calculator' %}">Revenue Recalculator</a></strong> to fix the Asset's total earnings.</li>
+            </ul>
+        </div>
+        {% endif %}
+    <a href="{% url 'global_duplicate_checker' %}" style="text-decoration: none; color: var(--primary);">← Back to Audit List</a>
+</div>
+{% endblock %}

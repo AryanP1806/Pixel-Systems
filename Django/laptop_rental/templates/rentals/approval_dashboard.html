@@ -1,611 +1,761 @@
-{% extends 'base.html' %} {% block title %}Approval Dashboard{% endblock %}
-<p></p>
-{% block content %}
-<h1>🛡 Pending Approvals</h1>
+{% extends 'base.html' %} {% load static %} {% block title %}Approval
+Dashboard{% endblock %} {% block content %}
+<style>
+  /* --- Dashboard Specific Styles --- */
 
-<!-- ✅ PRODUCTS -->
-<h2><b>📦 Products</b></h2>
-{% if pending_products %}
-<table border="1" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Old Value</th>
-      <th>New Value</th>
-      <th>Submitted By</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+  /* 1. Tabs Navigation */
+  .dashboard-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
 
-  {% for item in pending_products %}
-  <tr>
-    <td colspan="5">
-      <b
-        >{% if item.pending.pending_type == 'edit' %}Editing Product
-        <p></p>
-        {{item.old.asset_id }}{% else %}New Product
-        <p></p>
-        {{ item.pending.asset_id }} {% endif %}</b
-      >
-    </td>
-  </tr>
-  <tr>
-    <td>Asset Type</td>
-    <td>{{ item.old.type_of_asset|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.type_of_asset != item.pending.type_of_asset %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.type_of_asset }}
-    </td>
-    <td rowspan="11">{{ item.pending.submitted_by }}</td>
-    <td rowspan="11">
-      {% if request.user.is_superuser %}
-      <a href="{% url 'approve_product' item.pending.pk %}"
-        ><button>✅ Approve</button></a
-      >
-      |
-      <a href="{% url 'reject_product' item.pending.pk %}"
-        ><button>❌ Reject</button></a
-      >
-      {% else %}
-      <span style="color: gray">(Admin Only)</span>
-      {% endif %}
-    </td>
-  </tr>
-  <tr>
-    <td>Brand</td>
-    <td>{{ item.old.brand|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.brand != item.pending.brand %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.brand }}
-    </td>
-  </tr>
-  <tr>
-    <td>Model</td>
-    <td>{{ item.old.model_no|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.model_no != item.pending.model_no %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.model_no }}
-    </td>
-  </tr>
-  <tr>
-    <td>Serial No</td>
-    <td>{{ item.old.serial_no|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.serial_no != item.pending.serial_no %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.serial_no }}
-    </td>
-  </tr>
-  <tr>
-    <td>Purchase Date</td>
-    <td>{{ item.old.purchase_date|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.purchase_date != item.pending.purchase_date %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.purchase_date }}
-    </td>
-  </tr>
-  <tr>
-    <td>Purchase Price</td>
-    <td>{{ item.old.purchase_price|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.purchase_price != item.pending.purchase_price %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.purchase_price }}
-    </td>
-  </tr>
-  <tr>
-    <td>Current Value</td>
-    <td>{{ item.old.current_value|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.current_value != item.pending.current_value %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.current_value }}
-    </td>
-  </tr>
-  <tr>
-    <td>HSN Code</td>
-    <td>{{ item.old.hsn_code|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.hsn_code != item.pending.hsn_code %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.hsn_code }}
-    </td>
-  </tr>
-  <tr>
-    <td>Purchased From</td>
-    <td>{{ item.old.purchased_from|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.purchased_from != item.pending.purchased_from %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.purchased_from }}
-    </td>
-  </tr>
-  <tr>
-    <td>Under Warranty</td>
-    <td>{{ item.old.under_warranty|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.under_warranty != item.pending.under_warranty %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.under_warranty }}
-    </td>
-  </tr>
-  <tr>
-    <td>Warranty Duration (months)</td>
-    <td>{{ item.old.warranty_duration_months|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.warranty_duration_months != item.pending.warranty_duration_months %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.warranty_duration_months }}
-    </td>
-  </tr>
-  <tr>
-    <td>Condition</td>
-    <td>{{ item.old.condition_status|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.condition_status != item.pending.condition_status %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.condition_status }}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No pending products.</p>
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    box-shadow: none; /* Remove default button shadow */
+  }
 
-{% endif %}
-<!-- ✅ CUSTOMERS -->
-<h2><b>👤 Customers</b></h2>
-{% if pending_customers %}
-<table border="1" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Old Value</th>
-      <th>New Value</th>
-      <th>Submitted By</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+  .tab-btn:hover {
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--primary);
+    transform: none; /* Disable default button lift */
+  }
 
-  {% for item in pending_customers %}
-  <tr>
-    <td colspan="5">
-      <b>
-        {% if item.old %}Editing Customer
-        <p></p>
-        {{ item.old.name }}{% else %}New Customer{% endif %}
-      </b>
-    </td>
-  </tr>
-  <tr>
-    <td>Name</td>
-    <td>{{ item.old.name|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.name != item.pending.name %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.name }}
-    </td>
-    <td rowspan="8">{{ item.pending.submitted_by }}</td>
-    <td rowspan="8">
-      {% if request.user.is_superuser %}
-      <a href="{% url 'approve_customer' item.pending.pk %}"
-        ><button>✅ Approve</button></a
-      >
-      |
-      <a href="{% url 'reject_customer' item.pending.pk %}"
-        ><button>❌ Reject</button></a
-      >
-      {% else %}
-      <span style="color: gray">(Admin Only)</span>
-      {% endif %}
-    </td>
-  </tr>
-  <tr>
-    <td>Phone 1</td>
-    <td>{{ item.old.phone_number_primary|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.phone_number_primary != item.pending.phone_number_primary %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.phone_number_primary }}
-    </td>
-  </tr>
-  <tr>
-    <td>Phone 2</td>
-    <td>{{ item.old.phone_number_secondary|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.phone_number_secondary != item.pending.phone_number_secondary %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.phone_number_secondary }}
-    </td>
-  </tr>
-  <tr>
-    <td>Address 1</td>
-    <td>{{ item.old.address_primary|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.address_primary != item.pending.address_primary %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.address_primary }}
-    </td>
-  </tr>
-  <tr>
-    <td>Address 2</td>
-    <td>{{ item.old.address_secondary|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.address_secondary != item.pending.address_secondary %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.address_secondary }}
-    </td>
-  </tr>
-  <tr>
-    <td>Email</td>
-    <td>{{ item.old.email|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.email != item.pending.email %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.email }}
-    </td>
-  </tr>
-  <tr>
-    <td>Permanent</td>
-    <td>{{ item.old.is_permanent|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.is_permanent != item.pending.is_permanent %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.is_permanent }}
-    </td>
-  </tr>
-  <tr>
-    <td>BNI</td>
-    <td>{{ item.old.is_bni_member|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.is_bni_member != item.pending.is_bni_member %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.is_bni_member }}
-    </td>
-  </tr>
-  <tr>
-    <td>Reference</td>
-    <td>{{ item.old.reference_name|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.reference_name != item.pending.reference_name %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.reference_name }}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No pending customers.</p>
-{% endif %}
+  .tab-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+  }
 
-<!-- ✅ RENTALS -->
-<h2><b>🔄 Rentals</b></h2>
-{% if pending_rentals %}
-<table border="1" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Old Value</th>
-      <th>New Value</th>
-      <th>Submitted By</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+  /* 2. Tab Content Areas */
+  .tab-pane {
+    display: none; /* Hidden by default */
+    animation: fadeIn 0.3s ease-out;
+  }
+  .tab-pane.active {
+    display: block; /* Show active */
+  }
 
-  {% for item in pending_rentals %}
-  <tr>
-    <td colspan="5">
-      <h3>
-        <b> {% if item.old %}Editing Rental {% else %}New Rental{% endif %} </b>
-      </h3>
-    </td>
-  </tr>
-  <tr>
-    <td>Asset</td>
-    <td>{{ item.old.asset.asset_id|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.asset != item.pending.asset %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.asset.asset_id }}
-    </td>
-    <td rowspan="7">{{ item.pending.submitted_by }}</td>
-    <td rowspan="7">
-      {% if request.user.is_superuser %}
-      <a href="{% url 'approve_rental' item.pending.pk %}"
-        ><button>✅ Approve</button></a
-      >
-      |
-      <a href="{% url 'reject_rental' item.pending.pk %}"
-        ><button>❌ Reject</button></a
-      >
-      {% else %}
-      <span style="color: gray">(Admin Only)</span>
-      {% endif %}
-    </td>
-  </tr>
-  <tr>
-    <td>Customer</td>
-    <td>{{ item.old.customer|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.customer != item.pending.customer %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.customer }}
-    </td>
-  </tr>
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
-  <tr>
-    <td>Asset Type</td>
-    <td>{{ item.old.asset.type_of_asset.name|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.asset.type_of_asset != item.pending.asset.type_of_asset %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.asset.type_of_asset.name }}
-    </td>
-  </tr>
-  <tr>
-    <td>Payment Amount</td>
-    <td>{{ item.old.payment.amount|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.payment.amount != item.pending.payment_amount %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.payment_amount }}
-    </td>
-  </tr>
-  <tr>
-    <td>Start Date</td>
-    <td>{{ item.old.rental_start_date|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.rental_start_date != item.pending.rental_start_date %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.rental_start_date }}
-    </td>
-  </tr>
-  <tr>
-    <td>Billing Day</td>
-    <td>{{ item.old.billing_day|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.billing_day != item.pending.billing_day %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.billing_day }}
-    </td>
-  </tr>
-  <tr>
-    <td>Contract No.</td>
-    <td>{{ item.old.contract_number|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.contract_number != item.pending.contract_number %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.contract_number }}
-    </td>
-  </tr>
-  <tr>
-    <td>Contract Validity</td>
-    <td>{{ item.old.contract_validity|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.contract_validity != item.pending.contract_validity %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.contract_validity|default:"-" }}
-    </td>
-  </tr>
-  <tr>
-    <td>Status</td>
-    <td>{{ item.old.status|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.status != item.pending.status %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.status }}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No pending rentals.</p>
-{% endif %}
+  /* 3. Card Grid Layout */
+  .approval-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 2rem;
+  }
 
-<!-- ✅ CONFIGURATIONS -->
-<h2><b>🖥 Configurations</b></h2>
-{% if pending_configs %}
-<table border="1" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Old Value</th>
-      <th>New Value</th>
-      <th>Submitted By</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+  /* 4. Individual Card Styling */
+  .approval-card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-  {% for item in pending_configs %}
-  <tr>
-    <td colspan="5">
-      <b>
-        {% if item.old %}Editing Configuration for
-        <p></p>
-        {{ item.pending.asset.asset_id }} ({{ item.pending.asset.brand }})
-        <p></p>
-        {% else %}New Configuration
-        <p></p>
-        {{ item.pending.asset.asset_id }} ({{ item.pending.asset.brand }})
-        <p></p>
-        {% endif %}
-      </b>
-    </td>
-  </tr>
+  .card-header {
+    background: rgba(30, 41, 59, 0.5);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-  <tr>
-    <td>CPU</td>
-    <td>{{ item.old.cpu|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.cpu != item.pending.cpu %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.cpu }}
-    </td>
-    <td rowspan="7">{{ item.pending.submitted_by }}</td>
-    <td rowspan="7">
-      {% if request.user.is_superuser %}
-      <a href="{% url 'approve_config' item.pending.pk %}"
-        ><button>✅ Approve</button></a
-      >
-      |
-      <a href="{% url 'reject_config' item.pending.pk %}"
-        ><button>❌ Reject</button></a
-      >
-      {% else %}
-      <span style="color: gray">(Admin Only)</span>
-      {% endif %}
-    </td>
-  </tr>
+  .badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-new {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+  }
+  .badge-edit {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+  }
 
-  <tr>
-    <td>RAM</td>
-    <td>{{ item.old.ram|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.ram != item.pending.ram %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.ram }}
-    </td>
-  </tr>
+  .submitted-by {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
 
-  <tr>
-    <td>HDD</td>
-    <td>{{ item.old.hdd|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.hdd != item.pending.hdd %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.hdd }}
-    </td>
-  </tr>
+  /* 5. Diff Table inside Card */
+  .card-body {
+    padding: 0;
+    flex: 1;
+    max-height: 400px; /* Scroll if content is very long */
+    overflow-y: auto;
+  }
 
-  <tr>
-    <td>SSD</td>
-    <td>{{ item.old.ssd|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.ssd != item.pending.ssd %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.ssd }}
-    </td>
-  </tr>
+  .diff-table {
+    width: 100%;
+    min-width: auto; /* Override global min-width */
+    border: none;
+    margin: 0;
+  }
 
-  <tr>
-    <td>Graphics</td>
-    <td>{{ item.old.graphics|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.graphics != item.pending.graphics %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.graphics }}
-    </td>
-  </tr>
+  .diff-table th {
+    background: var(--surface);
+    font-size: 11px;
+    padding: 10px 15px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
 
-  <tr>
-    <td>Display Size</td>
-    <td>{{ item.old.display_size|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.display_size != item.pending.display_size %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.display_size }}
-    </td>
-  </tr>
+  .diff-table td {
+    padding: 10px 15px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-light);
+    white-space: normal; /* Allow text wrapping */
+  }
 
-  <tr>
-    <td>Details</td>
-    <td>{{ item.old.detailed_config|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.detailed_config != item.pending.detailed_config %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.detailed_config }}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No pending configs.</p>
-{% endif %}
+  /* Highlight changed values */
+  .diff-highlight {
+    background-color: rgba(245, 158, 11, 0.15); /* Subtle Orange */
+    color: var(--text-primary);
+    font-weight: 500;
+  }
 
-<!-- ✅ REPAIRS -->
-<h2><b>🔨 Pending Repairs</b></h2>
-{% if pending_repairs %}
-<table border="1" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Old Value</th>
-      <th>New Value</th>
-      <th>Submitted By</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+  /* 6. Card Footer (Actions) */
+  .card-actions {
+    padding: 15px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+  }
 
-  {% for item in pending_repairs %}
-  <tr>
-    <td colspan="5">
-      <b>
-        {% if item.old %}Editing Repair for
-        <p></p>
-        {{ item.pending.product.asset_id }} {% else %}New Repair{% endif %}
-      </b>
-    </td>
-  </tr>
+  .btn-action {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    font-size: 13px;
+    margin: 0;
+  }
 
-  <tr>
-    <td>Asset</td>
-    <td><b>{{ item.old.product.asset_id|default:"-" }}</b></td>
-    <td
-      style="{% if item.old and item.old.product.asset_id != item.pending.product.asset_id %}background-color:#ffe0e0;{% endif %}"
-    >
-      <b>{{ item.pending.product.asset_id }}</b>
-    </td>
-    <td rowspan="4">{{ item.pending.submitted_by.username }}</td>
-    <td rowspan="4">
-      {% if request.user.is_superuser %}
-      <a href="{% url 'approve_edited_repair' item.pending.pk %}"
-        ><button>✅ Approve</button></a
-      >
-      |
-      <a href="{% url 'reject_edited_repair' item.pending.pk %}"
-        ><button>❌ Reject</button></a
-      >
-      {% else %}
-      <span style="color: gray">(Admin Only)</span>
-      {% endif %}
-    </td>
-  </tr>
+  .btn-approve {
+    background: linear-gradient(135deg, var(--success), #059669);
+  }
+  .btn-reject {
+    background: linear-gradient(135deg, var(--danger), #dc2626);
+  }
+  .btn-disabled {
+    background: var(--gray-500);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
 
-  <tr>
-    <td>Name</td>
-    <td>{{ item.old.name|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.name != item.pending.name %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.name }}
-    </td>
-  </tr>
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+    background: var(--surface-elevated);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+</style>
 
-  <tr>
-    <td>Date</td>
-    <td>{{ item.old.date|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.date != item.pending.date %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.date }}
-    </td>
-  </tr>
+<div class="container">
+  <div class="homepage-center">
+    <h1>🛡️ Approval Dashboard</h1>
+    <p style="margin-bottom: 2rem; color: var(--text-secondary)">
+      Manage pending requests for Products, Customers, Rentals, and more.
+    </p>
+  </div>
 
-  <tr>
-    <td>Cost</td>
-    <td>{{ item.old.cost|default:"-" }}</td>
-    <td
-      style="{% if item.old and item.old.cost != item.pending.cost %}background-color:#ffe0e0;{% endif %}"
-    >
-      {{ item.pending.cost }}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No pending repairs.</p>
-{% endif %} {% endblock %}
+  <div class="dashboard-tabs">
+    <button class="tab-btn active" onclick="openTab(event, 'products')">
+      📦 Products ({{ pending_products|length }})
+    </button>
+    <button class="tab-btn" onclick="openTab(event, 'customers')">
+      👤 Customers ({{ pending_customers|length }})
+    </button>
+    <button class="tab-btn" onclick="openTab(event, 'rentals')">
+      🔄 Rentals ({{ pending_rentals|length }})
+    </button>
+    <button class="tab-btn" onclick="openTab(event, 'configs')">
+      🖥️ Configs ({{ pending_configs|length }})
+    </button>
+    <button class="tab-btn" onclick="openTab(event, 'repairs')">
+      🔨 Repairs ({{ pending_repairs|length }})
+    </button>
+  </div>
+
+  <div id="products" class="tab-pane active">
+    {% if pending_products %}
+    <div class="approval-grid">
+      {% for item in pending_products %}
+      <div class="approval-card">
+        <div class="card-header">
+          <div>
+            {% if item.pending.pending_type == 'edit' %}
+            <span class="badge badge-edit">Edit Product</span>
+            {% else %}
+            <span class="badge badge-new">New Product</span>
+            {% endif %}
+            <strong style="margin-left: 8px"
+              >{{ item.pending.asset_id }}</strong
+            >
+          </div>
+          <div class="submitted-by">👤 {{ item.pending.submitted_by }}</div>
+        </div>
+
+        <div class="card-body">
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th width="30%">Field</th>
+                <th width="35%">Old</th>
+                <th width="35%">New</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Type</td>
+                <td>{{ item.old.type_of_asset|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.type_of_asset != item.pending.type_of_asset %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.type_of_asset }}
+                </td>
+              </tr>
+              <tr>
+                <td>Brand</td>
+                <td>{{ item.old.brand|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.brand != item.pending.brand %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.brand }}
+                </td>
+              </tr>
+              <tr>
+                <td>Model</td>
+                <td>{{ item.old.model_no|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.model_no != item.pending.model_no %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.model_no }}
+                </td>
+              </tr>
+              <tr>
+                <td>Serial</td>
+                <td>{{ item.old.serial_no|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.serial_no != item.pending.serial_no %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.serial_no }}
+                </td>
+              </tr>
+              <tr>
+                <td>Price</td>
+                <td>{{ item.old.purchase_price|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.purchase_price != item.pending.purchase_price %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.purchase_price }}
+                </td>
+              </tr>
+              <tr>
+                <td>Condition</td>
+                <td>{{ item.old.condition_status|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.condition_status != item.pending.condition_status %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.condition_status }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-actions">
+          {% if request.user.is_superuser %}
+          <a href="{% url 'approve_product' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-approve">✅ Approve</button>
+          </a>
+          <a href="{% url 'reject_product' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-reject">❌ Reject</button>
+          </a>
+          {% else %}
+          <button class="btn-action btn-disabled" disabled>Admin Only</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pending product approvals.</div>
+    {% endif %}
+  </div>
+
+  <div id="customers" class="tab-pane">
+    {% if pending_customers %}
+    <div class="approval-grid">
+      {% for item in pending_customers %}
+      <div class="approval-card">
+        <div class="card-header">
+          <div>
+            {% if item.old %}
+            <span class="badge badge-edit">Edit Customer</span>
+            {% else %}
+            <span class="badge badge-new">New Customer</span>
+            {% endif %}
+            <strong style="margin-left: 8px">{{ item.pending.name }}</strong>
+          </div>
+          <div class="submitted-by">👤 {{ item.pending.submitted_by }}</div>
+        </div>
+
+        <div class="card-body">
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th width="30%">Field</th>
+                <th width="35%">Old</th>
+                <th width="35%">New</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Name</td>
+                <td>{{ item.old.name|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.name != item.pending.name %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.name }}
+                </td>
+              </tr>
+              <tr>
+                <td>Phone</td>
+                <td>{{ item.old.phone_number_primary|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.phone_number_primary != item.pending.phone_number_primary %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.phone_number_primary }}
+                </td>
+              </tr>
+              <tr>
+                <td>Email</td>
+                <td>{{ item.old.email|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.email != item.pending.email %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.email }}
+                </td>
+              </tr>
+              <tr>
+                <td>Address</td>
+                <td>{{ item.old.address_primary|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.address_primary != item.pending.address_primary %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.address_primary }}
+                </td>
+              </tr>
+              <tr>
+                <td>Permanent</td>
+                <td>{{ item.old.is_permanent|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.is_permanent != item.pending.is_permanent %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.is_permanent }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-actions">
+          {% if request.user.is_superuser %}
+          <a
+            href="{% url 'approve_customer' item.pending.pk %}"
+            style="flex: 1"
+          >
+            <button class="btn-action btn-approve">✅ Approve</button>
+          </a>
+          <a href="{% url 'reject_customer' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-reject">❌ Reject</button>
+          </a>
+          {% else %}
+          <button class="btn-action btn-disabled" disabled>Admin Only</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pending customer approvals.</div>
+    {% endif %}
+  </div>
+
+  <div id="rentals" class="tab-pane">
+    {% if pending_rentals %}
+    <div class="approval-grid">
+      {% for item in pending_rentals %}
+      <div class="approval-card">
+        <div class="card-header">
+          <div>
+            {% if item.old %}
+            <span class="badge badge-edit">Edit Rental</span>
+            {% else %}
+            <span class="badge badge-new">New Rental</span>
+            {% endif %}
+            <strong style="margin-left: 8px"
+              >{{ item.pending.asset.asset_id }}</strong
+            >
+          </div>
+          <div class="submitted-by">👤 {{ item.pending.submitted_by }}</div>
+        </div>
+
+        <div class="card-body">
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th width="30%">Field</th>
+                <th width="35%">Old</th>
+                <th width="35%">New</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Customer</td>
+                <td>{{ item.old.customer|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.customer != item.pending.customer %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.customer }}
+                </td>
+              </tr>
+              <tr>
+                <td>Amount</td>
+                <td>{{ item.old.payment_amount|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.payment_amount != item.pending.payment_amount %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.payment_amount }}
+                </td>
+              </tr>
+              <tr>
+                <td>Start Date</td>
+                <td>{{ item.old.rental_start_date|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.rental_start_date != item.pending.rental_start_date %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.rental_start_date }}
+                </td>
+              </tr>
+              <tr>
+                <td>Billing Day</td>
+                <td>{{ item.old.billing_day|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.billing_day != item.pending.billing_day %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.billing_day }}
+                </td>
+              </tr>
+              <tr>
+                <td>Status</td>
+                <td>{{ item.old.status|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.status != item.pending.status %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.status }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-actions">
+          {% if request.user.is_superuser %}
+          <a href="{% url 'approve_rental' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-approve">✅ Approve</button>
+          </a>
+          <a href="{% url 'reject_rental' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-reject">❌ Reject</button>
+          </a>
+          {% else %}
+          <button class="btn-action btn-disabled" disabled>Admin Only</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pending rental approvals.</div>
+    {% endif %}
+  </div>
+
+  <div id="configs" class="tab-pane">
+    {% if pending_configs %}
+    <div class="approval-grid">
+      {% for item in pending_configs %}
+      <div class="approval-card">
+        <div class="card-header">
+          <div>
+            {% if item.old %}
+            <span class="badge badge-edit">Edit Config</span>
+            {% else %}
+            <span class="badge badge-new">New Config</span>
+            {% endif %}
+            <strong style="margin-left: 8px"
+              >{{ item.pending.asset.asset_id }}</strong
+            >
+          </div>
+          <div class="submitted-by">👤 {{ item.pending.submitted_by }}</div>
+        </div>
+
+        <div class="card-body">
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th width="30%">Field</th>
+                <th width="35%">Old</th>
+                <th width="35%">New</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CPU</td>
+                <td>{{ item.old.cpu|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.cpu != item.pending.cpu %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.cpu }}
+                </td>
+              </tr>
+              <tr>
+                <td>RAM</td>
+                <td>{{ item.old.ram|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.ram != item.pending.ram %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.ram }}
+                </td>
+              </tr>
+              <tr>
+                <td>HDD</td>
+                <td>{{ item.old.hdd|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.hdd != item.pending.hdd %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.hdd }}
+                </td>
+              </tr>
+              <tr>
+                <td>SSD</td>
+                <td>{{ item.old.ssd|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.ssd != item.pending.ssd %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.ssd }}
+                </td>
+              </tr>
+              <tr>
+                <td>Graphics</td>
+                <td>{{ item.old.graphics|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.graphics != item.pending.graphics %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.graphics }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-actions">
+          {% if request.user.is_superuser %}
+          <a href="{% url 'approve_config' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-approve">✅ Approve</button>
+          </a>
+          <a href="{% url 'reject_config' item.pending.pk %}" style="flex: 1">
+            <button class="btn-action btn-reject">❌ Reject</button>
+          </a>
+          {% else %}
+          <button class="btn-action btn-disabled" disabled>Admin Only</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pending config approvals.</div>
+    {% endif %}
+  </div>
+
+  <div id="repairs" class="tab-pane">
+    {% if pending_repairs %}
+    <div class="approval-grid">
+      {% for item in pending_repairs %}
+      <div class="approval-card">
+        <div class="card-header">
+          <div>
+            {% if item.old %}
+            <span class="badge badge-edit">Edit Repair</span>
+            {% else %}
+            <span class="badge badge-new">New Repair</span>
+            {% endif %}
+            <strong style="margin-left: 8px"
+              >{{ item.pending.product.asset_id }}</strong
+            >
+          </div>
+          <div class="submitted-by">
+            👤 {{ item.pending.submitted_by.username }}
+          </div>
+        </div>
+
+        <div class="card-body">
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th width="30%">Field</th>
+                <th width="35%">Old</th>
+                <th width="35%">New</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Issue</td>
+                <td>{{ item.old.name|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.name != item.pending.name %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.name }}
+                </td>
+              </tr>
+              <tr>
+                <td>Cost</td>
+                <td>{{ item.old.cost|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.cost != item.pending.cost %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.cost }}
+                </td>
+              </tr>
+              <tr>
+                <td>Date</td>
+                <td>{{ item.old.date|default:"-" }}</td>
+                <td
+                  class="{% if item.old and item.old.date != item.pending.date %}diff-highlight{% endif %}"
+                >
+                  {{ item.pending.date }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-actions">
+          {% if request.user.is_superuser %}
+          <a
+            href="{% url 'approve_edited_repair' item.pending.pk %}"
+            style="flex: 1"
+          >
+            <button class="btn-action btn-approve">✅ Approve</button>
+          </a>
+          <a
+            href="{% url 'reject_edited_repair' item.pending.pk %}"
+            style="flex: 1"
+          >
+            <button class="btn-action btn-reject">❌ Reject</button>
+          </a>
+          {% else %}
+          <button class="btn-action btn-disabled" disabled>Admin Only</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pending repair approvals.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // 1. On page load: Restore Tab & Scroll Position
+  document.addEventListener("DOMContentLoaded", function () {
+    // A. Restore Tab
+    const savedTab = localStorage.getItem("activeApprovalTab");
+    if (savedTab) {
+      const tabBtn = document.querySelector(
+        `button[onclick="openTab(event, '${savedTab}')"]`
+      );
+      if (tabBtn) {
+        tabBtn.click();
+      }
+    }
+
+    // B. Restore Scroll Position
+    // We check if a scroll position is saved and apply it.
+    // We use a slight timeout to ensure the DOM has updated (tab switched)
+    // before scrolling, otherwise the page height might be too short.
+    const savedScroll = localStorage.getItem("approvalScrollY");
+    if (savedScroll) {
+      setTimeout(function () {
+        window.scrollTo(0, parseInt(savedScroll));
+      }, 50); // 50ms delay is usually sufficient for DOM repaints
+    }
+  });
+
+  // 2. Save Scroll Position on Page Unload (Reload, Link Click, Action)
+  window.addEventListener("beforeunload", function () {
+    localStorage.setItem("approvalScrollY", window.scrollY);
+  });
+
+  function openTab(evt, tabName) {
+    // 3. Save the clicked tab to localStorage
+    localStorage.setItem("activeApprovalTab", tabName);
+
+    // Existing tab switching logic
+    var i, tabContent, tabBtns;
+    tabContent = document.getElementsByClassName("tab-pane");
+    for (i = 0; i < tabContent.length; i++) {
+      tabContent[i].style.display = "none";
+      tabContent[i].classList.remove("active");
+    }
+
+    tabBtns = document.getElementsByClassName("tab-btn");
+    for (i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].className = tabBtns[i].className.replace(" active", "");
+    }
+
+    document.getElementById(tabName).style.display = "block";
+    document.getElementById(tabName).classList.add("active");
+    evt.currentTarget.className += " active";
+  }
+</script>
+
+{% endblock %}

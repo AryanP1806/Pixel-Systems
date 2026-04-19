@@ -12,24 +12,62 @@
 {% endif %}
 
 <a href="{% url 'add_rental' %}"><button>➕ Add Rental</button></a>
+<a href="{% url 'add_bulk_rental' %}"><button>➕ Add Bulk Rental</button></a>
 
 <a href="{% url 'check_contracts' %}" class="btn btn-warning"
-  ><button>🔄 Check Contract Expiry</button></a
+><button>🔄 Check Contract Expiry</button></a
 >
 <a href="{% url 'send_billing_reminder' %}" class="btn btn-info"
-  ><button>📧 Send Billing Reminder</button></a
+><button>📧 Send Billing Reminder</button></a
 >
+<div >
+  <form method="get" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+    
+    <div style="flex-grow: 1;">
+      <label style="font-size: 12px; font-weight: bold; color: #555;">SEARCH</label><br>
+      <input 
+        type="text" 
+        name="q" 
+        value="{{ query }}" 
+        placeholder="Name, Phone, Asset, Contract..." 
+        style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+      >
+    </div>
 
-<form method="get">
-  <input
-    type="text"
-    name="q"
-    placeholder="Search rentals..."
-    value="{{ request.GET.q }}"
-  />
-  <button type="submit">Search</button>
-</form>
+    <div>
+      <label style="font-size: 12px; font-weight: bold; color: #555;">SORT BY</label><br>
+      <select name="sort" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 150px;">
+        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>📅 Newest First</option>
+        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>👴 Oldest First</option>
+        <option value="expiry" {% if sort_by == 'expiry' %}selected{% endif %}>⚠️ Contract Expiry</option>
+        <option value="billing" {% if sort_by == 'billing' %}selected{% endif %}>💰 Billing Day</option>
+        <option value="customer" {% if sort_by == 'customer' %}selected{% endif %}>👤 Customer (A-Z)</option>
+      </select>
+    </div>
 
+    <div>
+      <label style="font-size: 12px; font-weight: bold; color: #555;">BILLING DAY</label><br>
+      <select name="billing_day" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <option value="">All Days</option>
+        {% for day in billing_days %}
+          <option value="{{ day }}" {% if billing_filter == day|stringformat:"i" %}selected{% endif %}>
+            Day {{ day }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="align-self: flex-end;">
+      <button type="submit" style="padding: 8px 15px; background-color: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        🔍 Filter
+      </button>
+      <a href="{% url 'rental_list' %}" style="margin-left: 5px; text-decoration: none; font-size: 14px; color: #666;">
+        Reset
+      </a>
+    </div>
+
+  </form>
+</div>
 <!-- <div style="margin-bottom: 10px;">
   <a href="{% url 'rental_list' %}?filter=ongoing">
     <button {% if filter_type == 'ongoing' %}class="active"{% endif %}>🟢 Ongoing</button>
@@ -62,34 +100,68 @@
       </tr>
     </thead>
     <tbody>
-      {% for rental in rentals %}
-      <tr>
-        <td>
-          <a href="{% url 'edit_rental' rental.id %}"
-            ><button class="action-btn">✏️ Edit</button></a
-          >
-          {% if rental.status != 'completed' %} {% endif %}
-        </td>
-        <td>{{ rental.asset.asset_id }}</td>
-        <td>{{ rental.customer.name }}</td>
-        <td>{{ rental.asset.asset_type }} {{ rental.asset.model_no }}</td>
-        <td>{{ rental.payment_amount }}</td>
-        <!-- <td><span class="status-pending">{{ rental.payment.status }}</span></td> -->
-        <td>{{ rental.rental_start_date }}</td>
-        <td>{{ rental.billing_day }}</td>
-        <td>{{ rental.contract_number }}</td>
-        <td>{{ rental.contract_validity }}</td>
-        <!-- |date:"F j, Y" -->
-        <td>{{ rental.customer.phone_number_primary }}</td>
-        <!-- <td>{{ rental.customer.address_primary }}</td> -->
-        <td>{{ rental.edited_by.username }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="4">No ongoing rentals found.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% now "j" as current_day_str %}
+
+  {% for rental in rentals %}
+  <tr {% if rental.billing_day == current_day_str|add:"0" %}{% endif %}>
+    <td>
+      <a href="{% url 'edit_rental' rental.id %}">
+        <button class="action-btn">✏️ Edit</button>
+      </a>
+      </td>
+    
+    <td>
+      <a href="{% url 'product_detail' rental.asset.pk %}" style="font-weight: bold; color: #2563eb; text-decoration: none;">
+        {{ rental.asset.asset_id }}
+      </a>
+    </td>
+
+    <td>
+      <a href="{% url 'customer_detail' rental.customer.pk %}" style="font-weight: bold; color: #2563eb; text-decoration: none;">
+        {{ rental.customer.name }}
+      </a>
+    </td>
+
+    <td>{{ rental.asset.type_of_asset }} {{ rental.asset.model_no }}</td>
+    
+    <td>
+      ₹{{ rental.payment_amount }}
+      {% if rental.billing_day == current_day_str|add:"0" %}
+        <br>
+        <span style="font-size: 0.8em; ; color: #065f46; padding: 2px 6px; border-radius: 4px; border: 1px solid #34d399;">
+          💰 Bill Due Today
+        </span>
+      {% endif %}
+    </td>
+
+    <td>{{ rental.rental_start_date|date:"d M Y" }}</td>
+    
+    <td style="text-align: center; font-weight: bold;">
+        {{ rental.billing_day }}
+        <span style="font-size: smaller; color: gray;">
+            (of every month)
+        </span>
+    </td>
+    
+    <td>{{ rental.contract_number|default:"-" }}</td>
+
+    <td>
+        {% if rental.contract_validity %}
+            {{ rental.contract_validity|date:"d M Y" }}
+        {% else %}
+            <span style="color: red;">⚠️ Not Set</span>
+        {% endif %}
+    </td>
+
+    <td>{{ rental.customer.phone_number_primary }}</td>
+    <td>{{ rental.edited_by.username }} | {{ rental.edited_at }}</td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="11" style="text-align: center; padding: 20px;">No ongoing rentals found.</td>
+  </tr>
+  {% endfor %}
+</tbody>
+      </table>
 </div>
 {% endblock %}

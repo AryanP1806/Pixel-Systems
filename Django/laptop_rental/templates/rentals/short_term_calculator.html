@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Short-Term Deal Calculator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <form onsubmit="event.preventDefault();">
+        <h2>Short-Term Deal Calculator</h2>
+        <p style="color: var(--text-secondary); text-align: center; margin-bottom: var(--space-xl);">
+            Use this to calculate the "Monthly Payment" equivalent for fixed-price short-term rentals.
+        </p>
+
+        <div class="mb-md">
+            <label style="font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: var(--space-xs);">Total Deal Amount (₹)</label>
+            <input type="number" id="deal_amount" placeholder="e.g., 2000" oninput="calculateRate()">
+        </div>
+
+        <div class="mb-md">
+            <label style="font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: var(--space-xs);">Days Rented</label>
+            <input type="number" id="days_rented" placeholder="e.g., 19" oninput="calculateRate()">
+        </div>
+
+        <div class="mb-lg">
+            <label style="font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: var(--space-xs);">Days in the Month</label>
+            <select id="days_in_month" onchange="calculateRate()">
+                <option value="31">31 Days (Jan, Mar, May, Jul, Aug, Oct, Dec)</option>
+                <option value="30">30 Days (Apr, Jun, Sep, Nov)</option>
+                <option value="28">28 Days (Feb)</option>
+                <option value="29">29 Days (Feb Leap Year)</option>
+            </select>
+            <small style="color: var(--text-tertiary); display: block; margin-top: var(--space-xs);">
+                Select the month where the majority of this rental takes place.
+            </small>
+        </div>
+
+        <div style="background: var(--surface); padding: var(--space-lg); border-radius: var(--radius-md); text-align: center; border: 1px dashed var(--primary-light);">
+            <h4 style="margin: 0; color: var(--text-primary); font-weight: 500;">Enter this in 'Payment Amount':</h4>
+            <div style="font-size: 32px; font-weight: 700; color: var(--primary); margin-top: var(--space-sm);">
+                ₹ <span id="result">0.00</span>
+            </div>
+        </div>
+        
+        <button onclick="copyResult()" style="margin-top: var(--space-lg); width: 100%;">Copy Value</button>
+    </form>
+</div>
+
+<script>
+    function calculateRate() {
+        const dealAmount = parseFloat(document.getElementById('deal_amount').value) || 0;
+        const daysRented = parseInt(document.getElementById('days_rented').value) || 0;
+        const daysInMonth = parseInt(document.getElementById('days_in_month').value) || 31;
+
+        if (daysRented > 0 && dealAmount > 0) {
+            const equivalentMonthlyRate = (dealAmount * daysInMonth) / daysRented;
+            document.getElementById('result').innerText = equivalentMonthlyRate.toFixed(2);
+        } else {
+            document.getElementById('result').innerText = "0.00";
+        }
+    }
+
+    function copyResult() {
+        const val = document.getElementById('result').innerText;
+        if(val !== "0.00") {
+            navigator.clipboard.writeText(val);
+            // Change button text temporarily for visual feedback
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "Copied ✓";
+            btn.style.background = "var(--success)";
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = ""; // Resets to CSS default
+            }, 2000);
+        }
+    }
+</script>
+{% endblock %}

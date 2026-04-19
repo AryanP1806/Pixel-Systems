@@ -51,35 +51,31 @@ def calculate_rental_revenue(rental_start, rental_end, monthly_payment):
     return round(total_revenue, 2)
 
 
-import logging
-from datetime import datetime
-from django.conf import settings
-import os
 
-# Define log directory
-LOG_DIR = os.path.join(settings.BASE_DIR, 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)
+# utils.py or top of views.py
 
-# Configure logger
-logger = logging.getLogger('site_logger')
-logger.setLevel(logging.INFO)
-
-# Log file with date
-log_file = os.path.join(LOG_DIR, f"site_{datetime.now().strftime('%Y-%m-%d')}.log")
-file_handler = logging.FileHandler(log_file)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-
-if not logger.handlers:
-    logger.addHandler(file_handler)
-
-def log_action(user, action, obj_type, obj_id=None, extra=None):
+def get_changed_fields(old_obj, new_obj):
     """
-    Record user actions or system events.
+    Compares two model instances and returns a list of changes.
     """
-    message = f"User: {user.username if user else 'System'} | Action: {action} | Object: {obj_type}"
-    if obj_id:
-        message += f" | ID: {obj_id}" 
-    if extra:
-        message += f" | Details: {extra}"
-    logger.info(message)
+    changes = []
+    # Loop through all fields in the model
+    for field in old_obj._meta.fields:
+        field_name = field.name
+        
+        # Skip internal fields
+        if field_name in ['edited_at', 'edited_by', 'last_login', 'password']:
+            continue
+
+        try:
+            old_val = getattr(old_obj, field_name)
+            new_val = getattr(new_obj, field_name)
+
+            if old_val != new_val:
+                verbose_name = field.verbose_name.title() # Get readable name (e.g. "Phone Number")
+                # changes.append(f"{verbose_name}: '{old_val}' → '{new_val}'")
+                changes.append(f"{verbose_name}: '{old_val}' -> '{new_val}'")
+        except Exception:
+            continue
+            
+    return changes
